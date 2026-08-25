@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.DS_Store
+node_modules/
+
+# vendor/ is intentionally NOT ignored. Organization marketplace sync resolves
+# relative paths out of this repository, so vendored plugins must be committed.
+.pr-body.md

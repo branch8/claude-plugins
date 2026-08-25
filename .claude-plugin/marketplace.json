@@ -1,0 +1,20 @@
+{
+  "name": "branch8",
+  "owner": {
+    "name": "Branch8",
+    "email": "glenn@branch8.com"
+  },
+  "metadata": {
+    "description": "Curated Claude plugins for Branch8. Only plugins with no Anthropic-listed equivalent live here - everything Anthropic already ships is enabled from the official marketplace instead. Third-party code is vendored under vendor/ at a pinned commit.",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "ui-ux-pro-max",
+      "source": "./vendor/ui-ux-pro-max",
+      "description": "UI/UX design intelligence: searchable local database of styles, palettes, font pairings, chart types and per-stack guidelines. Vendored from nextlevelbuilder/ui-ux-pro-max-skill - do not edit by hand, run scripts/vendor.py.",
+      "category": "design",
+      "keywords": ["ui", "ux", "design", "vendored"]
+    }
+  ]
+}

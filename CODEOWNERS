@@ -1,0 +1,30 @@
+# Use TEAM handles (@Branch8/team-name), never individual usernames.
+#
+# An individual owner is a single point of failure twice over: reviews stall when
+# they are on leave, and their departure silently removes the required reviewer
+# from every rule below. A team survives both.
+#
+# Each team here should have at least two members.
+#
+# ⚠ BEFORE THIS FILE DOES ANYTHING: the teams below must actually exist under the
+# Branch8 organization on GitHub. A CODEOWNERS rule naming a non-existent team is
+# not an error - GitHub silently applies no rule at all, so PRs merge with no
+# required review while the file looks like it is protecting you. Create the teams
+# first, then confirm on a test PR that the reviewer is auto-requested.
+
+*                   @Branch8/platform-team
+
+# Third-party code gets a second pair of eyes. These diffs are the whole point
+# of vendoring - do not let them merge on autopilot.
+/vendor/            @Branch8/platform-team @Branch8/security
+/vendor.lock.json   @Branch8/platform-team @Branch8/security
+
+# The automation itself. Whoever can change these can change what ships to
+# everyone, so hold them to the same bar as the plugins.
+/.github/           @Branch8/platform-team
+/scripts/           @Branch8/platform-team
+
+# The distribution list and the Claude Code managed-settings payload. Changing
+# either changes what every colleague's agent loads.
+/.claude-plugin/       @Branch8/platform-team
+/managed-settings.json @Branch8/platform-team

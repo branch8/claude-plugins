@@ -1,0 +1,102 @@
+name: vendor-update
+
+# Weekly: check every vendored plugin for upstream changes, re-vendor, bump
+# versions, and open a pull request. A human merges it - nothing reaches the
+# organization without review.
+
+on:
+  schedule:
+    - cron: "0 1 * * 1"      # Mondays 01:00 UTC (09:00 Taipei)
+  workflow_dispatch:
+    inputs:
+      only:
+        description: "Update a single plugin (leave blank for all)"
+        required: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure git
+        run: |
+          git config user.name "claude-plugins-bot"
+          git config user.email "claude-plugins-bot@users.noreply.github.com"
+
+      - name: Re-vendor and bump versions
+        id: update
+        run: |
+          ARGS=""
+          if [ -n "${{ inputs.only }}" ]; then ARGS="--only ${{ inputs.only }}"; fi
+          python3 scripts/auto_update.py $ARGS
+          if git diff --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Runs here rather than on the PR: pull requests opened with GITHUB_TOKEN do
+      # not trigger other workflows, so validate.yml would never fire on this branch.
+      - name: Validate before opening the PR
+        if: steps.update.outputs.changed == 'true'
+        run: python3 scripts/validate.py
+
+      - name: Open pull request
+        if: steps.update.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH="vendor-update/$(date +%Y-%m-%d)"
+
+          # Reuse the branch if last week's PR is still open, so review comments survive.
+          git checkout -B "$BRANCH"
+          git add -A ':!.pr-body.md'
+          git commit -m "chore(vendor): sync third-party plugins" -m "$(cat .pr-body.md)"
+          git push --force-with-lease origin "$BRANCH"
+
+          EXISTING=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number')
+          if [ -n "$EXISTING" ]; then
+            gh pr edit "$EXISTING" --body-file .pr-body.md
+            echo "Updated existing PR #$EXISTING"
+          else
+            gh pr create \
+              --title "chore(vendor): sync third-party plugins" \
+              --body-file .pr-body.md \
+              --label vendor \
+              --base "${{ github.event.repository.default_branch }}" \
+              --head "$BRANCH"
+          fi
+
+      # A silently broken scheduled job is worse than no job: the team assumes
+      # updates are happening. Surface it where somebody will trip over it.
+      - name: Raise an issue if this run failed
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          EXISTING=$(gh issue list --label automation-failure --state open \
+            --json number --jq '.[0].number')
+          printf '%s\n' \
+            "The scheduled vendor-update run failed." \
+            "" \
+            "Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            "" \
+            "Until this is fixed, third-party plugins are not being updated." \
+            "Nothing is broken for users - they keep the last reviewed version -" \
+            "but the pipeline is not doing its job." \
+            > fail.md
+
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --body-file fail.md
+          else
+            gh issue create \
+              --title "vendor-update workflow is failing" \
+              --label automation-failure \
+              --body-file fail.md
+          fi

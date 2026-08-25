@@ -1,0 +1,73 @@
+name: automation-health
+
+# The automation itself needs a heartbeat. Two failure modes this catches:
+#
+# 1. GitHub disables scheduled workflows in repositories with no activity for
+#    ~60 days. A repo whose only traffic is an occasional bot PR can cross that
+#    line silently - and then nothing runs, with no error anywhere.
+# 2. A vendor PR nobody reviews. The pipeline is "working" and still shipping
+#    nothing, which looks identical to "no upstream changes" from the outside.
+
+on:
+  schedule:
+    - cron: "0 2 1 * *"     # 1st of each month, 02:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  heartbeat:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write heartbeat
+        run: |
+          git config user.name "claude-plugins-bot"
+          git config user.email "claude-plugins-bot@users.noreply.github.com"
+          date -u +"%Y-%m-%dT%H:%M:%SZ" > .github/heartbeat
+          git add .github/heartbeat
+          git commit -m "chore: automation heartbeat" || exit 0
+          git push
+
+  stale-reviews:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Escalate vendor PRs nobody has reviewed
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          CUTOFF=$(date -u -d '14 days ago' +%Y-%m-%dT%H:%M:%SZ)
+          STALE=$(gh pr list --label vendor --state open \
+            --json number,title,createdAt,url \
+            --jq "[.[] | select(.createdAt < \"$CUTOFF\")]")
+
+          if [ "$(echo "$STALE" | jq 'length')" -eq 0 ]; then
+            echo "No stale vendor PRs."
+            exit 0
+          fi
+
+          BODY=$(echo "$STALE" | jq -r '.[] | "- \(.url) (opened \(.createdAt))"')
+
+          # printf rather than a heredoc: a heredoc terminator must sit at column 0,
+          # which would break out of this YAML block scalar.
+          printf '%s\n' \
+            "These have been open for over 14 days. Third-party plugins drift" \
+            "further behind with every week that passes, which makes each review" \
+            "larger and harder than the last." \
+            "" \
+            "$BODY" \
+            "" \
+            "If nobody has capacity to review these, that is worth knowing now -" \
+            "it may mean vendoring fewer plugins rather than growing the queue." \
+            > issue.md
+
+          gh issue create \
+            --title "Vendor update PRs are waiting for review" \
+            --label vendor \
+            --body-file issue.md

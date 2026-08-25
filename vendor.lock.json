@@ -1,0 +1,23 @@
+{
+  "$comment": [
+    "Pinned third-party plugin sources. Every entry is copied into vendor/<dest> by scripts/vendor.py.",
+    "ref MUST be a full 40-char commit SHA, never a branch name. A branch means the content can",
+    "change under you between two syncs without anyone reviewing the diff.",
+    "To bump: run `python3 scripts/vendor.py --check` to see what moved upstream, then edit `ref`",
+    "here, run `python3 scripts/vendor.py`, and open a PR. The PR diff IS the review.",
+    "",
+    "Only plugins with no Anthropic-listed equivalent belong here. Anything on the official",
+    "marketplace is already CI-pinned by Anthropic and is enabled via enabledPlugins instead -",
+    "see decision 3 in CLAUDE.md."
+  ],
+  "sources": [
+    {
+      "dest": "ui-ux-pro-max",
+      "repo": "https://github.com/nextlevelbuilder/ui-ux-pro-max-skill.git",
+      "ref": "4857a2c5ef989794751a0f66b8545a4a49566286",
+      "subdir": ".",
+      "license": "MIT",
+      "notes": "Plugin root is the repo root; manifest at .claude-plugin/plugin.json, skills under .claude/skills/. Pinned to v2.11.0 - the build already in production use. Upstream is at v2.13.0 (c87cdc22); the weekly bot will open that as a reviewable PR."
+    }
+  ]
+}

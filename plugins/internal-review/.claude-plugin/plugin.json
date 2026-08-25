@@ -1,0 +1,8 @@
+{
+  "name": "internal-review",
+  "displayName": "Internal Code Review",
+  "version": "0.1.0",
+  "description": "Our PR review conventions, severity rubric and comment templates.",
+  "author": { "name": "Platform Team", "email": "platform@your-org.com" },
+  "keywords": ["review", "quality", "internal"]
+}
