@@ -11,10 +11,13 @@
 
 分發到兩個地方，兩邊指向同一個 repo：
 
-| 管道 | 涵蓋 | 設定位置 |
-|---|---|---|
-| 組織 marketplace | chat（網頁、手機、桌面 App 的 Chat 分頁）、Cowork | Organization settings › Plugins |
-| managed settings | Claude Code（CLI、IDE） | Admin Settings › Claude Code › Managed settings |
+| 管道 | 涵蓋 | 設定位置 | repo 可見性要求 |
+|---|---|---|---|
+| 組織 marketplace | chat（網頁、手機、桌面 App 的 Chat 分頁）、Cowork | Organization settings › Plugins | **必須 private / internal** |
+| managed settings | Claude Code（CLI、IDE） | Admin Settings › Claude Code › Managed settings | **無限制**（目前走這條，repo 是 public） |
+
+⚠️ 這兩條管道的可見性要求**相反**，別把其中一條的限制當成整個 repo 的限制——
+這正是 2026-08-26 差點做錯決定的地方，見決策 7。
 
 ---
 
@@ -105,6 +108,36 @@ PAT 會過期，也會跟著離職的人消失。代價是機器人開的 PR 不
 
 ---
 
+### 7. repo 設 public，因為目前只走 Claude Code 那條管道
+
+**2026-08-26 決定，起因是同事的 Claude Code 報 `Failed to clone marketplace
+repository: fatal: unable to get password from user`。**
+
+兩條管道的官方要求是相反的，這點極容易搞混：
+
+| 管道 | 官方原文 |
+|---|---|
+| `extraKnownMarketplaces`（Claude Code） | 沒有可見性要求；明言支援 private repo，認證走**同事自己的** git credential helper |
+| Organization settings › Plugins | *"Your repository must be private or internal—public repos aren't allowed for organization marketplaces."* |
+
+private 時 Claude Code 端有三個閘門，同事全卡：**repo 讀取權**（原本只有 2 個
+collaborator）、**git 憑證**（同事機器沒有 helper）、**背景自動更新**。
+
+第三個是地雷：Claude Code 背景更新會強制清空 credential helper
+（`gate("tengu_plugin_autoupdate_allow_credential_helper", false)` → 預設 false →
+`["-c","credential.helper="]`），所以 **private repo 上的 `autoUpdate: true`
+是無效設定**。官方文件也承認這點。改 public 後三個閘門一次消失，已實測：
+無憑證 clone 成功、背景更新的 fetch 也成功。
+
+**代價**：要上 chat / Cowork 就得改回 private（或另開一個 private repo 專供那邊）。
+公開過的內容收不回，所以這個 repo 不放任何機密——目前只有 marketplace.json、
+MIT 授權的 vendored 程式碼、維護腳本、文件。已掃描確認無硬編碼密鑰。
+
+**改回 private 的話**：每位同事要跑一次 `gh auth login`，並接受背景更新失效
+（靠手動 `/plugin marketplace update branch8`）。
+
+---
+
 ## 檔案地圖
 
 ```
@@ -154,7 +187,8 @@ Claude 後台，repo 這邊改不了。
       都只存在於 Team/Enterprise。個人方案自動建立的「<email>'s Organization」
       即使 role 是 admin 也沒有這兩頁——role 名稱相同不代表層級相同。
       **這是整套設計唯一還沒驗證的前提，其他事都建立在它之上。**
-- [ ] repo 推到 `branch8/claude-plugins`，可見性設 private
+- [x] repo 已推到 `branch8/claude-plugins`，**可見性設 public**（見決策 7；
+      要上 chat / Cowork 時才需要改回 private）
 - [ ] `@Branch8/platform-team` 與 `@Branch8/security` 兩個 team 要先在 GitHub 建出來
       → team 不存在時 GitHub 不報錯，整條 CODEOWNERS 規則靜默失效
 - [ ] 決定 `plugins/internal-review` 留著改還是刪掉（目前未列入發送清單）

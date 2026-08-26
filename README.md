@@ -4,7 +4,15 @@
 
 同事不需要安裝任何東西，也不需要手動更新。
 
-> ⚠️ 這個 repo 必須設成 **private 或 internal**。公開的 repo 沒辦法接到組織後台。
+> ⚠️ **可見性要求取決於你走哪條發送管道，兩者相反：**
+>
+> | 管道 | 可見性要求 | 認證方式 |
+> |---|---|---|
+> | `managed-settings.json`（Claude Code CLI / IDE） | **無限制，public 可以** | 同事自己的 git credential helper |
+> | Organization settings › Plugins（chat / Cowork） | **必須 private / internal** | Claude GitHub App，不碰同事憑證 |
+>
+> 這個 repo 目前是 **public**，因為只走 Claude Code 那條。理由見
+> [為什麼目前是 public](#為什麼目前是-public)。
 
 ---
 
@@ -20,7 +28,8 @@
 7. [第三方 plugin 怎麼管](#第三方-plugin-怎麼管)
 8. [不依賴任何個人](#不依賴任何個人)
 9. [排查](#排查)
-10. [限制與已知問題](#限制與已知問題)
+10. [為什麼目前是 public](#為什麼目前是-public)
+11. [限制與已知問題](#限制與已知問題)
 
 ---
 
@@ -443,11 +452,59 @@ plugin 根目錄不在最上層。去 GitHub 看實際結構，把 `subdir` 設�
 
 ---
 
+## 為什麼目前是 public
+
+**2026-08-26 實測後的決定。** 官方對兩條管道的要求是相反的：
+
+- `managed-settings.json` 的 `extraKnownMarketplaces`（Claude Code）——官方文件**沒有**
+  可見性要求，並明言支援 private repo。
+- Organization settings › Plugins（chat / Cowork）——官方原文：
+  *"Your repository must be private or internal—public repos aren't allowed for
+  organization marketplaces."*
+
+只要還沒設 chat 那一側，public 就沒有壞處，而且**一次解掉三個閘門**：
+
+| 閘門 | private 時 | public 後 |
+|---|---|---|
+| repo 讀取權 | 每個同事都要被加進 repo | 不需要 |
+| git 憑證 | 每人要 `gh auth login`，漏掉的人只看到「contact your admin」 | 不需要 |
+| 背景自動更新 | **必定失敗**（見下） | 正常運作 |
+
+### private + Claude Code 的隱藏地雷
+
+Claude Code 的背景自動更新會**強制清空 credential helper** 再 `git fetch`：
+
+```js
+let allow = gate("tengu_plugin_autoupdate_allow_credential_helper", false);  // 預設 false
+refresh(mp, { disableCredentialHelper: !allow });   // → ["-c", "credential.helper="]
+```
+
+官方文件也承認：*"the background refresh disables git credential helpers for its
+`git pull`, so the pull can't authenticate to private repositories over HTTPS even
+when a helper is configured."*
+
+也就是說 **private repo 上的 `autoUpdate: true` 是無效設定**——初次安裝和手動
+`/plugin marketplace update` 會成功（那條路徑有用 helper），但之後永遠不會自動更新。
+
+### 之後要上 chat / Cowork 怎麼辦
+
+兩個選項，屆時再決定：
+
+1. 改回 private，並讓每位同事跑一次 `gh auth login`（接受背景更新失效，靠手動
+   `/plugin marketplace update branch8`）
+2. 另開一個 private repo 專供組織 marketplace，本 repo 繼續服務 Claude Code
+
+改回 private 只要 `gh repo edit branch8/claude-plugins --visibility private`，
+但**公開過的內容收不回**（可能已被 fork 或索引）——所以這裡不放任何機密。
+目前 repo 內容：`marketplace.json`、MIT 授權的 vendored 程式碼、維護腳本、本文件。
+
+---
+
 ## 限制與已知問題
 
 | 項目 | 數字 |
 |---|---|
-| repo 可見性 | 只能 private / internal |
+| repo 可見性 | Claude Code 端無限制；組織 marketplace（chat / Cowork）只能 private / internal |
 | 每個 marketplace 的 plugin 上限 | 500 |
 | plugin 名稱 | 小寫加連字號，64 字以內 |
 | 同步逾時 | 30 分鐘 |
