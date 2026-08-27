@@ -1,0 +1,17 @@
+{
+  "$comment": [
+    "OPTIONAL. Rename to .mcp.json only if this plugin ships an MCP server.",
+    "Most plugins do not need one - delete this file if yours does not.",
+    "",
+    "Two transport kinds, with very different review bars:",
+    "  http / sse -> just a URL. Low risk.",
+    "  stdio      -> runs an executable on every colleague's machine. Review this",
+    "                to the same standard as vendored third-party code."
+  ],
+  "mcpServers": {
+    "example-http-server": {
+      "type": "http",
+      "url": "https://mcp.example.com/endpoint"
+    }
+  }
+}

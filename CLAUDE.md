@@ -145,6 +145,9 @@ MIT 授權的 vendored 程式碼、維護腳本、文件。已掃描確認無硬
 managed-settings.json             Claude Code 那一側的清單（官方 6 個 + vendored 1 個）
                                   這兩份是不同的東西，別互相複製
 plugins/                          自己寫的 plugin（目前只有未啟用的 internal-review 範例）
+template/plugin-template/         開發新 plugin 的起點。刻意不列入 marketplace.json，
+                                  所以不會被發送、也不會被 validate 檢查
+                                  validate.py 會擋住把 ./template/ 當 source 的 entry
 vendor/ui-ux-pro-max/             第三方，腳本產生，不要手改
 vendor.lock.json                  第三方的 repo 與 commit SHA
 scripts/

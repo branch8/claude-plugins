@@ -25,11 +25,12 @@
 4. [日常操作](#日常操作)
 5. [全自動模式](#全自動模式)
 6. [首次設定](#首次設定)
-7. [第三方 plugin 怎麼管](#第三方-plugin-怎麼管)
-8. [不依賴任何個人](#不依賴任何個人)
-9. [排查](#排查)
-10. [為什麼目前是 public](#為什麼目前是-public)
-11. [限制與已知問題](#限制與已知問題)
+7. [開發自訂 plugin](#開發自訂-plugin)
+8. [第三方 plugin 怎麼管](#第三方-plugin-怎麼管)
+9. [不依賴任何個人](#不依賴任何個人)
+10. [排查](#排查)
+11. [為什麼目前是 public](#為什麼目前是-public)
+12. [限制與已知問題](#限制與已知問題)
 
 ---
 
@@ -105,6 +106,9 @@ managed-settings.json       貼到 Admin Settings › Claude Code › Managed se
 plugins/
   internal-review/          範例 plugin，目前未列入發送清單。要用就改內容並加進
                             marketplace.json；不用就整個刪掉
+template/
+  plugin-template/          開發新 plugin 的起點，複製到 plugins/ 再改
+                            沒列在 marketplace.json，所以永遠不會被發送
 vendor/
   ui-ux-pro-max/            第三方，腳本產生，不要手改
 vendor.lock.json            記錄每個第三方鎖在哪個 commit
@@ -346,6 +350,91 @@ chat 那邊是完全無感自動裝好；Claude Code 那邊會跳一次資料夾
 這是刻意的，因為 plugin 可以在本機執行程式碼。
 
 **先設一邊、跑順了再補另一邊也完全沒問題**，兩邊沒有依賴關係。
+
+---
+
+## 開發自訂 plugin
+
+從 `template/plugin-template/` 複製，不要從零開始：
+
+```bash
+cp -r template/plugin-template plugins/你的plugin名
+```
+
+然後改三個地方——**這三處的名字必須完全一致**：
+
+| 檔案 | 改什麼 |
+|---|---|
+| `plugins/你的plugin名/.claude-plugin/plugin.json` | `name`、`version`、`description` |
+| `.claude-plugin/marketplace.json` | 加一筆 `{ "name": "...", "source": "./plugins/..." }` |
+| `managed-settings.json` | `enabledPlugins` 加一行 `"你的plugin名@branch8": true` |
+
+`python3 scripts/validate.py` → 開 PR → 合併 → 全公司拿到。
+
+細節（`description` 怎麼寫才會觸發、複製後的完整 checklist、validate 會擋什麼）
+見 [`template/README.md`](template/README.md)。
+
+### 一個 plugin 可以同時裝很多東西
+
+不用為了 skill 和 command 開兩個 plugin：
+
+```
+plugins/你的plugin名/
+  .claude-plugin/plugin.json
+  skills/xxx/SKILL.md        技能
+  commands/yyy.md            slash command
+  agents/zzz.md              subagent
+  .mcp.json                  MCP server
+```
+
+用不到的目錄直接刪掉。`validate.py` 只要求至少有其中一種。
+
+**MCP 的審查標準要分兩級**：`type: "http"` / `"sse"` 只是一個 URL，風險低；
+**`stdio` 型的會在每位同事的機器上執行程式**，這跟「第三方 plugin 能執行任意程式碼」
+是同一類風險，要用跟 vendoring 同等的標準審。
+
+### 為什麼放在這個 repo，而不是各自開 repo
+
+自家 plugin 一律用**相對路徑放在 `plugins/` 底下**（官方也是這個建議：
+*"place the plugin folders inside the marketplace repository and reference them
+with a relative path"*）。理由是維護成本與失敗成本都最低——一個 PR 看得到全部改動，
+不需要在兩個 repo 之間同步版本。
+
+**不要用 git submodule。** 官方文件對組織同步的 submodule 支援**完全沒有敘述**。
+Claude Code 那側的 clone 確實帶 `--recurse-submodules`，但組織同步走的是
+「Claude GitHub App 打包每個 plugin」那條路，submodule 會不會被打包進去無從得知。
+用沒有文件保證的行為承載全公司分發，壞掉的時候無法歸因。
+
+**也不要對自家 code 用 `vendor/`。** vendoring 存在的理由是「上游不受我控制，
+所以要 pin 住 SHA 並逐行看 diff」（見決策 1）。自家 repo 沒有這個問題，套用只會
+讓每改一行都要走兩次 PR——摩擦大到會讓人乾脆繞過流程。`vendor/` 只留給真正的第三方。
+
+### 什麼時候才該把某個 plugin 拆出去
+
+用 `github` source 加 `sha`（決策 3 的「第 2 級」，目前腳本還不支援，要先實作）。
+觸發條件是下列之一，**不是「plugin 變多了」**：
+
+1. 那個 plugin 開始有 repo 外的 contributor
+2. 它需要自己的 CI / release cycle，跟 marketplace 的節奏脫鉤
+3. 它大到讓 marketplace repo 的 clone 明顯變慢
+
+而且是拆**那一個**，不是全部拆。
+
+### repo 是 public，所以有內容邊界
+
+放進 `plugins/` 的東西就是公開的。含公司業務邏輯的 plugin（談判立場、客戶專屬流程、
+內部定價規則）**不能走這條路**。
+
+那種的路徑是「同 owner 的 private repo + `github` source」——組織同步官方明文支援
+（*"A github.com source that shares the marketplace repository's owner"*）。
+但 Claude Code 那側仍需同事的 git 憑證，因為要取得 plugin 內容就得 clone 那個
+private repo。
+
+| plugin 性質 | 放哪 | Claude Code 端 |
+|---|---|---|
+| 通用方法論、工具、設計規範 | `plugins/`（public） | 零設定 |
+| 含公司業務邏輯 | 同 owner 的 private repo + `github` source | 同事要 `gh auth login` |
+| 真正的第三方 | `vendor/` + pin SHA | 零設定 |
 
 ---
 

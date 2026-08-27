@@ -12,6 +12,7 @@ Checks:
   5. plugin names are lowercase-hyphen and <= 64 chars
   6. plugin count is within the 500-per-marketplace sync limit
   7. vendored plugins match a vendor.lock.json entry
+  8. no plugin ships straight out of template/
 
 Usage: python3 scripts/validate.py
 """
@@ -127,13 +128,23 @@ def main() -> int:
         source = entry.get("source")
         if not isinstance(source, str):
             error(
-                f"{label}: source must be a relative path string. Object sources "
-                "(github/url/git-subdir/npm/pip) are not supported by organization "
-                "sync for private repos - vendor the plugin instead."
+                f"{label}: source must be a relative path string. Organization sync "
+                "does accept github/url/git-subdir sources, but this repo ships "
+                "first-party plugins from ./plugins/ on purpose - see 'Why they live "
+                "in this repo' in README.md. Splitting one out needs lock-file "
+                "support for SHA-only entries first. npm/archive/command sources are "
+                "rejected by organization sync outright."
             )
             continue
         if not source.startswith("./"):
             error(f"{label}: source '{source}' must be a relative path like ./plugins/x")
+            continue
+        if source.startswith("./template/"):
+            error(
+                f"{label}: source '{source}' points into template/, which holds the "
+                "starting skeleton for new plugins and must never ship. Copy it to "
+                "plugins/<name>/ and rename it there instead."
+            )
             continue
 
         plugin_dir = (REPO_ROOT / source).resolve()

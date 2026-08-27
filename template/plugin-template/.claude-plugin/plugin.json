@@ -1,0 +1,10 @@
+{
+  "name": "plugin-template",
+  "displayName": "Plugin Template - DO NOT SHIP",
+  "version": "0.0.0",
+  "description": "TEMPLATE ONLY. Copy this directory into plugins/, rename it, and change every field here before use. Deliberately absent from marketplace.json, so it is never distributed.",
+  "author": {
+    "name": "Branch8"
+  },
+  "keywords": ["template"]
+}
