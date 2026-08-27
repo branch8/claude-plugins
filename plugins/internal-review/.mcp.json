@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "internal-docs": {
-      "type": "http",
-      "url": "https://mcp.your-org.com/docs"
-    }
-  }
-}
