@@ -1,0 +1,17 @@
+{
+  "description": "Inject the Branch8 Jira workflow (connection check, per-project board, ticket per task) at session start. Set BRANCH8_JIRA_CHECK=off to skip it.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}
