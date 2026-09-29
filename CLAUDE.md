@@ -142,9 +142,13 @@ MIT 授權的 vendored 程式碼、維護腳本、文件。已掃描確認無硬
 
 ```
 .claude-plugin/marketplace.json   發送清單，只放「官方沒上架」的 plugin
-managed-settings.json             Claude Code 那一側的清單（官方 6 個 + vendored 1 個）
+managed-settings.json             Claude Code 那一側的清單（官方 6 個 + vendored 1 個 + 自家 1 個）
                                   這兩份是不同的東西，別互相複製
-plugins/                          自己寫的 plugin（目前只有未啟用的 internal-review 範例）
+plugins/                          自己寫的 plugin。目前只有 branch8-jira-check：
+                                  SessionStart hook 只負責注入指示，實際檢查由 Claude 在第一輪做
+                                  （hook 執行時 MCP 還沒連上，hook 本身無從判斷）。
+                                  專案↔Jira 板的對應存在使用者本機 ~/.claude/branch8-jira/，
+                                  刻意不寫進專案 repo，免得被 commit 出去
 template/plugin-template/         開發新 plugin 的起點。刻意不列入 marketplace.json，
                                   所以不會被發送、也不會被 validate 檢查
                                   validate.py 會擋住把 ./template/ 當 source 的 entry
@@ -194,7 +198,7 @@ Claude 後台，repo 這邊改不了。
       要上 chat / Cowork 時才需要改回 private）
 - [ ] `@Branch8/platform-team` 與 `@Branch8/security` 兩個 team 要先在 GitHub 建出來
       → team 不存在時 GitHub 不報錯，整條 CODEOWNERS 規則靜默失效
-- [ ] 決定 `plugins/internal-review` 留著改還是刪掉（目前未列入發送清單）
+- [x] `plugins/internal-review` 已刪除（ff522e1）
 - [ ] 驗證：開啟自動同步的人若離職，同步會不會斷掉（**未知，需實測**）
 
 ### 已知但尚未處理的缺陷

@@ -1,0 +1,16 @@
+{
+  "name": "branch8-jira-check",
+  "displayName": "Branch8 Jira Connection Check",
+  "version": "1.0.0",
+  "description": "At every Claude Code session start: checks whether Jira (Atlassian MCP) is connected and offers to connect; asks once per project which Jira board it uses and records it locally; asks for a Jira ticket on each new task and creates one in that board if there is none. Adds /jira-check and /jira-board.",
+  "author": {
+    "name": "Branch8"
+  },
+  "keywords": [
+    "jira",
+    "atlassian",
+    "session-start",
+    "hook",
+    "ticket"
+  ]
+}

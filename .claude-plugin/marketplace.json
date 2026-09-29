@@ -15,6 +15,13 @@
       "description": "UI/UX design intelligence: searchable local database of styles, palettes, font pairings, chart types and per-stack guidelines. Vendored from nextlevelbuilder/ui-ux-pro-max-skill - do not edit by hand, run scripts/vendor.py.",
       "category": "design",
       "keywords": ["ui", "ux", "design", "vendored"]
+    },
+    {
+      "name": "branch8-jira-check",
+      "source": "./plugins/branch8-jira-check",
+      "description": "Session-start Jira workflow: checks the Atlassian MCP connection and offers to connect, records each project's Jira board locally, and asks for (or creates) a Jira ticket for every new task. Adds /jira-check and /jira-board.",
+      "category": "productivity",
+      "keywords": ["jira", "atlassian", "hook"]
     }
   ]
 }
