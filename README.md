@@ -104,11 +104,12 @@ repo 裡有兩種東西：
 managed-settings.json       貼到 Admin Settings › Claude Code › Managed settings 的內容
                             官方那 6 個是在這裡用 @claude-plugins-official 引用
 plugins/
-  branch8-jira-check/       SessionStart hook：檢查 Jira 有沒有連上（沒有就問要不要連線）、
-                            每個專案問一次對應哪個 Jira 板並記在本機
-                            ~/.claude/branch8-jira/projects/、新任務先問有沒有 Jira 單，
-                            沒有就在該板建立。另有 /jira-check、/jira-board。
-                            整個關掉：設 BRANCH8_JIRA_CHECK=off
+  branch8-jira-check/       SessionStart hook：顯示當下的 Claude 帳號（個人帳號碰公司專案
+                            會警告）、檢查 Jira 連線與 Jira 帳號、每個專案問一次對應哪個
+                            Jira 板並記在本機 ~/.claude/branch8-jira/projects/、新任務先問
+                            有沒有 Jira 單，沒有就在該板建立。另有 /jira-check、/jira-board。
+                            公司設定值（組織 ID、Jira 站台、email 網域、公司 git remote）
+                            在 config.env；整個關掉：設 BRANCH8_JIRA_CHECK=off
 template/
   plugin-template/          開發新 plugin 的起點，複製到 plugins/ 再改
                             沒列在 marketplace.json，所以永遠不會被發送

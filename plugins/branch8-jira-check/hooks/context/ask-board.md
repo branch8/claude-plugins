@@ -27,6 +27,7 @@ only then), ask the user once which Jira project/board this project uses:
      "projectName": "<Jira project name>",
      "board": "<board name, if the user named one>",
      "defaultIssueType": "Task",
+     "company": true,
      "recordedAt": "<YYYY-MM-DD>"
    }
    ```

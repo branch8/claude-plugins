@@ -2,7 +2,7 @@
   "name": "branch8-jira-check",
   "displayName": "Branch8 Jira Connection Check",
   "version": "1.1.0",
-  "description": "At every Claude Code session start: checks whether Jira (Atlassian MCP) is connected and offers to connect; asks once per project which Jira board it uses and records it locally; asks for a Jira ticket on each new task and creates one in that board if there is none. Adds /jira-check and /jira-board.",
+  "description": "At every Claude Code session start: shows which Claude account the session uses and warns when a non-organisation account works on a company project; checks the Jira connection and Jira account; asks once per project which Jira board it uses and records it locally; asks for a Jira ticket on each new task and creates one if there is none. Settings in config.env. Adds /jira-check and /jira-board.",
   "author": {
     "name": "Branch8"
   },

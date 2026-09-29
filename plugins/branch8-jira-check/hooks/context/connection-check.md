@@ -10,8 +10,8 @@ before or alongside whatever the user asked for.
    ToolSearch (query "atlassian jira"); it waits for servers still connecting.
 2. If a read-only tool such as `getAccessibleAtlassianResources` or
    `atlassianUserInfo` exists, call it once.
-   - It succeeds: Jira is connected. Do not announce it; at most one short
-     line, and only if the user asked about status. Carry on.
+   - It succeeds: Jira is connected. Do not announce it on its own (Step 0
+     shows the account line where one is required). Carry on.
    - It fails with an auth error, only an `authenticate` tool exists for the
      server, or no Atlassian tool exists at all: Jira is NOT connected.
 3. When Jira is not connected, ask whether they want to connect now, e.g.

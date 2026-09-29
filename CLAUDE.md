@@ -148,7 +148,11 @@ plugins/                          自己寫的 plugin。目前只有 branch8-jir
                                   SessionStart hook 只負責注入指示，實際檢查由 Claude 在第一輪做
                                   （hook 執行時 MCP 還沒連上，hook 本身無從判斷）。
                                   專案↔Jira 板的對應存在使用者本機 ~/.claude/branch8-jira/，
-                                  刻意不寫進專案 repo，免得被 commit 出去
+                                  刻意不寫進專案 repo，免得被 commit 出去；放 $HOME 而不是
+                                  config dir，讓 ccs 之類的多帳號工具共用同一份。
+                                  帳號用 `claude auth status` 判斷（會跟著 CLAUDE_CONFIG_DIR）。
+                                  公司設定值在 plugin 的 config.env——不放 managed settings，
+                                  因為個人帳號收不到 managed settings；同名環境變數可覆蓋
 template/plugin-template/         開發新 plugin 的起點。刻意不列入 marketplace.json，
                                   所以不會被發送、也不會被 validate 檢查
                                   validate.py 會擋住把 ./template/ 當 source 的 entry
@@ -189,7 +193,9 @@ scripts/
 repo 內容本身已經可用（`validate.py` 0 error 0 warning）。剩下的都在 GitHub 與
 Claude 後台，repo 這邊改不了。
 
-- [ ] **先確認 Branch8 的 Claude 帳號有 Team / Enterprise 方案。** 本 repo 依賴的
+- [x] **Branch8 的 Claude 帳號是 Team 方案**（2026-09-29 `claude auth status`：
+      `orgName: Branch8`、`subscriptionType: team`、orgId `a4a2aa1a-…`）。原文：
+      **先確認 Branch8 的 Claude 帳號有 Team / Enterprise 方案。** 本 repo 依賴的
       兩個後台（Organization settings › Plugins、Admin Settings › Claude Code）
       都只存在於 Team/Enterprise。個人方案自動建立的「<email>'s Organization」
       即使 role 是 admin 也沒有這兩頁——role 名稱相同不代表層級相同。
