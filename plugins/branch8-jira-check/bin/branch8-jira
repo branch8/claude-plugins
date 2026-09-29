@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# Helper Claude calls during a session, so every path it reads or writes is
+# computed by the same code the hooks use instead of being assembled by hand.
+#
+#   branch8-jira lookup <path>       nearest Jira record for a file or folder
+#   branch8-jira record-path <dir>   where the record for exactly <dir> lives
+#   branch8-jira layout <dir>        repo / catchall / workspace / folder
+#   branch8-jira config              effective settings
+
+set -u
+. "$(cd "$(dirname "$0")/.." && pwd)/hooks/lib.sh"
+
+cmd="${1:-}"
+arg="${2:-$PWD}"
+case "$cmd" in
+  lookup)
+    if found=$(b8_lookup "$arg"); then
+      folder=${found%%$'\t'*}
+      rec=${found#*$'\t'}
+      echo "folder: $(b8_native "$folder")"
+      echo "record: $(b8_native "$rec")"
+      cat "$rec"
+      echo
+    else
+      echo "none"
+      echo "record for this folder would be: $(b8_native "$(b8_record_path "$(b8_abs "$arg")")")"
+    fi
+    ;;
+  record-path)
+    b8_native "$(b8_record_path "$(b8_abs "$arg")")"
+    echo
+    ;;
+  layout)
+    b8_layout "$arg"
+    ;;
+  config)
+    echo "BRANCH8_ORG_ID=$BRANCH8_ORG_ID"
+    echo "BRANCH8_JIRA_SITE=$BRANCH8_JIRA_SITE"
+    echo "BRANCH8_EMAIL_DOMAIN=$BRANCH8_EMAIL_DOMAIN"
+    echo "BRANCH8_COMPANY_REMOTE_RE=$BRANCH8_COMPANY_REMOTE_RE"
+    echo "BRANCH8_CONFIG_LABEL=$BRANCH8_CONFIG_LABEL"
+    echo "BRANCH8_WORKSPACE_ROOT=$(b8_native "$BRANCH8_WORKSPACE_ROOT")"
+    echo "state dir=$(b8_native "$BRANCH8_STATE_DIR")"
+    ;;
+  *)
+    sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'
+    exit 2
+    ;;
+esac

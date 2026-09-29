@@ -1,7 +1,7 @@
 ## Step 2 - every new task needs a Jira ticket
 
 Skip this step when Jira is not connected, when the user declined to connect,
-or when the mapping says `"jira": "none"`.
+or when the task's folder resolves to `"jira": "none"` or a personal project.
 
 Whenever the user starts a **new unit of work** - a feature, bug fix, change,
 refactor, or investigation they want done - ask whether it has a Jira ticket
@@ -9,11 +9,14 @@ before you start changing things. Do not ask for questions, explanations,
 small follow-ups inside a task already tied to a ticket, or when the user's
 message already names a ticket key (e.g. `WEB-123`).
 
-Ask once, as a single AskUserQuestion, e.g. 「這個任務有 Jira 單嗎？」 with
+Ask once, with the AskUserQuestion tool (a question card, not a line of text), e.g. 「這個任務有 Jira 單嗎？」 with
 options such as:
 - "I have one" - they give the key; call `getJiraIssue` to confirm it exists
   and read its summary.
-- "Create one" - create it with `createJiraIssue` in the mapped `projectKey`
+- "Create one" - create it with `createJiraIssue` in the `projectKey` of the
+  task's folder (resolved with `lookup`, see Folders). If the folder has no
+  record, or mixes several projects, put the project choice in this same card
+  (inferred project first) rather than asking separately
   (issue type `defaultIssueType`, default Task), with a short summary you
   draft from the request and a description stating the goal and scope. Show
   the summary you will use in the question itself so the user approves the
