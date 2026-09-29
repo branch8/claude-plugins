@@ -44,8 +44,8 @@ email="" org_id="" org_name="" plan="" auth_method="" api_provider=""
 # Credentials that override the claude.ai login; .claude.json may still hold
 # the old OAuth account while one of these is in use.
 non_oauth=""
-for v in ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN CLAUDE_CODE_USE_BEDROCK \
-         CLAUDE_CODE_USE_VERTEX CLAUDE_CODE_USE_FOUNDRY; do
+for v in ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN CLAUDE_CODE_OAUTH_TOKEN \
+         CLAUDE_CODE_USE_BEDROCK CLAUDE_CODE_USE_VERTEX CLAUDE_CODE_USE_FOUNDRY; do
   [ -n "${!v:-}" ] && non_oauth=$v
 done
 
@@ -163,7 +163,13 @@ case "$account" in
       banner="Claude 帳號：$who（個人帳號）"
     fi ;;
   *)
-    via="${third_party:-${api_provider:-?} / ${auth_method:-?}}"
+    if [ -n "$third_party" ]; then
+      via=$third_party
+    elif [ -n "$auth_method$api_provider" ]; then
+      via="${api_provider:-?} / ${auth_method:-?}"
+    else
+      via=${non_oauth:-unknown login}
+    fi
     banner="⚠️ 此 session 沒有使用 Branch8 組織帳號（$via）" ;;
 esac
 
