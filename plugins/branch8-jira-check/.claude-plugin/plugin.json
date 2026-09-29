@@ -1,7 +1,7 @@
 {
   "name": "branch8-jira-check",
   "displayName": "Branch8 Jira Connection Check",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "At every Claude Code session start: shows which Claude account the session uses and warns when a non-organisation account works on a company project; checks the Jira connection and Jira account; records which Jira project each folder belongs to (folders inherit the nearest record, no git needed) and suggests a dedicated folder plus migrating files when working from a catch-all folder; asks for a Jira ticket on each new task and creates one if there is none. Settings in config.env. Adds /jira-check, /jira-board and /jira-migrate.",
   "author": {
     "name": "Branch8"
