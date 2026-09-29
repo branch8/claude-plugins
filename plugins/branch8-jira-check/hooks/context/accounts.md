@@ -29,10 +29,10 @@ the account class and project facts above:
 **personal** or **other**, project **unknown**:
 - Ask once with an AskUserQuestion card: 「這是公司專案嗎？」, options
   "company project" / "personal project".
-- Record the answer in the mapping file: company -> keep or create it with
-  `"company": true` (then carry on as project **company** above); personal ->
-  write `{"projectDir": "...", "company": false}` and skip every Jira step for
-  this project from now on.
+- Record the answer for the folder (path from `record-path`): company -> keep
+  or create the record with `"company": true` (then carry on as project
+  **company** above); personal -> write `{"folder": "...", "company": false}`
+  and skip every Jira step under that folder from now on.
 
 After compaction (hook source `compact`), do not repeat a warning or question
 already answered this session.

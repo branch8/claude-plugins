@@ -107,9 +107,15 @@ plugins/
   branch8-jira-check/       SessionStart hook：顯示當下的 Claude 帳號（個人帳號碰公司專案
                             會警告）、檢查 Jira 連線與 Jira 帳號、每個專案問一次對應哪個
                             Jira 板並記在本機 ~/.claude/branch8-jira/projects/、新任務先問
-                            有沒有 Jira 單，沒有就在該板建立。另有 /jira-check、/jira-board。
-                            公司設定值（組織 ID、Jira 站台、email 網域、公司 git remote）
-                            在 config.env；整個關掉：設 BRANCH8_JIRA_CHECK=off
+                            有沒有 Jira 單，沒有就在該板建立。另有 /jira-check、/jira-board、
+                            /jira-migrate。
+                            Jira 專案是記在「資料夾」上，子資料夾繼承最近的上層記錄，
+                            所以單一 repo、多 repo 的大資料夾、沒有 git 的 PM 資料夾都適用；
+                            在家目錄 / 桌面開 session 會建議開 ~/Branch8/<KEY> 並 /cd 過去，
+                            可順便把相關檔案複製過去（migrate）。
+                            Jira 專案有哪些 repo 記在 Jira 裡的「設定單」（label claude-config）
+                            ——不放本 repo，因為專案名常含客戶名稱。
+                            公司設定值在 config.env；整個關掉：設 BRANCH8_JIRA_CHECK=off
 template/
   plugin-template/          開發新 plugin 的起點，複製到 plugins/ 再改
                             沒列在 marketplace.json，所以永遠不會被發送

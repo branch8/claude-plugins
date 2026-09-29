@@ -152,7 +152,13 @@ plugins/                          自己寫的 plugin。目前只有 branch8-jir
                                   config dir，讓 ccs 之類的多帳號工具共用同一份。
                                   帳號用 `claude auth status` 判斷（會跟著 CLAUDE_CONFIG_DIR）。
                                   公司設定值在 plugin 的 config.env——不放 managed settings，
-                                  因為個人帳號收不到 managed settings；同名環境變數可覆蓋
+                                  因為個人帳號收不到 managed settings；同名環境變數可覆蓋。
+                                  Jira 專案記在資料夾上（最近的上層記錄生效），不以 git repo
+                                  為前提——使用者不一定是 RD。路徑一律由 bin/branch8-jira 算，
+                                  hook 與 Claude 共用 hooks/lib.sh，別讓 Claude 自己拼路徑。
+                                  Jira 專案→repo 的對照放 Jira 的「設定單」：MCP 讀不到
+                                  專案的 URL / 描述欄位（2026-09-29 實測），公司也沒有 Confluence。
+                                  CwdChanged / DirectoryAdded hook 需要較新的 Claude Code
 template/plugin-template/         開發新 plugin 的起點。刻意不列入 marketplace.json，
                                   所以不會被發送、也不會被 validate 檢查
                                   validate.py 會擋住把 ./template/ 當 source 的 entry

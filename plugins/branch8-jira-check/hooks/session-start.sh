@@ -14,26 +14,15 @@
 # by side (ccs keeps one config dir per account) gets the right one per
 # session. Falls back to reading .claude.json from the config dir.
 #
-# Per-project state lives outside the project, one file per project dir, and
-# under $HOME rather than the config dir so every account shares it:
-#   ~/.claude/branch8-jira/projects/<project dir with separators replaced>.json
+# Local records map a folder to a Jira project and live under $HOME (see
+# hooks/lib.sh). A folder inherits the nearest record above it, so one repo,
+# a workspace of repos, or a PM's document folder all work the same way.
 #
 # Opt out entirely with BRANCH8_JIRA_CHECK=off.
 
 [ "$BRANCH8_JIRA_CHECK" = off ] && exit 0
 
-# Settings: config.env next to the plugin root, each overridable by an
-# environment variable of the same name (e.g. from managed settings "env").
-# Parsed as KEY=value, never sourced.
-config_file="$(dirname "$0")/../config.env"
-cfg_get() {
-  [ -f "$config_file" ] || return 0
-  sed -n "s/^$1=//p" "$config_file" | tail -1 | tr -d '\r'
-}
-: "${BRANCH8_ORG_ID:=$(cfg_get BRANCH8_ORG_ID)}"
-: "${BRANCH8_JIRA_SITE:=$(cfg_get BRANCH8_JIRA_SITE)}"
-: "${BRANCH8_EMAIL_DOMAIN:=$(cfg_get BRANCH8_EMAIL_DOMAIN)}"
-: "${BRANCH8_COMPANY_REMOTE_RE:=$(cfg_get BRANCH8_COMPANY_REMOTE_RE)}"
+. "$(dirname "$0")/lib.sh"
 
 input=$(cat)
 source_kind=startup
@@ -42,19 +31,9 @@ case "$input" in
 esac
 
 ctx="$(dirname "$0")/context"
-
-# First string value of "key" in a JSON blob. Good enough for the flat,
-# machine-written JSON this reads; not a general parser.
-jget() {
-  printf '%s' "$1" | tr -d '\n' | grep -o "\"$2\": *\"[^\"]*\"" | head -1 |
-    sed 's/^[^:]*: *"//; s/"$//'
-}
-
-# JSON string escape for the hook output (no jq on most machines).
-jesc() {
-  sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/\t/\\t/g' -e 's/\r//g' |
-    awk 'NR > 1 { printf "\\n" } { printf "%s", $0 }'
-}
+helper="$(b8_native "$BRANCH8_PLUGIN_ROOT/bin/branch8-jira")"
+jget() { b8_jget "$@"; }
+jesc() { b8_jesc; }
 
 # ---- Which Claude account is this session on? ------------------------------
 
@@ -104,29 +83,47 @@ else
   account=other
 fi
 
-# ---- Is this project company work? -----------------------------------------
+# ---- Where are we, and is it company work? --------------------------------
 
-project_dir="${CLAUDE_PROJECT_DIR:-$PWD}"
-key=$(printf '%s' "$project_dir" | sed 's#[/\\: ]#_#g; s#^_*##')
-map_posix="$HOME/.claude/branch8-jira/projects/${key:-root}.json"
-map_file="$map_posix"
-# Git Bash on Windows: hand Claude a native path its file tools can open.
-command -v cygpath >/dev/null 2>&1 && map_file=$(cygpath -w "$map_posix")
+project_dir=$(b8_abs "${CLAUDE_PROJECT_DIR:-$PWD}")
+layout_full=$(b8_layout "$project_dir")
+layout=${layout_full%%$'\n'*}
+layout_kind=${layout%% *}
+# The folder a record for this session belongs to: the repo root inside a
+# repo, otherwise the folder the session was opened in.
+if [ "$layout_kind" = repo ]; then
+  work_root=${layout#repo }
+else
+  work_root=$project_dir
+fi
 
+record_folder=""
+record_file=""
 mapping=""
-[ -f "$map_posix" ] && mapping=$(cat "$map_posix")
+if found=$(b8_lookup "$work_root"); then
+  record_folder=${found%%$'\t'*}
+  record_file=${found#*$'\t'}
+  mapping=$(cat "$record_file")
+fi
+new_record_file=$(b8_record_path "$work_root")
+
+company_remote() {
+  [ -n "$BRANCH8_COMPANY_REMOTE_RE" ] && printf '%s\n' "$1" | grep -qiE "$BRANCH8_COMPANY_REMOTE_RE"
+}
 
 if [ "$account" = org ]; then
   project=company
   project_why="organisation account: everything on it is company work"
-elif [ -n "$BRANCH8_COMPANY_REMOTE_RE" ] &&
-     git -C "$project_dir" remote -v 2>/dev/null | grep -qiE "$BRANCH8_COMPANY_REMOTE_RE"; then
+elif [ "$layout_kind" = repo ] && company_remote "$(git -C "$work_root" remote -v 2>/dev/null)"; then
   project=company
-  project_why="git remote is under github.com/branch8"
+  project_why="git remote is under the company GitHub"
+elif [ "$layout_kind" = workspace ] && company_remote "$layout_full"; then
+  project=company
+  project_why="company repos in this workspace"
 elif printf '%s' "$mapping" | grep -q '"company": *true' ||
      printf '%s' "$mapping" | grep -q '"projectKey"'; then
   project=company
-  project_why="recorded in the local mapping file"
+  project_why="recorded for $record_folder"
 elif printf '%s' "$mapping" | grep -q '"company": *false'; then
   project=personal
 else
@@ -167,8 +164,19 @@ build_context() {
   echo "- Account class: **$account** (org = the Branch8 organisation account)"
   echo "- Project: **$project**${project_why:+ ($project_why)}"
   echo "- Company Jira site: ${BRANCH8_JIRA_SITE:-not configured}; expected email domain: @${BRANCH8_EMAIL_DOMAIN:-not configured}"
-  echo "- Project directory: \`$project_dir\`"
-  echo "- Local mapping file: \`$map_file\`"
+  echo "- Session folder: \`$(b8_native "$project_dir")\`; layout: **$layout_kind**${layout#$layout_kind}"
+  if [ "$layout_kind" = workspace ]; then
+    echo "- Repos below it (path, origin):"
+    printf '%s\n' "$layout_full" | sed -n '2,$p' | sed 's/^/  - /'
+  fi
+  if [ -n "$record_file" ]; then
+    echo "- Nearest Jira record: folder \`$(b8_native "$record_folder")\`, file \`$(b8_native "$record_file")\`"
+  else
+    echo "- Nearest Jira record: none; a record for this folder goes to \`$(b8_native "$new_record_file")\`"
+  fi
+  echo "- Helper: \`bash \"$helper\" lookup <path>\` (nearest record for any path), \`record-path <dir>\`, \`layout <dir>\`, \`config\`"
+  echo "- New per-project folders go under \`$(b8_native "${BRANCH8_WORKSPACE_ROOT:-$HOME/Branch8}")/<PROJECT KEY>\`"
+  echo "- Jira config issues carry the label \`${BRANCH8_CONFIG_LABEL:-claude-config}\`"
   echo "- Hook source: $source_kind"
   echo
   cat "$ctx/accounts.md"
@@ -177,10 +185,12 @@ build_context() {
     cat "$ctx/connection-check.md"
     echo
   fi
-  echo "## This project's Jira board"
+  cat "$ctx/folders.md"
+  echo
+  echo "## This folder's Jira project"
   echo
   if printf '%s' "$mapping" | grep -q '"projectKey"\|"jira": *"none"'; then
-    echo "Mapping already recorded - use it, do not ask again:"
+    echo "Recorded for \`$(b8_native "$record_folder")\` - use it for work under that folder, do not ask again:"
     echo
     echo '```json'
     printf '%s\n' "$mapping"
@@ -189,6 +199,9 @@ build_context() {
     cat "$ctx/ask-board.md"
   fi
   echo
+  cat "$ctx/registry.md"
+  echo
+  [ "$layout_kind" != repo ] && { cat "$ctx/migrate.md"; echo; }
   cat "$ctx/task-tickets.md"
 }
 
