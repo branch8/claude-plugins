@@ -10,13 +10,15 @@ before or alongside whatever the user asked for.
    ToolSearch (query "atlassian jira"); it waits for servers still connecting.
 2. If a read-only tool such as `getAccessibleAtlassianResources` or
    `atlassianUserInfo` exists, call it once.
-   - It succeeds: Jira is connected. Say nothing about it and carry on.
+   - It succeeds: Jira is connected. Do not announce it; at most one short
+     line, and only if the user asked about status. Carry on.
    - It fails with an auth error, only an `authenticate` tool exists for the
      server, or no Atlassian tool exists at all: Jira is NOT connected.
-3. When Jira is not connected, ask the user in one short question, in the
-   language they are writing in (Branch8 usually writes Traditional Chinese),
-   whether they want to connect now, e.g. 「目前沒有連上 Jira，要現在連線嗎？」
-   Use AskUserQuestion when it is available. Then:
+3. When Jira is not connected, ask whether they want to connect now, e.g.
+   「目前沒有連上 Jira，要現在連線嗎？」, in the language they write in (Branch8
+   usually writes Traditional Chinese). Ask with the AskUserQuestion tool (a
+   question card), never as a sentence inside a longer reply - plain-text
+   questions get skipped over. Options: connect now / not this session. Then:
    - Yes, and an `authenticate` tool exists: call it and give the user the
      sign-in link it returns.
    - Yes, the server exists but has no such tool: tell them to run `/mcp`,
@@ -29,3 +31,8 @@ before or alongside whatever the user asked for.
 
 Never block or delay the user's actual request on this, and never ask when
 Jira is already connected.
+
+**Every question this plugin asks - connect, which board, which ticket - goes
+through AskUserQuestion.** If that tool is unavailable (e.g. a non-interactive
+run), put the question alone on the last line of your reply, not buried in a
+list.

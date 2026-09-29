@@ -8,9 +8,11 @@ spaces replaced by _, leading _ removed>.json` (the exact path was also given in
 this session's start-up context).
 
 1. Read that file and show the current mapping (or say none is recorded).
-2. Make sure Jira is connected (see `/jira-check`), then call
-   `getVisibleJiraProjects` and ask which project/board to use, with an option
-   for "this project does not use Jira".
+2. Make sure Jira is connected (see `/jira-check`), infer the likely project
+   from ticket keys in branch names, commit messages and earlier work, then
+   call `getVisibleJiraProjects` and ask with the AskUserQuestion tool which
+   project/board to use: the inferred one first as "(Recommended)" with its
+   evidence, up to two other candidates, and "this project does not use Jira".
 3. Overwrite the file with the same JSON shape as before:
    `projectDir`, `site`, `cloudId`, `projectKey`, `projectName`, `board`,
    `defaultIssueType`, `recordedAt` - or `{"projectDir": "...", "jira": "none"}`.

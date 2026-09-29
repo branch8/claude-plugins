@@ -9,7 +9,7 @@ before you start changing things. Do not ask for questions, explanations,
 small follow-ups inside a task already tied to a ticket, or when the user's
 message already names a ticket key (e.g. `WEB-123`).
 
-Ask once, as a single AskUserQuestion, e.g. 「這個任務有 Jira 單嗎？」 with
+Ask once, with the AskUserQuestion tool (a question card, not a line of text), e.g. 「這個任務有 Jira 單嗎？」 with
 options such as:
 - "I have one" - they give the key; call `getJiraIssue` to confirm it exists
   and read its summary.

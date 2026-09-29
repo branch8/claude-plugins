@@ -13,7 +13,7 @@ user's language.
    `atlassianUserInfo` once.
    - Success: report that Jira is connected and name the site(s) returned.
    - Auth error, only an `authenticate` tool, or no Atlassian tool: Jira is not
-     connected - ask whether to connect now.
+     connected - ask whether to connect now, with the AskUserQuestion tool.
 3. If the user wants to connect:
    - an `authenticate` tool exists: call it and hand over the sign-in link;
    - the server exists without one: run `/mcp`, choose `atlassian`, Authenticate;
