@@ -9,10 +9,12 @@
 #                      itself (connection, Jira account, board, tickets) can
 #                      only be checked by Claude, not here.
 #
-# Account: `claude auth status` resolves the login the same way Claude Code
-# does, and honours CLAUDE_CONFIG_DIR, so a tool running several accounts side
-# by side (ccs keeps one config dir per account) gets the right one per
-# session. Falls back to reading .claude.json from the config dir.
+# Account: read from .claude.json in the config dir (CLAUDE_CONFIG_DIR, so a
+# tool running several accounts side by side - ccs keeps one config dir per
+# account - gets the right one per session). That is instant; `claude auth
+# status` takes 10-30 s on some machines, longer than this hook's timeout.
+# Only when an API key or cloud provider is configured, which .claude.json
+# does not reflect, is `claude auth status` asked instead.
 #
 # Local records map a folder to a Jira project and live under $HOME (see
 # hooks/lib.sh). A folder inherits the nearest record above it, so one repo,
@@ -37,22 +39,17 @@ jesc() { b8_jesc; }
 
 # ---- Which Claude account is this session on? ------------------------------
 
-status=""
-if command -v claude >/dev/null 2>&1; then
-  if command -v timeout >/dev/null 2>&1; then
-    status=$(timeout 8 claude auth status 2>/dev/null)
-  else
-    status=$(claude auth status 2>/dev/null)
-  fi
-fi
-email=$(jget "$status" email)
-org_id=$(jget "$status" orgId)
-org_name=$(jget "$status" orgName)
-plan=$(jget "$status" subscriptionType)
-auth_method=$(jget "$status" authMethod)
-api_provider=$(jget "$status" apiProvider)
+email="" org_id="" org_name="" plan="" auth_method="" api_provider=""
 
-if [ -z "$status" ]; then
+# Credentials that override the claude.ai login; .claude.json may still hold
+# the old OAuth account while one of these is in use.
+non_oauth=""
+for v in ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN CLAUDE_CODE_USE_BEDROCK \
+         CLAUDE_CODE_USE_VERTEX CLAUDE_CODE_USE_FOUNDRY; do
+  [ -n "${!v:-}" ] && non_oauth=$v
+done
+
+if [ -z "$non_oauth" ]; then
   cfg="${CLAUDE_CONFIG_DIR:-$HOME}/.claude.json"
   [ -f "$cfg" ] || cfg="$HOME/.claude.json"
   if [ -f "$cfg" ]; then
@@ -60,8 +57,28 @@ if [ -z "$status" ]; then
     email=$(jget "$raw" emailAddress)
     org_id=$(jget "$raw" organizationUuid)
     org_name=$(jget "$raw" organizationName)
-    [ -n "$email" ] && auth_method="claude.ai (from .claude.json)"
+    plan=$(jget "$raw" organizationType)
+    plan=${plan#claude_}
+    if [ -n "$email" ]; then
+      auth_method=claude.ai
+      api_provider=firstParty
+    fi
   fi
+fi
+
+if [ -z "$email" ] && command -v claude >/dev/null 2>&1; then
+  # claude does not exit promptly on SIGTERM; -k makes the limit real.
+  if command -v timeout >/dev/null 2>&1; then
+    status=$(timeout -k 1 5 claude auth status 2>/dev/null)
+  else
+    status=$(claude auth status 2>/dev/null)
+  fi
+  email=$(jget "$status" email)
+  org_id=$(jget "$status" orgId)
+  org_name=$(jget "$status" orgName)
+  plan=$(jget "$status" subscriptionType)
+  auth_method=$(jget "$status" authMethod)
+  api_provider=$(jget "$status" apiProvider)
 fi
 
 # A custom endpoint means the model is not necessarily Anthropic's (ccs can
