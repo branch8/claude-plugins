@@ -28,6 +28,10 @@ command -v cygpath >/dev/null 2>&1 && map_file=$(cygpath -w "$map_file")
 echo "# Branch8 Jira workflow (injected by the branch8-jira-check plugin)"
 echo
 
+# Printed on every source, compact included: the board and ticket steps rely on it.
+cat "$ctx/asking.md"
+echo
+
 # After compaction the connection was already checked; only restate the rules.
 if [ "$source_kind" != compact ]; then
   cat "$ctx/connection-check.md"

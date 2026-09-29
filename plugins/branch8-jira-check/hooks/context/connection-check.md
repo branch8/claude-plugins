@@ -31,8 +31,3 @@ before or alongside whatever the user asked for.
 
 Never block or delay the user's actual request on this, and never ask when
 Jira is already connected.
-
-**Every question this plugin asks - connect, which board, which ticket - goes
-through AskUserQuestion.** If that tool is unavailable (e.g. a non-interactive
-run), put the question alone on the last line of your reply, not buried in a
-list.
