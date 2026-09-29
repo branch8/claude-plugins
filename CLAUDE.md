@@ -150,7 +150,10 @@ plugins/                          自己寫的 plugin。目前只有 branch8-jir
                                   專案↔Jira 板的對應存在使用者本機 ~/.claude/branch8-jira/，
                                   刻意不寫進專案 repo，免得被 commit 出去；放 $HOME 而不是
                                   config dir，讓 ccs 之類的多帳號工具共用同一份。
-                                  帳號用 `claude auth status` 判斷（會跟著 CLAUDE_CONFIG_DIR）。
+                                  帳號讀 config dir 的 .claude.json 判斷（會跟著 CLAUDE_CONFIG_DIR）；
+                                  只有設了 API key / Bedrock 等時才問 `claude auth status`——
+                                  它在部分機器要 10–30 秒，超過 hook 的 15 秒 timeout，
+                                  且收到 SIGTERM 不會立刻結束，timeout 必須加 -k。
                                   公司設定值在 plugin 的 config.env——不放 managed settings，
                                   因為個人帳號收不到 managed settings；同名環境變數可覆蓋。
                                   Jira 專案記在資料夾上（最近的上層記錄生效），不以 git repo
