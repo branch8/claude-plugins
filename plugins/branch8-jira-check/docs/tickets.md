@@ -1,3 +1,7 @@
+<!-- Read on demand from the branch8-jira-check session context. "<helper>" is
+     bin/branch8-jira in this plugin; its `config` prints the workspace root,
+     the config-issue label, the company Jira site and email domain. -->
+
 ## Step 2 - every new task needs a Jira ticket
 
 Skip this step when Jira is not connected, when the user declined to connect,

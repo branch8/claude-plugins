@@ -1,3 +1,7 @@
+<!-- Read on demand from the branch8-jira-check session context. "<helper>" is
+     bin/branch8-jira in this plugin; its `config` prints the workspace root,
+     the config-issue label, the company Jira site and email domain. -->
+
 ## Step 0 - accounts (do this first, on your first turn)
 
 The user has already seen a one-line banner with the Claude account. Act on
@@ -9,6 +13,9 @@ the account class and project facts above:
   `Claude：glenn@branch8.com（Branch8）· Jira：glenn@branch8.com @ branch8.atlassian.net`
   This line is required on org accounts, even though a connected Jira is
   otherwise not announced.
+- The `atlassianUserInfo` of the Atlassian plugin may return only an
+  accountId, no email. Then show the Jira name, compare only the site, and do
+  not go looking for other connectors to find an email.
 - If the Jira site is not the company Jira site above, or the Jira email is not
   on the expected domain, or it differs from the Claude email: warn with one
   AskUserQuestion card, options "reconnect Jira with the company account" (run

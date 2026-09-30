@@ -161,7 +161,11 @@ plugins/                          自己寫的 plugin。目前只有 branch8-jir
                                   hook 與 Claude 共用 hooks/lib.sh，別讓 Claude 自己拼路徑。
                                   Jira 專案→repo 的對照放 Jira 的「設定單」：MCP 讀不到
                                   專案的 URL / 描述欄位（2026-09-29 實測），公司也沒有 Confluence。
-                                  CwdChanged / DirectoryAdded hook 需要較新的 Claude Code
+                                  CwdChanged / DirectoryAdded hook 需要較新的 Claude Code。
+                                  **注入的 context 必須遠小於 10 KB**：超過會被 Claude Code 存成檔案、
+                                  只給 Claude 2 KB 預覽（2026-09-30 實測 9 KB 內嵌、13.7 KB 被轉存），
+                                  指示等於失效。所以 hooks/context/ 只放短版、依情況挑段落，
+                                  詳細步驟放 docs/ 由 Claude 需要時才讀；tests/context-size.sh 在 CI 把關
 template/plugin-template/         開發新 plugin 的起點。刻意不列入 marketplace.json，
                                   所以不會被發送、也不會被 validate 檢查
                                   validate.py 會擋住把 ./template/ 當 source 的 entry
