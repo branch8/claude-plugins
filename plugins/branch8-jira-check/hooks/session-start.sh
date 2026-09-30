@@ -181,10 +181,16 @@ esac
 # are read on demand. tests/context-size.sh guards the limit.
 docs="$(b8_native "$BRANCH8_PLUGIN_ROOT/docs")"
 workspace="$(b8_native "${BRANCH8_WORKSPACE_ROOT:-$HOME/Branch8}")"
+# Literal substitution: native Windows paths carry backslashes, which a sed
+# replacement would eat. Quoted replacements also keep bash 5.2's
+# patsub_replacement from treating "&" as the match.
 section() {
-  sed -e "s#{{DOCS}}#$docs#g" -e "s#{{WORKSPACE}}#$workspace#g" \
-      -e "s#{{LAYOUT}}#$layout_kind#g" "$ctx/$1.md"
-  echo
+  local text
+  text=$(cat "$ctx/$1.md")
+  text=${text//"{{DOCS}}"/"$docs"}
+  text=${text//"{{WORKSPACE}}"/"$workspace"}
+  text=${text//"{{LAYOUT}}"/"$layout_kind"}
+  printf '%s\n\n' "$text"
 }
 
 build_context() {
@@ -210,7 +216,14 @@ build_context() {
   echo "## This folder's Jira project"
   echo
   if printf '%s' "$mapping" | grep -q '"projectKey"\|"jira": *"none"'; then
-    echo "Recorded for \`$(b8_native "$record_folder")\` (use it, do not ask): $(printf '%s' "$mapping" | tr -d '\n' | tr -s ' ')"
+    # Only the fields needed now, each capped: the record is a local file and
+    # may hold anything; the full record is one `lookup` away.
+    if printf '%s' "$mapping" | grep -q '"jira": *"none"'; then
+      summary="no Jira for this folder"
+    else
+      summary="Jira $(b8_jget "$mapping" projectKey | cut -c1-20) ($(b8_jget "$mapping" projectName | cut -c1-80)), issue type $(b8_jget "$mapping" defaultIssueType | cut -c1-30)"
+    fi
+    echo "Recorded for \`$(b8_native "$record_folder")\` (use it, do not ask): $summary. Full record: \`lookup\`."
     echo
   else
     section board-missing

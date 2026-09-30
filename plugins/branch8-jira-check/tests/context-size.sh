@@ -33,4 +33,30 @@ for acct in "$org" "$per"; do
     done
   done
 done
+# A huge local record must not leak into the context.
+rec=$(HOME="$tmp/home" bash "$root/bin/branch8-jira" record-path "$tmp/home/plain")
+mkdir -p "$(dirname "$rec")"
+big=$(head -c 12000 /dev/zero | tr '\0' x)
+printf '{"folder":"x","projectKey":"HS","projectName":"%s","board":"%s","company":true}' "$big" "$big" > "$rec"
+printf '%s' "$org" > "$tmp/home/cfg/.claude.json"
+size=$(echo '{"source":"startup"}' | env -i PATH="$PATH" HOME="$tmp/home" CLAUDE_CONFIG_DIR="$tmp/home/cfg" \
+  CLAUDE_PROJECT_DIR="$tmp/home/plain" bash "$root/hooks/session-start.sh" |
+  python3 -c 'import json,sys;print(len(json.load(sys.stdin)["hookSpecificOutput"]["additionalContext"].encode()))')
+if [ "${size:-99999}" -gt "$budget" ]; then echo "FAIL $size bytes with a 24 KB record"; fail=1; else echo "ok   $size bytes with a 24 KB record"; fi
+rm -f "$rec"
+
+# Git Bash on Windows: native paths with backslashes (and a stray "&") must
+# reach Claude unchanged.
+mkdir -p "$tmp/bin"
+cat > "$tmp/bin/cygpath" <<'SH'
+#!/bin/sh
+printf 'C:\\Users\\a&b%s' "$(printf '%s' "$2" | tr / '\\')"
+SH
+chmod +x "$tmp/bin/cygpath"
+ctx=$(echo '{"source":"startup"}' | env -i PATH="$tmp/bin:$PATH" HOME="$tmp/home" CLAUDE_CONFIG_DIR="$tmp/home/cfg" \
+  CLAUDE_PROJECT_DIR="$tmp/home/plain" bash "$root/hooks/session-start.sh" |
+  python3 -c 'import json,sys;print(json.load(sys.stdin)["hookSpecificOutput"]["additionalContext"])')
+want="C:\\Users\\a&b$(printf '%s' "$root/docs" | tr / '\\')/connect.md"
+if printf '%s' "$ctx" | grep -qF -- "$want"; then echo "ok   Windows docs path kept: $want"; else echo "FAIL Windows docs path mangled; wanted $want"; fail=1; fi
+
 exit $fail
