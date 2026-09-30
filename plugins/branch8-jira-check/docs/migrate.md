@@ -1,3 +1,7 @@
+<!-- Read on demand from the branch8-jira-check session context. "<helper>" is
+     bin/branch8-jira in this plugin; its `config` prints the workspace root,
+     the config-issue label, the company Jira site and email domain. -->
+
 ## Migrate: bringing existing work into a dedicated folder
 
 When the user moves to a new per-project folder (see "Suggest a dedicated

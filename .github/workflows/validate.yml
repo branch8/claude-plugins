@@ -20,6 +20,12 @@ jobs:
       - name: Validate marketplace structure
         run: python3 scripts/validate.py
 
+      # Claude Code moves SessionStart context over ~10 KB into a file and shows
+      # Claude only a 2 KB preview, so the injected instructions silently stop
+      # working. Keep every combination well under that.
+      - name: branch8-jira-check context size
+        run: bash plugins/branch8-jira-check/tests/context-size.sh
+
       # Rather than failing the PR for a forgotten version bump, just do it and
       # push the commit. Forgetting is the normal case, not an error worth blocking on.
       - name: Auto-bump versions for changed plugins

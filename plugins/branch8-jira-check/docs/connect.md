@@ -1,3 +1,7 @@
+<!-- Read on demand from the branch8-jira-check session context. "<helper>" is
+     bin/branch8-jira in this plugin; its `config` prints the workspace root,
+     the config-issue label, the company Jira site and email domain. -->
+
 ## Step 1 - is Jira connected?
 
 MCP servers are still connecting when this hook runs, so the hook cannot tell

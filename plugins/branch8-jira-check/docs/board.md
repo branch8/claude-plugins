@@ -1,3 +1,7 @@
+<!-- Read on demand from the branch8-jira-check session context. "<helper>" is
+     bin/branch8-jira in this plugin; its `config` prints the workspace root,
+     the config-issue label, the company Jira site and email domain. -->
+
 No Jira project is recorded for this folder yet. Once Jira is connected (and
 only then), and only when a task needs it, ask once which Jira project the
 folder belongs to:

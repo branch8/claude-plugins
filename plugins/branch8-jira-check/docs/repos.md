@@ -1,3 +1,7 @@
+<!-- Read on demand from the branch8-jira-check session context. "<helper>" is
+     bin/branch8-jira in this plugin; its `config` prints the workspace root,
+     the config-issue label, the company Jira site and email domain. -->
+
 ## Which repos belong to a Jira project (config issue)
 
 Each Jira project may have one **config issue**: an issue carrying the config

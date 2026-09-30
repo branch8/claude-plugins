@@ -175,57 +175,51 @@ esac
 
 # ---- Instructions for Claude ------------------------------------------------
 
+# Kept short on purpose: Claude Code moves SessionStart context over ~10 KB
+# into a file and shows Claude only a 2 KB preview. Only the sections that
+# apply to this session are included; the rare procedures live in docs/ and
+# are read on demand. tests/context-size.sh guards the limit.
+docs="$(b8_native "$BRANCH8_PLUGIN_ROOT/docs")"
+workspace="$(b8_native "${BRANCH8_WORKSPACE_ROOT:-$HOME/Branch8}")"
+section() {
+  sed -e "s#{{DOCS}}#$docs#g" -e "s#{{WORKSPACE}}#$workspace#g" \
+      -e "s#{{LAYOUT}}#$layout_kind#g" "$ctx/$1.md"
+  echo
+}
+
 build_context() {
-  echo "# Branch8 Jira workflow (injected by the branch8-jira-check plugin)"
+  echo "# Branch8 Jira workflow (branch8-jira-check plugin)"
   echo
-  cat "$ctx/asking.md"
+  section core
+  echo "## Facts"
   echo
-  echo "## Session facts (read locally by the hook)"
-  echo
-  echo "- Claude account: ${email:-unknown}; org: ${org_name:-none} (${org_id:-no org id}); plan: ${plan:-unknown}; auth: ${auth_method:-unknown}; provider: ${api_provider:-unknown}${third_party:+; custom endpoint: $third_party}"
-  echo "- Config dir: ${CLAUDE_CONFIG_DIR:-default (~/.claude)}"
-  echo "- Account class: **$account** (org = the Branch8 organisation account)"
-  echo "- Project: **$project**${project_why:+ ($project_why)}"
-  echo "- Company Jira site: ${BRANCH8_JIRA_SITE:-not configured}; expected email domain: @${BRANCH8_EMAIL_DOMAIN:-not configured}"
-  echo "- Session folder: \`$(b8_native "$project_dir")\`; layout: **$layout_kind**${layout#$layout_kind}"
+  echo "- Claude: ${email:-unknown} · org ${org_name:-none} · plan ${plan:-?} · auth ${auth_method:-?}${non_oauth:+ ($non_oauth)}${third_party:+ · endpoint $third_party} → class **$account**"
+  echo "- Work: **$project**${project_why:+ ($project_why)}; company Jira ${BRANCH8_JIRA_SITE:-?}, email @${BRANCH8_EMAIL_DOMAIN:-?}"
+  echo "- Folder: \`$(b8_native "$project_dir")\` · layout **$layout_kind**${layout#$layout_kind}"
   if [ "$layout_kind" = workspace ]; then
-    echo "- Repos below it (path, origin):"
-    printf '%s\n' "$layout_full" | sed -n '2,$p' | sed 's/^/  - /'
+    printf '%s\n' "$layout_full" | sed -n '2,$p' | head -10 | sed 's/^/  - repo: /'
   fi
-  if [ -n "$record_file" ]; then
-    echo "- Nearest Jira record: folder \`$(b8_native "$record_folder")\`, file \`$(b8_native "$record_file")\`"
-  else
-    echo "- Nearest Jira record: none; a record for this folder goes to \`$(b8_native "$new_record_file")\`"
-  fi
-  echo "- Helper: \`bash \"$helper\" lookup <path>\` (nearest record for any path), \`record-path <dir>\`, \`layout <dir>\`, \`config\`"
-  echo "- New per-project folders go under \`$(b8_native "${BRANCH8_WORKSPACE_ROOT:-$HOME/Branch8}")/<PROJECT KEY>\`"
-  echo "- Jira config issues carry the label \`${BRANCH8_CONFIG_LABEL:-claude-config}\`"
-  echo "- Hook source: $source_kind"
+  echo "- Helper: \`bash \"$helper\" lookup|record-path|layout|config <path>\` - always use it for record paths"
   echo
-  cat "$ctx/accounts.md"
-  echo
-  if [ "$source_kind" != compact ]; then
-    cat "$ctx/connection-check.md"
-    echo
-  fi
-  cat "$ctx/folders.md"
-  echo
+  [ "$source_kind" != compact ] && section connect
+  case "$account/$project" in
+    org/*) section account-org ;;
+    */company) section account-nonorg-company ;;
+    *) section account-nonorg-unknown ;;
+  esac
   echo "## This folder's Jira project"
   echo
   if printf '%s' "$mapping" | grep -q '"projectKey"\|"jira": *"none"'; then
-    echo "Recorded for \`$(b8_native "$record_folder")\` - use it for work under that folder, do not ask again:"
+    echo "Recorded for \`$(b8_native "$record_folder")\` (use it, do not ask): $(printf '%s' "$mapping" | tr -d '\n' | tr -s ' ')"
     echo
-    echo '```json'
-    printf '%s\n' "$mapping"
-    echo '```'
   else
-    cat "$ctx/ask-board.md"
+    section board-missing
   fi
-  echo
-  cat "$ctx/registry.md"
-  echo
-  [ "$layout_kind" != repo ] && { cat "$ctx/migrate.md"; echo; }
-  cat "$ctx/task-tickets.md"
+  # A plain folder that already has a record is fine as it is.
+  if [ "$layout_kind" = catchall ] || { [ "$layout_kind" = folder ] && [ -z "$mapping" ]; }; then
+    section folder-suggest
+  fi
+  section tickets
 }
 
 context=$(build_context)
