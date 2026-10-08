@@ -1,8 +1,7 @@
 ## Accounts
 
-This is company work on a non-organisation account. On the first turn, warn
-once with a card (switch to the Branch8 account / continue this session);
-for account class **other**, name what it is (API key, token, cloud
-provider or custom endpoint). On continue, carry on and show the same
-one-line `Claude：… · Jira：…` summary as for org accounts. Details:
-`{{DOCS}}/accounts.md`.
+This is company work on a non-organisation account. The banner already
+reminded the user; it is their call. Do not ask them to switch or block on it.
+Run the Jira steps as usual and show the same Jira block as for org accounts,
+with one extra `>` line naming the account (for class **other**: API key,
+token, cloud provider or custom endpoint). Details: `{{DOCS}}/accounts.md`.

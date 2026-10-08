@@ -165,7 +165,11 @@ plugins/                          自己寫的 plugin。目前只有 branch8-jir
                                   **注入的 context 必須遠小於 10 KB**：超過會被 Claude Code 存成檔案、
                                   只給 Claude 2 KB 預覽（2026-09-30 實測 9 KB 內嵌、13.7 KB 被轉存），
                                   指示等於失效。所以 hooks/context/ 只放短版、依情況挑段落，
-                                  詳細步驟放 docs/ 由 Claude 需要時才讀；tests/context-size.sh 在 CI 把關
+                                  詳細步驟放 docs/ 由 Claude 需要時才讀；tests/context-size.sh 在 CI 把關。
+                                  開頭橫幅是多行區塊（2026-10-08 實測介面會照行顯示），語言依 Claude Code
+                                  的 `language` 設定（zh-TW / zh-CN / en，BRANCH8_LANG 可覆蓋）。
+                                  非組織帳號處理公司專案時只「提醒」，不跳卡要求切換——由使用者自己決定。
+                                  Jira 名字/email 用 getJiraCurrentUser 取：plugin 版 atlassianUserInfo 只回 accountId
 template/plugin-template/         開發新 plugin 的起點。刻意不列入 marketplace.json，
                                   所以不會被發送、也不會被 validate 檢查
                                   validate.py 會擋住把 ./template/ 當 source 的 entry
