@@ -1,4 +1,4 @@
-## Jira connection (first turn only)
+## Jira connection (first turn, before the task)
 
 Load the Atlassian tools (`mcp__plugin_atlassian_atlassian__*` or a claude.ai
 Atlassian connector; ToolSearch "atlassian jira" if deferred) and call

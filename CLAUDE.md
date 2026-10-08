@@ -170,6 +170,9 @@ plugins/                          自己寫的 plugin。目前只有 branch8-jir
                                   的 `language` 設定（zh-TW / zh-CN / en，BRANCH8_LANG 可覆蓋）。
                                   非組織帳號處理公司專案時只「提醒」，不跳卡要求切換——由使用者自己決定。
                                   Jira 名字/email 用 getJiraCurrentUser 取：plugin 版 atlassianUserInfo 只回 accountId
+                                  SessionStart 的規則會和其他 plugin 的開場合併（實測 17 KB、排最後），第一句就是
+                                  任務時 Claude 整套跳過。所以 hooks/first-prompt.sh 只在每個 session 的第一則訊息
+                                  附加一次提醒（SessionStart 上膛、UserPromptSubmit 消耗），之後的訊息不附加
 template/plugin-template/         開發新 plugin 的起點。刻意不列入 marketplace.json，
                                   所以不會被發送、也不會被 validate 檢查
                                   validate.py 會擋住把 ./template/ 當 source 的 entry

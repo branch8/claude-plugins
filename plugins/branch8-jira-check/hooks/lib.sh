@@ -140,3 +140,12 @@ b8_lang() {
     *) echo en ;;
   esac
 }
+
+# One-shot marker: SessionStart arms it, the first UserPromptSubmit of that
+# session consumes it. Keyed by session_id; stale markers are swept.
+BRANCH8_SESSION_DIR="$HOME/.claude/branch8-jira/sessions"
+b8_session_marker() {
+  local id
+  id=$(printf '%s' "$1" | tr -cd 'A-Za-z0-9_-' | cut -c1-80)
+  [ -n "$id" ] && printf '%s/%s' "$BRANCH8_SESSION_DIR" "$id"
+}

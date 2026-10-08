@@ -271,6 +271,15 @@ build_context() {
 
 context=$(build_context)
 
+# Arm the first-prompt reminder (hooks/first-prompt.sh): rules given only
+# here sit at the end of a long merged start-up context, and a first message
+# that is already a task skipped them in testing.
+if [ "$source_kind" != compact ] && marker=$(b8_session_marker "$(b8_jget "$input" session_id)"); then
+  mkdir -p "$BRANCH8_SESSION_DIR" 2>/dev/null &&
+    : > "$marker" 2>/dev/null
+  find "$BRANCH8_SESSION_DIR" -type f -mtime +2 -delete 2>/dev/null
+fi
+
 if [ "$source_kind" = compact ]; then
   printf '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"%s"}}\n' \
     "$(printf '%s' "$context" | jesc)"
