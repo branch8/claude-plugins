@@ -152,7 +152,7 @@ plugins/                          自己寫的 plugin。目前只有 branch8-jir
                                   config dir，讓 ccs 之類的多帳號工具共用同一份。
                                   帳號讀 config dir 的 .claude.json 判斷（會跟著 CLAUDE_CONFIG_DIR）；
                                   只有設了 API key / Bedrock 等時才問 `claude auth status`——
-                                  它在部分機器要 10–30 秒，超過 hook 的 15 秒 timeout，
+                                  它在部分機器要 10–30 秒，會拖垮 hook，
                                   且收到 SIGTERM 不會立刻結束，timeout 必須加 -k。
                                   公司設定值在 plugin 的 config.env——不放 managed settings，
                                   因為個人帳號收不到 managed settings；同名環境變數可覆蓋。
@@ -173,6 +173,8 @@ plugins/                          自己寫的 plugin。目前只有 branch8-jir
                                   SessionStart 的規則會和其他 plugin 的開場合併（實測 17 KB、排最後），第一句就是
                                   任務時 Claude 整套跳過。所以 hooks/first-prompt.sh 只在每個 session 的第一則訊息
                                   附加一次提醒（SessionStart 上膛、UserPromptSubmit 消耗），之後的訊息不附加
+                                  SessionStart timeout 設 60 秒：開 session 時所有 hook 與 MCP 同時啟動，實測連
+                                  0.02 秒的腳本都要 11 秒，原本 15 秒會被砍——被砍就沒上膛，第一則提醒也跟著消失
 template/plugin-template/         開發新 plugin 的起點。刻意不列入 marketplace.json，
                                   所以不會被發送、也不會被 validate 檢查
                                   validate.py 會擋住把 ./template/ 當 source 的 entry
