@@ -19,8 +19,7 @@ before or alongside whatever the user asked for.
    - It fails with an auth error, only an `authenticate` tool exists for the
      server, or no Atlassian tool exists at all: Jira is NOT connected.
 3. When Jira is not connected, ask whether they want to connect now, e.g.
-   「目前沒有連上 Jira，要現在連線嗎？」, in the language they write in (Branch8
-   usually writes Traditional Chinese). Ask with the AskUserQuestion tool (a
+   「目前沒有連上 Jira，要現在連線嗎？」, in the user's language (Facts above). Ask with the AskUserQuestion tool (a
    question card), never as a sentence inside a longer reply - plain-text
    questions get skipped over. Options: connect now / not this session. Then:
    - Yes, and an `authenticate` tool exists: call it and give the user the

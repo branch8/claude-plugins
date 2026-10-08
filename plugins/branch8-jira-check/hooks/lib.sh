@@ -116,3 +116,36 @@ b8_layout() {
   fi
   printf 'folder %s\n' "$(ls -A "$d" 2>/dev/null | wc -l | tr -d ' ')"
 }
+
+# Language for messages the hook prints itself: zh-TW, zh-CN or en.
+# BRANCH8_LANG wins; then Claude Code's "language" setting (project local,
+# project, user - the same order Claude Code applies); then the locale.
+# Claude writes its own messages in the user's language without this.
+b8_lang() {
+  local proj="${1:-$PWD}" v="" f
+  if [ -n "${BRANCH8_LANG:-}" ]; then
+    v=$BRANCH8_LANG
+  else
+    for f in "$proj/.claude/settings.local.json" "$proj/.claude/settings.json" \
+             "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/settings.json"; do
+      [ -f "$f" ] || continue
+      v=$(b8_jget "$(cat "$f")" language)
+      [ -n "$v" ] && break
+    done
+    [ -n "$v" ] || v=${LC_ALL:-${LC_MESSAGES:-${LANG:-}}}
+  fi
+  case "$(printf '%s' "$v" | tr '[:upper:]_' '[:lower:]-')" in
+    *简体* | *簡體* | *simplified* | zh-cn* | zh-sg* | zh-hans*) echo zh-CN ;;
+    *中文* | *繁體* | *繁体* | *正體* | *台灣* | *臺灣* | *香港* | *chinese* | zh*) echo zh-TW ;;
+    *) echo en ;;
+  esac
+}
+
+# One-shot marker: SessionStart arms it, the first UserPromptSubmit of that
+# session consumes it. Keyed by session_id; stale markers are swept.
+BRANCH8_SESSION_DIR="$HOME/.claude/branch8-jira/sessions"
+b8_session_marker() {
+  local id
+  id=$(printf '%s' "$1" | tr -cd 'A-Za-z0-9_-' | cut -c1-80)
+  [ -n "$id" ] && printf '%s/%s' "$BRANCH8_SESSION_DIR" "$id"
+}

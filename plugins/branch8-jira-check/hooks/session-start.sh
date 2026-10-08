@@ -2,8 +2,9 @@
 # SessionStart hook for the Branch8 Jira workflow.
 #
 # It emits hook JSON with two parts:
-#   systemMessage      one line shown to the user at once: which Claude account
-#                      this session runs on (read locally, no model involved)
+#   systemMessage      a short block shown to the user at once, in their
+#                      language: the Claude account and this folder's Jira
+#                      project (read locally, no model involved)
 #   additionalContext  instructions Claude follows on its first turn. MCP
 #                      servers are still connecting when this runs, so Jira
 #                      itself (connection, Jira account, board, tickets) can
@@ -150,18 +151,31 @@ fi
 # A personal project on a non-organisation account: nothing to do, say nothing.
 [ "$project" = personal ] && exit 0
 
-# ---- One line for the user, shown immediately -------------------------------
+# ---- Banner for the user, shown immediately ---------------------------------
+# A short block, in the user's language. A non-organisation account on company
+# work gets a reminder only: the user decides whether to switch.
+
+lang=$(b8_lang "$project_dir")
+case "$lang" in
+  zh-TW) PO="（" PC="）" L_claude="Claude" L_folder="資料夾" L_personal="個人帳號" L_nonorg="非 Branch8 組織帳號"
+         L_remind="提醒：這是公司專案，目前不是用 Branch8 組織帳號"
+         L_nomap="尚未對應 Jira 專案" L_nojira="不使用 Jira" ;;
+  zh-CN) PO="（" PC="）" L_claude="Claude" L_folder="文件夹" L_personal="个人账号" L_nonorg="非 Branch8 组织账号"
+         L_remind="提醒：这是公司项目，当前没有使用 Branch8 组织账号"
+         L_nomap="尚未对应 Jira 项目" L_nojira="不使用 Jira" ;;
+  *)     PO=" (" PC=")" L_claude="Claude" L_folder="Folder" L_personal="personal account" L_nonorg="not the Branch8 organisation account"
+         L_remind="Note: this is company work, and this session is not on the Branch8 organisation account"
+         L_nomap="no Jira project recorded yet" L_nojira="no Jira" ;;
+esac
 
 who="${email:-unknown account}"
+remind=""
 case "$account" in
   org)
-    banner="Claude 帳號：$who（${org_name:-Branch8}${plan:+ · $plan}）" ;;
+    icon="✅" acct="$who$PO${org_name:-Branch8}${plan:+ · $plan}$PC" ;;
   personal)
-    if [ "$project" = company ]; then
-      banner="⚠️ 目前用個人 Claude 帳號 $who 處理公司專案"
-    else
-      banner="Claude 帳號：$who（個人帳號）"
-    fi ;;
+    acct="$who$PO$L_personal$PC"
+    if [ "$project" = company ]; then icon="⚠️" remind=$L_remind; else icon="ℹ️"; fi ;;
   *)
     if [ -n "$third_party" ]; then
       via=$third_party
@@ -170,8 +184,27 @@ case "$account" in
     else
       via=${non_oauth:-unknown login}
     fi
-    banner="⚠️ 此 session 沒有使用 Branch8 組織帳號（$via）" ;;
+    icon="⚠️" acct="$via$PO$L_nonorg$PC"
+    [ "$project" = company ] && remind=$L_remind ;;
 esac
+
+if printf '%s' "$mapping" | grep -q '"projectKey"'; then
+  key=$(b8_jget "$mapping" projectKey | cut -c1-20)
+  pname=$(b8_jget "$mapping" projectName | cut -c1-60)
+  where="Jira $key${pname:+$PO$pname$PC}"
+elif printf '%s' "$mapping" | grep -q '"jira": *"none"'; then
+  where=$L_nojira
+else
+  where=$L_nomap
+fi
+
+if [ "$icon" = "⚠️" ]; then head="━━ ⚠️ Branch8 ━━━━━━━━━━━━━━━━"; else head="━━ 🔷 Branch8 ━━━━━━━━━━━━━━━━"; fi
+banner="$head
+$icon $L_claude  $acct"
+[ -n "$remind" ] && banner="$banner
+   $remind"
+banner="$banner
+📁 $L_folder  $(basename "$work_root") → $where"
 
 # ---- Instructions for Claude ------------------------------------------------
 
@@ -200,6 +233,7 @@ build_context() {
   echo "## Facts"
   echo
   echo "- Claude: ${email:-unknown} · org ${org_name:-none} · plan ${plan:-?} · auth ${auth_method:-?}${non_oauth:+ ($non_oauth)}${third_party:+ · endpoint $third_party} → class **$account**"
+  echo "- Language for messages and cards: **$lang** (Claude Code setting; follow the user if they write in another)"
   echo "- Work: **$project**${project_why:+ ($project_why)}; company Jira ${BRANCH8_JIRA_SITE:-?}, email @${BRANCH8_EMAIL_DOMAIN:-?}"
   echo "- Folder: \`$(b8_native "$project_dir")\` · layout **$layout_kind**${layout#$layout_kind}"
   if [ "$layout_kind" = workspace ]; then
@@ -236,6 +270,15 @@ build_context() {
 }
 
 context=$(build_context)
+
+# Arm the first-prompt reminder (hooks/first-prompt.sh): rules given only
+# here sit at the end of a long merged start-up context, and a first message
+# that is already a task skipped them in testing.
+if [ "$source_kind" != compact ] && marker=$(b8_session_marker "$(b8_jget "$input" session_id)"); then
+  mkdir -p "$BRANCH8_SESSION_DIR" 2>/dev/null &&
+    : > "$marker" 2>/dev/null
+  find "$BRANCH8_SESSION_DIR" -type f -mtime +2 -delete 2>/dev/null
+fi
 
 if [ "$source_kind" = compact ]; then
   printf '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"%s"}}\n' \

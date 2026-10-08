@@ -16,6 +16,11 @@ dir=$(b8_jget "$input" new_cwd)
 dir=$(printf '%s' "$dir" | sed 's/\\\\/\\/g')
 
 shown=$(b8_native "$dir")
+case "$(b8_lang "$dir")" in
+  zh-TW) L_nomap="尚未對應 Jira 專案"; L_ask="尚未對應 Jira 專案，需要時會問一次" ;;
+  zh-CN) L_nomap="尚未对应 Jira 项目"; L_ask="尚未对应 Jira 项目，需要时会问一次" ;;
+  *)     L_nomap="no Jira project recorded"; L_ask="no Jira project recorded yet; you will be asked once when needed" ;;
+esac
 if found=$(b8_lookup "$dir"); then
   rec=$(cat "${found#*$'\t'}")
   key=$(b8_jget "$rec" projectKey)
@@ -25,10 +30,10 @@ if found=$(b8_lookup "$dir"); then
   elif printf '%s' "$rec" | grep -q '"jira": *"none"\|"company": *false'; then
     exit 0
   else
-    msg="📁 $shown：尚未對應 Jira 專案"
+    msg="📁 $shown → $L_nomap"
   fi
 else
-  msg="📁 $shown：尚未對應 Jira 專案，需要時會問一次"
+  msg="📁 $shown → $L_ask"
 fi
 
 printf '{"systemMessage":"%s"}\n' "$(printf '%s' "$msg" | b8_jesc)"

@@ -4,34 +4,35 @@
 
 ## Step 0 - accounts (do this first, on your first turn)
 
-The user has already seen a one-line banner with the Claude account. Act on
-the account class and project facts above:
+The user has already seen the banner block with the Claude account and this
+folder's Jira project. Act on the account class and project facts above. All
+text goes out in the user's language.
 
 **org** (Branch8 organisation account - always company work):
-- After the Jira check in Step 1 succeeds, call `atlassianUserInfo` and show
-  exactly one line with both accounts, e.g.
-  `Claude：glenn@branch8.com（Branch8）· Jira：glenn@branch8.com @ branch8.atlassian.net`
-  This line is required on org accounts, even though a connected Jira is
-  otherwise not announced.
-- The `atlassianUserInfo` of the Atlassian plugin may return only an
-  accountId, no email. Then show the Jira name, compare only the site, and do
-  not go looking for other connectors to find an email.
+- After the Jira check in Step 1 succeeds, get the Jira account: use
+  `atlassianUserInfo` if it returns a name and email (claude.ai connector);
+  the Atlassian plugin's version returns only an accountId, so then call
+  `executeRead` with `getJiraCurrentUser` (cloudId from Step 1,
+  responseFields `displayName`, `emailAddress`). Never show a bare accountId.
+- Show exactly this block (translated), required on org accounts even though
+  a connected Jira is otherwise not announced:
+
+  > **✅ Jira 已連線**　Glenn Cheng（glenn@branch8.com）@ branch8.atlassian.net
+
 - If the Jira site is not the company Jira site above, or the Jira email is not
-  on the expected domain, or it differs from the Claude email: warn with one
-  AskUserQuestion card, options "reconnect Jira with the company account" (run
-  `/mcp`, choose `atlassian`, clear authentication, authenticate again) and
-  "continue as is".
+  on the expected domain, or it differs from the Claude email: use ⚠️ instead
+  of ✅, add the reason on a second `>` line, and offer one AskUserQuestion
+  card: "reconnect Jira with the company account" (run `/mcp`, choose
+  `atlassian`, clear authentication, authenticate again) / "continue as is".
 
 **personal** or **other**, project **company**:
-- Warn with one AskUserQuestion card, e.g. 「目前用個人 Claude 帳號處理公司專案，
-  公司對這個帳號的資料沒有管控。要切換到組織帳號嗎？」. For **other**, say
-  what it is instead (API key, cloud provider, or a custom endpoint that may
-  not be Anthropic at all - company code would go to that service).
-  Options: "switch account" - tell them to exit and restart on the Branch8
-  account (with ccs: start the Branch8 instance; otherwise `/login`) - and
-  "continue this session".
-- On continue: run the Jira steps as usual, show the same two-account line as
-  for org, and do not warn again this session.
+- The banner already reminded the user that this is company work on a
+  non-organisation account. It is their decision: do not ask them to switch,
+  do not show a card about it, and do not repeat the reminder.
+- Run the Jira steps as usual and show the same Jira block as for org, plus
+  one `>` line naming the account, e.g. 「Claude：amy@gmail.com（個人帳號）」.
+  For **other**, name what it is instead (API key, token, cloud provider, or a
+  custom endpoint that may not be Anthropic at all).
 
 **personal** or **other**, project **unknown**:
 - Ask once with an AskUserQuestion card: 「這是公司專案嗎？」, options

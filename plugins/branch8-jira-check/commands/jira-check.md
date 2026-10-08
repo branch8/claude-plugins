@@ -16,9 +16,12 @@ report the result in the user's language.
    (query "atlassian jira").
 2. Call a read-only tool such as `getAccessibleAtlassianResources` or
    `atlassianUserInfo` once.
-   - Success: call `atlassianUserInfo` and report one line:
-     `Claude：<email>（<org>）· Jira：<email> @ <site>`. Flag a site other than
-     `BRANCH8_JIRA_SITE` or an email outside `BRANCH8_EMAIL_DOMAIN`.
+   - Success: get the Jira name and email (`atlassianUserInfo` if it returns
+     them, otherwise `executeRead` `getJiraCurrentUser`; never show a bare
+     accountId) and report a short block:
+     `> **✅ Claude** <email>（<org>）` and `> **✅ Jira** <name>（<email>）@ <site>`.
+     Use ⚠️ with the reason for a site other than `BRANCH8_JIRA_SITE`, an email
+     outside `BRANCH8_EMAIL_DOMAIN`, or a non-organisation Claude account.
    - Auth error, only an `authenticate` tool, or no Atlassian tool: Jira is not
      connected - ask whether to connect now, with the AskUserQuestion tool.
 3. If the user wants to connect:
