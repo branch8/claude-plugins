@@ -19,7 +19,7 @@
 **做：**
 
 1. 新 skill `jira-workflow`：找單、決定是否開新單、在三個時機點推薦狀態轉換。
-2. 新 mod（擴充，可選）：system prompt 規則段落、指令偵測補漏、時機點紀錄、輸入框上方顯示目前的單。
+2. 新 mod（擴充，可選）：system prompt 規則段落、指令偵測補漏、時機點紀錄、輸入框上方顯示目前的單、`/jira-todo` 待辦清單面板（可點選設為目前的單）。
 
 **不做：**
 
@@ -85,6 +85,7 @@ TypeScript function hooks，不依賴 bash。
 | 目前的單 | `$.tool.register`：`set_ticket(key)`、`get_ticket()`、`mark_asked(key, node)` | skill 找到單後呼叫 `set_ticket`；compact 後由規則段落與 `get_ticket` 補回 |
 | 時機點偵測補漏 | `tool.call` 監看：第一次 Edit／Write（開始動手）；Bash 的 `gh pr create`（開 PR）；`git merge`、`gh pr merge`（合併） | 偵測到且該單該時機點尚未問過 → 在結果附上提醒，讓 Claude 使用 skill。排除 `--help`、`--dry-run` |
 | 顯示 | `ui.render` 的 `AbovePrompt` | `🎫 HS-123 標題 · 狀態`；沒有單時 `next(e)`，不佔位 |
+| 待辦清單 | 指令 `/jira-todo` 開面板（`$.ui.open` + `ui.render` Pane）；`$.mcp.call` 呼叫 `searchJiraIssuesUsingJql`：`assignee = currentUser() AND statusCategory != Done ORDER BY updated DESC`，最多 20 張 | 每張一個按鈕（單號、標題、狀態）；按下即設為目前的單（同 `set_ticket`），輸入框上方與規則段落跟著更新。Jira 查詢失敗時面板顯示原因 |
 | 狀態更新 | `$.mcp.call` 呼叫 Atlassian 的 `getJiraIssue` | `set_ticket` 時查一次；每輪結束時重查，最多每 60 秒一次 |
 
 狀態存在 `$.state`（僅本 session），session 結束即清除。不寫入 repo 或 Jira。

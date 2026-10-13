@@ -382,6 +382,27 @@ export const register: Register = on => {
 
 ---
 
+### Task 2b: 待辦清單面板 `/jira-todo`（2026-10-13 追加需求）
+
+**Files:**
+- Modify: `plugins/branch8-jira-mod/hooks/logic.ts`（新增 `parseIssueList`、`todoJql`）
+- Modify: `plugins/branch8-jira-mod/hooks/logic.test.ts`
+- Modify: `plugins/branch8-jira-mod/hooks/register.tsx`（指令、面板、按鈕）
+- Modify: `plugins/branch8-jira-mod/types/index.d.ts`（`todos` 狀態）
+
+**Interfaces:**
+- Produces: `parseIssueList(content): TodoItem[] | null`、`type TodoItem = { key: string; summary: string; status: string }`；指令 `/jira-todo`；面板 id `branch8-jira-todo`
+- Consumes: Task 2 的 `ticketAtom`、`ATLASSIAN` 伺服器清單
+
+- [ ] **Step 1: 失敗的測試**：`parseIssueList` 解析 `searchJiraIssuesUsingJql` 輸出（含 `data.issues` 包裝）、空清單、非 JSON 回 `null`
+- [ ] **Step 2: 執行確認失敗**
+- [ ] **Step 3: 實作 `parseIssueList`；`register.tsx` 加 `session.start` 註冊指令 `jira-todo`、`command.run` 開面板並查 Jira、`ui.render` Pane 畫按鈕清單；按下按鈕 → `update(ticketAtom)` 並 `$.ui.toast`**
+- [ ] **Step 4: 測試通過；`claude plugin validate`、型別檢查通過**
+- [ ] **Step 5: 真實介面：`/jira-todo` 列出 Glenn 的待辦、點選後輸入框上方換成該單**
+- [ ] **Step 6: Commit**
+
+---
+
 ### Task 3: skill `jira-workflow` 與既有 plugin 指向 skill
 
 **Files:**
