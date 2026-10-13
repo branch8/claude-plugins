@@ -1,6 +1,6 @@
 // Pure logic for the Branch8 Jira mod: no engine calls here, so it is
 // unit-testable. register.tsx wires these into the engine.
-import type { Node, Ticket } from '../types'
+import type { Node, Ticket, TodoItem } from '../types'
 
 const EDIT_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit'])
 const SKIP_FLAGS = /(^|\s)(--help|-h|--dry-run|--abort|--continue|--quit)(\s|$)/
@@ -57,10 +57,10 @@ export function reminderFor(
 const SUMMARY_MAX = 50
 
 // One line above the prompt.
-export function formatBand(ticket: Ticket): string {
+export function formatBand(ticket: Ticket, max = SUMMARY_MAX): string {
   const s =
-    ticket.summary.length > SUMMARY_MAX
-      ? ticket.summary.slice(0, SUMMARY_MAX - 1) + '…'
+    ticket.summary.length > max
+      ? ticket.summary.slice(0, max - 1) + '…'
       : ticket.summary
   // Before the first Jira refresh the summary and status may still be empty.
   return `🎫 ${ticket.key}${s ? ` ${s}` : ''} · ${ticket.status || '查詢中'}`
@@ -107,4 +107,26 @@ export function parseIssueStatus(content: Content): { summary?: string; status?:
   if (typeof status !== 'string') return null
   const summary = issue.fields?.summary
   return typeof summary === 'string' ? { summary, status } : { status }
+}
+
+// Open tickets assigned to the person, for the /jira-todo pane.
+export const TODO_JQL = 'assignee = currentUser() AND statusCategory != Done ORDER BY updated DESC'
+
+// Items from a searchJiraIssuesUsingJql result; null when unreadable.
+export function parseIssueList(content: Content): TodoItem[] | null {
+  const json = firstJson(content) as { data?: unknown } | null
+  if (!json) return null
+  const issues = ((json.data ?? json) as { issues?: unknown }).issues
+  if (!Array.isArray(issues)) return null
+  const items: TodoItem[] = []
+  for (const raw of issues) {
+    const i = raw as { key?: unknown; fields?: { summary?: unknown; status?: { name?: unknown } } }
+    if (typeof i?.key !== 'string') continue
+    items.push({
+      key: i.key,
+      summary: typeof i.fields?.summary === 'string' ? i.fields.summary : '',
+      status: typeof i.fields?.status?.name === 'string' ? i.fields.status.name : '',
+    })
+  }
+  return items
 }

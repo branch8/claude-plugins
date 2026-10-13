@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { detectNode, reminderFor, formatBand, rulesSection, parseIssueStatus } from './logic'
+import { detectNode, reminderFor, formatBand, rulesSection, parseIssueStatus, parseIssueList, TODO_JQL } from './logic'
 
 const T = { key: 'HS-1', summary: '修正請假審核通知', status: '待辦事項', cloudId: 'c' }
 
@@ -55,6 +55,11 @@ test('band before Jira answers: no blank summary or status', () => {
   expect(formatBand({ ...T, summary: '', status: '' })).toBe('🎫 HS-1 · 查詢中')
 })
 
+test('band text takes a shorter limit for the narrow pane', () => {
+  const s = formatBand({ ...T, summary: '一二三四五六七八九十'.repeat(5) }, 20)
+  expect(s).toBe('🎫 HS-1 ' + '一二三四五六七八九十一二三四五六七八九' + '… · 待辦事項')
+})
+
 test('rules section names the ticket and asked nodes', () => {
   expect(rulesSection(null, []).includes('jira-workflow')).toBe(true)
   const s = rulesSection(T, ['HS-1:start'])
@@ -69,4 +74,26 @@ test('parse getJiraIssue output', () => {
   expect(parseIssueStatus(wrapped)?.status).toBe('Done')
   expect(parseIssueStatus([{ type: 'text', text: 'not json' }])).toBeNull()
   expect(parseIssueStatus([])).toBeNull()
+})
+
+test('parse searchJiraIssuesUsingJql output into todo items', () => {
+  const issues = [
+    { key: 'HS-128', fields: { summary: '請假 Email', status: { name: '待辦事項' } } },
+    { key: 'HS-124', fields: { summary: '額度', status: { name: 'Dev done' } } },
+  ]
+  const wrapped = [{ type: 'text', text: JSON.stringify({ data: { issues } }) }]
+  expect(parseIssueList(wrapped)).toEqual([
+    { key: 'HS-128', summary: '請假 Email', status: '待辦事項' },
+    { key: 'HS-124', summary: '額度', status: 'Dev done' },
+  ])
+  const bare = [{ type: 'text', text: JSON.stringify({ issues: [issues[0]] }) }]
+  expect(parseIssueList(bare)?.length).toBe(1)
+  expect(parseIssueList([{ type: 'text', text: JSON.stringify({ data: { issues: [] } }) }])).toEqual([])
+  expect(parseIssueList([{ type: 'text', text: 'oops' }])).toBeNull()
+  // An issue without a key is skipped rather than drawn as a blank row.
+  expect(parseIssueList([{ type: 'text', text: JSON.stringify({ issues: [{ fields: {} }] }) }])).toEqual([])
+})
+
+test('todo JQL lists my unresolved issues, newest first', () => {
+  expect(TODO_JQL).toBe('assignee = currentUser() AND statusCategory != Done ORDER BY updated DESC')
 })

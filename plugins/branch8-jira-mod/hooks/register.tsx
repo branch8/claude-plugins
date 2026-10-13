@@ -6,12 +6,32 @@ import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
 
 import type { Ticket } from '../types'
-import { detectNode, formatBand, parseIssueStatus, reminderFor, rulesSection } from './logic'
+import {
+  TODO_JQL,
+  detectNode,
+  formatBand,
+  parseIssueList,
+  parseIssueStatus,
+  reminderFor,
+  rulesSection,
+} from './logic'
 
 const P = 'branch8-jira-mod'
 const ticketAtom = atom({ plugin: 'branch8-jira-mod', key: 'ticket' } as const, null)
 const askedAtom = atom({ plugin: 'branch8-jira-mod', key: 'asked' } as const, [])
 const refreshedAtom = atom({ plugin: 'branch8-jira-mod', key: 'refreshedAt' } as const, 0)
+const todosAtom = atom({ plugin: 'branch8-jira-mod', key: 'todos' } as const, {
+  items: [],
+  error: null,
+  isLoading: false,
+})
+
+// The company Jira site, used when no ticket has given a cloudId yet.
+const SITE = 'https://branch8.atlassian.net'
+const TODO_PANE = 'branch8-jira-todo'
+const TODO_LIMIT = 20
+// The pane is narrow; wide (CJK) titles wrap past this.
+const PANE_SUMMARY_MAX = 24
 
 // The Atlassian MCP under either name it is installed as.
 const ATLASSIAN = ['plugin:atlassian:atlassian', 'claude.ai Atlassian Rovo']
@@ -50,7 +70,67 @@ export const register: Register = on => {
       inputSchema: { type: 'object', required: ['mark'], properties: { mark: { type: 'string' } } },
       isDeferred: false,
     })
+    await $.command.register({
+      name: 'jira-todo',
+      description: '列出指派給我、還沒完成的 Jira 單，點一張設為目前的單',
+    })
     return next(e)
+  })
+
+  on('command.run', { command: 'jira-todo' }, async $ => {
+    await $.ui.open({ id: TODO_PANE, title: 'Jira 待辦', focus: true })
+    await update($, todosAtom, () => ({ items: [], error: null, isLoading: true }))
+    const cloudId = (await read($, ticketAtom))?.cloudId || SITE
+    let error = 'Jira 沒有連線（找不到 Atlassian MCP），請先跑 /jira-check'
+    for (const server of ATLASSIAN) {
+      try {
+        const res = await $.mcp.call(server, 'searchJiraIssuesUsingJql', {
+          cloudId,
+          jql: TODO_JQL,
+          maxResults: TODO_LIMIT,
+        })
+        const items = res.isError ? null : parseIssueList(res.content as { type: string; text?: string }[])
+        if (items) {
+          await update($, todosAtom, () => ({ items, error: null, isLoading: false }))
+          return { text: `Jira 待辦：${items.length} 張。` }
+        }
+        error = 'Jira 查詢失敗，請稍後再試'
+        break
+      } catch {
+        // Not connected under this name; try the next one.
+      }
+    }
+    await update($, todosAtom, () => ({ items: [], error, isLoading: false }))
+    return { text: error }
+  })
+
+  on('ui.render', { component: 'Pane', requestId: TODO_PANE }, async ($, e) => {
+    const { Box, Button, Text } = $.ui.resolve(e)
+    const todos = await read($, todosAtom)
+    const current = (await read($, ticketAtom))?.key
+    const cloudId = (await read($, ticketAtom))?.cloudId || SITE
+    return (
+      <Box flexDirection="column">
+        {todos.isLoading && <Text dimColor>查詢中…</Text>}
+        {todos.error && <Text>{todos.error}</Text>}
+        {!todos.isLoading && !todos.error && todos.items.length === 0 && (
+          <Text dimColor>沒有指派給你、還沒完成的單。</Text>
+        )}
+        {todos.items.map(item => (
+          <Button
+            key={item.key}
+            label={(item.key === current ? '▶ ' : '') + formatBand({ ...item, cloudId }, PANE_SUMMARY_MAX)}
+            onPress={async () => {
+              const now = await $.clock.now()
+              await update($, ticketAtom, () => ({ ...item, cloudId }))
+              // The list was just read from Jira; no need to refresh at once.
+              await update($, refreshedAtom, () => now)
+              $.ui.toast(`目前的單：${item.key}`)
+            }}
+          />
+        ))}
+      </Box>
+    )
   })
 
   on('tool.call', { tool: 'mcp__branch8-jira-mod__set_ticket' }, async ($, e) => {
