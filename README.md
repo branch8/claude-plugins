@@ -336,7 +336,9 @@ Actions 分頁 → vendor-update → Run workflow。可以只跑其中一個 plu
     "skill-creator@claude-plugins-official": true,
     "frontend-design@claude-plugins-official": true,
     "github@claude-plugins-official": true,
-    "ui-ux-pro-max@branch8": true
+    "ui-ux-pro-max@branch8": true,
+    "branch8-jira-check@branch8": true,
+    "cc-plugin-you-should-know@builtin": true
   }
 }
 ```
@@ -348,6 +350,14 @@ Actions 分頁 → vendor-update → Run workflow。可以只跑其中一個 plu
   `known_marketplaces.json` 裡它是自動出現的，沒有人手動加過）。
 - `enabledPlugins` — **拿哪些**。格式是 `plugin名字@來源名字`。
   **官方上架的一律標 `@claude-plugins-official`，不要 vendoring 進本 repo。**
+  `@builtin` 是 Claude Code 本體內建的 plugin（不用下載、沒有 marketplace），
+  例如 `cc-plugin-you-should-know`：側邊 agent 在長任務中提醒你可能漏掉的事。
+  它預設是關的，這裡設 `true` 就等於幫全公司跑 `/plugin enable`。
+  注意 managed 層優先於個人設定：它自己提示的
+  `/plugin disable cc-plugin-you-should-know@builtin` 對同事**不會生效**，
+  真的要關只能從這裡拿掉（或改成 `false` 強制全公司關）。
+  它是否出現還取決於 Anthropic 端的灰度開關，HIPAA / ZDR 組織也拿不到，
+  設了 `true` 不保證每個人都看得到。
 - （沒設 `strictKnownMarketplaces`）— 同事仍可自由安裝別的 plugin。
   公司設定只管「至少要有什麼」。
 
