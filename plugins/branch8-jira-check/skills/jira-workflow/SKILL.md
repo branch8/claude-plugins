@@ -50,6 +50,7 @@ Return the key and `<site>/browse/<KEY>`.
 If `mcp__branch8-jira-mod__set_ticket` exists:
 - after step 1 resolves or creates a ticket → `set_ticket` (key, summary, status, cloudId);
 - after asking at a point → `mark_asked` with `"<KEY>:<start|pr|merge>"`;
+- after a transition succeeds → `set_ticket` again with the new status, so the line above the prompt updates at once;
 - the system prompt then lists the current ticket and the points already asked: trust it.
 If the mod reminds you at a point, run section 2 for that point.
 
