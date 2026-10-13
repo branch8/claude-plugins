@@ -9,6 +9,7 @@ import type { Ticket } from '../types'
 import {
   TODO_JQL,
   detectNode,
+  bandText,
   formatBand,
   parseIssueList,
   parseIssueStatus,
@@ -24,7 +25,11 @@ const todosAtom = atom({ plugin: 'branch8-jira-mod', key: 'todos' } as const, {
   items: [],
   error: null,
   isLoading: false,
+  isLoaded: false,
 })
+// Whether the /jira-todo pane is open. Closed works as collapsed: the list
+// stays here, the band shows its count, /jira-todo reopens it at once.
+const todoOpenAtom = atom({ plugin: 'branch8-jira-mod', key: 'todoOpen' } as const, false)
 
 // The company Jira site, used when no ticket has given a cloudId yet.
 const SITE = 'https://branch8.atlassian.net'
@@ -77,9 +82,17 @@ export const register: Register = on => {
     return next(e)
   })
 
+  // /jira-todo toggles the pane: closes it when open, opens it otherwise.
   on('command.run', { command: 'jira-todo' }, async $ => {
+    if (await read($, todoOpenAtom)) {
+      await $.ui.close({ id: TODO_PANE })
+      await update($, todoOpenAtom, () => false)
+      return { text: 'Jira 待辦面板已關閉（再打 /jira-todo 打開）。' }
+    }
     await $.ui.open({ id: TODO_PANE, title: 'Jira 待辦', focus: true })
-    await update($, todosAtom, () => ({ items: [], error: null, isLoading: true }))
+    await update($, todoOpenAtom, () => true)
+    // Keep the last list on screen while it refreshes.
+    await update($, todosAtom, t => ({ ...t, error: null, isLoading: true }))
     const cloudId = (await read($, ticketAtom))?.cloudId || SITE
     let error = 'Jira 沒有連線（找不到 Atlassian MCP），請先跑 /jira-check'
     for (const server of ATLASSIAN) {
@@ -96,7 +109,7 @@ export const register: Register = on => {
         }
         const items = parseIssueList(res.content as { type: string; text?: string }[])
         if (items) {
-          await update($, todosAtom, () => ({ items, error: null, isLoading: false }))
+          await update($, todosAtom, () => ({ items, error: null, isLoading: false, isLoaded: true }))
           return { text: `Jira 待辦：${items.length} 張。` }
         }
         error = 'Jira 查詢失敗，請稍後再試'
@@ -104,8 +117,13 @@ export const register: Register = on => {
         // Not connected under this name; try the next one.
       }
     }
-    await update($, todosAtom, () => ({ items: [], error, isLoading: false }))
+    await update($, todosAtom, t => ({ ...t, error, isLoading: false }))
     return { text: error }
+  })
+
+  on('ui.close', async ($, e, next) => {
+    if (e.id === TODO_PANE) await update($, todoOpenAtom, () => false)
+    return next(e)
   })
 
   on('ui.render', { component: 'Pane', requestId: TODO_PANE }, async ($, e) => {
@@ -115,9 +133,18 @@ export const register: Register = on => {
     const cloudId = (await read($, ticketAtom))?.cloudId || SITE
     return (
       <Box flexDirection="column">
-        {todos.isLoading && <Text dimColor>查詢中…</Text>}
+        <Button
+          key="close"
+          label="✕ 關閉（/jira-todo 可再打開）"
+          onPress={async () => {
+            await $.ui.close({ id: TODO_PANE })
+            // A close from the plugin's own handler may not reach its ui.close hook.
+            await update($, todoOpenAtom, () => false)
+          }}
+        />
+        {todos.isLoading && <Text dimColor>{todos.items.length ? '更新中…' : '查詢中…'}</Text>}
         {todos.error && <Text>{todos.error}</Text>}
-        {!todos.isLoading && !todos.error && todos.items.length === 0 && (
+        {todos.isLoaded && !todos.isLoading && !todos.error && todos.items.length === 0 && (
           <Text dimColor>沒有指派給你、還沒完成的單。</Text>
         )}
         {todos.items.map(item => (
@@ -188,9 +215,13 @@ export const register: Register = on => {
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const t = await read($, ticketAtom)
-    if (!t || e.props.hasSurvey) return next(e)
+    const todos = await read($, todosAtom)
+    // The count stands in for the pane while it is closed.
+    const count = todos.isLoaded && !(await read($, todoOpenAtom)) ? todos.items.length : null
+    const line = bandText(t, count)
+    if (!line || e.props.hasSurvey) return next(e)
     const { Text } = $.ui.resolve(e)
-    return <Text>{formatBand(t)}</Text>
+    return <Text>{line}</Text>
   })
 
   // Pick up status changes made in Jira, at most once a minute.

@@ -107,6 +107,16 @@ export function formatBand(ticket: Ticket, width = BAND_WIDTH): string {
   return `${head}${summary}${tail}`
 }
 
+// The whole line above the prompt: the ticket, plus the open-ticket count
+// once /jira-todo has loaded it (so a closed pane still tells you how many).
+// Null when there is nothing to show.
+export function bandText(ticket: Ticket | null, todoCount: number | null, width = BAND_WIDTH): string | null {
+  if (!ticket) return todoCount === null ? null : `📋 Jira 待辦 ${todoCount} 張 · /jira-todo`
+  if (todoCount === null) return formatBand(ticket, width)
+  const tail = ` · 待辦 ${todoCount}`
+  return formatBand(ticket, width - displayWidth(tail)) + tail
+}
+
 // The system prompt section: rules plus the current ticket, so they survive
 // compaction and apply to every turn, not only the first message.
 export function rulesSection(ticket: Ticket | null, asked: readonly string[]): string {

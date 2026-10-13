@@ -1,7 +1,7 @@
 export type Node = 'start' | 'pr' | 'merge'
 export type Ticket = { key: string; summary: string; status: string; cloudId: string }
 export type TodoItem = { key: string; summary: string; status: string }
-export type Todos = { items: TodoItem[]; error: string | null; isLoading: boolean }
+export type Todos = { items: TodoItem[]; error: string | null; isLoading: boolean; isLoaded: boolean }
 
 declare module 'claude-code' {
   interface PluginState {
@@ -10,6 +10,7 @@ declare module 'claude-code' {
       asked: string[]
       refreshedAt: number
       todos: Todos
+      todoOpen: boolean
     }
   }
 }
