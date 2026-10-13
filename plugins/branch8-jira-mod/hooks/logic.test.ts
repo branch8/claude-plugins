@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { detectNode, reminderFor, formatBand, rulesSection, parseIssueStatus, parseIssueList, TODO_JQL } from './logic'
+import { detectNode, reminderFor, formatBand, rulesSection, parseIssueStatus, parseIssueList, TODO_JQL, displayWidth } from './logic'
 
 const T = { key: 'HS-1', summary: '修正請假審核通知', status: '待辦事項', cloudId: 'c' }
 
@@ -14,7 +14,6 @@ test('bash PR and merge commands', () => {
   expect(detectNode('Bash', { command: 'gh pr create --title x --body y' })).toBe('pr')
   expect(detectNode('Bash', { command: 'git push -u origin b && gh pr create -f' })).toBe('pr')
   expect(detectNode('Bash', { command: 'gh pr merge 12 --squash' })).toBe('merge')
-  expect(detectNode('Bash', { command: 'git merge feature/x' })).toBe('merge')
 })
 
 test('look-alikes do not trigger', () => {
@@ -55,9 +54,11 @@ test('band before Jira answers: no blank summary or status', () => {
   expect(formatBand({ ...T, summary: '', status: '' })).toBe('🎫 HS-1 · 查詢中')
 })
 
-test('band text takes a shorter limit for the narrow pane', () => {
-  const s = formatBand({ ...T, summary: '一二三四五六七八九十'.repeat(5) }, 20)
-  expect(s).toBe('🎫 HS-1 ' + '一二三四五六七八九十一二三四五六七八九' + '… · 待辦事項')
+test('band takes a narrower width for the pane', () => {
+  const s = formatBand({ ...T, summary: '一二三四五六七八九十'.repeat(5) }, 40)
+  expect(displayWidth(s) <= 40).toBe(true)
+  expect(s.startsWith('🎫 HS-1 一二三')).toBe(true)
+  expect(s.endsWith('… · 待辦事項')).toBe(true)
 })
 
 test('rules section names the ticket and asked nodes', () => {
@@ -96,4 +97,39 @@ test('parse searchJiraIssuesUsingJql output into todo items', () => {
 
 test('todo JQL lists my unresolved issues, newest first', () => {
   expect(TODO_JQL).toBe('assignee = currentUser() AND statusCategory != Done ORDER BY updated DESC')
+})
+
+// --- Final review fixes ---
+
+test('syncing or auto-merge is not the merge point', () => {
+  expect(detectNode('Bash', { command: 'git merge origin/main' })).toBeNull()
+  expect(detectNode('Bash', { command: 'git merge' })).toBeNull()
+  expect(detectNode('Bash', { command: 'git merge feature/x' })).toBeNull()
+  expect(detectNode('Bash', { command: 'gh pr merge 12 --auto --squash' })).toBeNull()
+  expect(detectNode('Bash', { command: 'gh pr merge 12 --squash' })).toBe('merge')
+})
+
+test('heredoc bodies are not commands', () => {
+  const commit = "git commit -F - <<'EOF'\nFix \"quote\ngit merge later\ngh pr create soon\nEOF"
+  expect(detectNode('Bash', { command: commit })).toBeNull()
+})
+
+test('band truncates by display width, CJK counts double', () => {
+  const t = { ...T, summary: '請'.repeat(47), status: 'Dev done, QA to do' }
+  const b = formatBand(t)
+  expect(displayWidth(b) <= 80).toBe(true)
+  expect(b.includes('…')).toBe(true)
+})
+
+test('band never splits an emoji', () => {
+  const b = formatBand({ ...T, summary: '😀'.repeat(60) })
+  expect(b.includes('\uFFFD')).toBe(false)
+  expect(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/.test(b)).toBe(false)
+})
+
+test('rules section carries no status or summary (keeps the prompt cache stable)', () => {
+  const s = rulesSection(T, [])
+  expect(s.includes('待辦事項')).toBe(false)
+  expect(s.includes('修正請假審核通知')).toBe(false)
+  expect(s.includes('HS-1')).toBe(true)
 })

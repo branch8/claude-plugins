@@ -30,8 +30,8 @@ const todosAtom = atom({ plugin: 'branch8-jira-mod', key: 'todos' } as const, {
 const SITE = 'https://branch8.atlassian.net'
 const TODO_PANE = 'branch8-jira-todo'
 const TODO_LIMIT = 20
-// The pane is narrow; wide (CJK) titles wrap past this.
-const PANE_SUMMARY_MAX = 24
+// Columns a pane row may take; the pane is narrow and CJK titles wrap past it.
+const PANE_WIDTH = 46
 
 // The Atlassian MCP under either name it is installed as.
 const ATLASSIAN = ['plugin:atlassian:atlassian', 'claude.ai Atlassian Rovo']
@@ -89,13 +89,17 @@ export const register: Register = on => {
           jql: TODO_JQL,
           maxResults: TODO_LIMIT,
         })
-        const items = res.isError ? null : parseIssueList(res.content as { type: string; text?: string }[])
+        if (res.isError) {
+          // Installed but signed out answers isError: try the other server.
+          error = 'Jira 查詢失敗：Atlassian 可能還沒登入，請跑 /jira-check'
+          continue
+        }
+        const items = parseIssueList(res.content as { type: string; text?: string }[])
         if (items) {
           await update($, todosAtom, () => ({ items, error: null, isLoading: false }))
           return { text: `Jira 待辦：${items.length} 張。` }
         }
         error = 'Jira 查詢失敗，請稍後再試'
-        break
       } catch {
         // Not connected under this name; try the next one.
       }
@@ -119,7 +123,7 @@ export const register: Register = on => {
         {todos.items.map(item => (
           <Button
             key={item.key}
-            label={(item.key === current ? '▶ ' : '') + formatBand({ ...item, cloudId }, PANE_SUMMARY_MAX)}
+            label={(item.key === current ? '▶ ' : '') + formatBand({ ...item, cloudId }, PANE_WIDTH)}
             onPress={async () => {
               const now = await $.clock.now()
               await update($, ticketAtom, () => ({ ...item, cloudId }))
@@ -139,7 +143,7 @@ export const register: Register = on => {
       key: str(input.key).trim().toUpperCase(),
       summary: str(input.summary),
       status: str(input.status),
-      cloudId: str(input.cloudId),
+      cloudId: str(input.cloudId) || SITE,
     }
     if (!/^[A-Z][A-Z0-9_]*-\d+$/.test(t.key)) {
       return { result: `Not a Jira issue key: "${str(input.key)}".` as never }
@@ -165,6 +169,9 @@ export const register: Register = on => {
   on('tool.call', async ($, e, next) => {
     const ran = await next(e)
     if (ran.deny !== undefined || ran.isError) return ran
+    // Subagents and engine forks cannot ask the user; leave the point for the
+    // main loop instead of spending it there.
+    if ((e as { agentId?: string }).agentId) return ran
     const node = detectNode(e.tool, e as unknown as Record<string, unknown>)
     if (!node) return ran
     const reminder = reminderFor(node, await read($, ticketAtom), await read($, askedAtom))
@@ -181,7 +188,7 @@ export const register: Register = on => {
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const t = await read($, ticketAtom)
-    if (!t) return next(e)
+    if (!t || e.props.hasSurvey) return next(e)
     const { Text } = $.ui.resolve(e)
     return <Text>{formatBand(t)}</Text>
   })
@@ -199,11 +206,13 @@ export const register: Register = on => {
     for (const server of ATLASSIAN) {
       try {
         const res = await $.mcp.call(server, 'getJiraIssue', {
-          cloudId: t.cloudId,
+          cloudId: t.cloudId || SITE,
           issueIdOrKey: t.key,
         })
-        fresh = res.isError ? null : parseIssueStatus(res.content as { type: string; text?: string }[])
-        break
+        // Installed but signed out answers isError: try the other server.
+        if (res.isError) continue
+        fresh = parseIssueStatus(res.content as { type: string; text?: string }[])
+        if (fresh) break
       } catch {
         // Not connected under this name; try the next one.
       }

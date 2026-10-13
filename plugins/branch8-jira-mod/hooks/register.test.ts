@@ -42,3 +42,19 @@ test('mark_asked suppresses the reminder', async ($, on) => {
   const m = await $.tool.call({ tool: 'Bash', command: 'gh pr merge 3' } as never)
   expect((m.context ?? []).length).toBe(0)
 })
+
+test('subagent tool calls neither remind nor use up the main session\'s point', async ($, on) => {
+  fakeTools(on)
+  await $.tool.call({ tool: SET, key: 'HS-9', summary: 'S', status: '進行中', cloudId: 'c' } as never)
+  const sub = await $.tool.call({ tool: 'Bash', command: 'gh pr create -f', agentId: 'sub-1' } as never)
+  expect((sub.context ?? []).length).toBe(0)
+  const main = await $.tool.call({ tool: 'Bash', command: 'gh pr create -f' } as never)
+  expect(JSON.stringify(main.context ?? []).includes('HS-9')).toBe(true)
+})
+
+test('set_ticket without cloudId falls back to the company site', async ($, on) => {
+  fakeTools(on)
+  await $.tool.call({ tool: SET, key: 'HS-10' } as never)
+  const got = await $.tool.call({ tool: GET } as never)
+  expect(JSON.stringify(got).includes('branch8.atlassian.net')).toBe(true)
+})

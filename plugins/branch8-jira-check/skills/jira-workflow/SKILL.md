@@ -36,11 +36,12 @@ Return the key and `<site>/browse/<KEY>`.
 | `pr` | a PR was opened or review requested | Dev done / PR created / Code review |
 | `merge` | merged or declared done | Merged / Ready to deploy — **not** anything QA, staging or deploy |
 
-1. `listJiraIssueTransitions` for the ticket — only what it can do **now**.
+1. The ticket's available transitions — only what it can do **now**: `listJiraIssueTransitions`
+   (Atlassian plugin, via `executeRead`) or `getTransitionsForJiraIssue` (claude.ai connector).
 2. Pick by the target status name. Statuses differ per project (HS has 10, HTGO2 has 33)
    and status categories are unreliable, so never guess a status that is not in the list.
 3. One fits → card "Move KEY to <status>?" (yes / not now). Several fit → card listing
-   them, best first. None fits, or the ticket is already past it → ask nothing.
+   them, best first, plus "not now". None fits, or the ticket is already past it → ask nothing.
 4. Yes → `transitionJiraIssue`. If it needs fields or permission is denied, do not force
    it: say why and give `<site>/browse/<KEY>`.
 5. Ask once per ticket and point, whatever the answer.
@@ -58,6 +59,8 @@ Without the mod, remember the ticket and the asked points yourself for the sessi
 
 ## Always
 
+- **No card, no write.** Where you cannot show a question card (a subagent, a headless
+  `-p` run), never create a ticket or move a status — say what you would have asked.
 - Question cards (AskUserQuestion), one question per card, in the user's language.
 - Quiet: no narration of these steps; the user sees only the cards and the result lines.
 - Use the key in branch names and commit messages (`HS-123: …`) unless the repo has its own convention.

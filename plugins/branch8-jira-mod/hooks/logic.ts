@@ -3,7 +3,7 @@
 import type { Node, Ticket, TodoItem } from '../types'
 
 const EDIT_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit'])
-const SKIP_FLAGS = /(^|\s)(--help|-h|--dry-run|--abort|--continue|--quit)(\s|$)/
+const SKIP_FLAGS = /(^|\s)(--help|-h|--dry-run)(\s|$)/
 
 // Blank out quoted strings so `echo "gh pr create"` does not count.
 function unquoted(cmd: string): string {
@@ -16,12 +16,16 @@ export function detectNode(tool: string, input: Record<string, unknown>): Node |
   if (/__create_pull_request$/.test(tool)) return 'pr'
   if (/__merge_pull_request$/.test(tool)) return 'merge'
   if (tool !== 'Bash' || typeof input.command !== 'string') return null
-  for (const part of unquoted(input.command).split(/&&|\|\||;|\n/)) {
+  // A heredoc body (commit message, file content) is data, not commands.
+  const command = input.command.split('<<')[0] ?? ''
+  for (const part of unquoted(command).split(/&&|\|\||;|\n/)) {
     const p = part.trim()
     if (SKIP_FLAGS.test(p)) continue
     if (/^gh\s+pr\s+create\b/.test(p)) return 'pr'
-    if (/^gh\s+pr\s+merge\b/.test(p)) return 'merge'
-    if (/^git\s+merge(\s|$)/.test(p)) return 'merge'
+    // Only a merge that lands the PR now. `git merge` is left out: it is as
+    // often syncing main into a feature branch as landing work, and `--auto`
+    // only queues the merge.
+    if (/^gh\s+pr\s+merge\b/.test(p) && !/(^|\s)--auto(\s|$)/.test(p)) return 'merge'
   }
   return null
 }
@@ -54,16 +58,53 @@ export function reminderFor(
   }
 }
 
-const SUMMARY_MAX = 50
+// Terminal columns a string takes: wide (CJK, fullwidth, emoji) counts 2.
+export function displayWidth(text: string): number {
+  let w = 0
+  for (const ch of text) w += isWide(ch) ? 2 : 1
+  return w
+}
 
-// One line above the prompt.
-export function formatBand(ticket: Ticket, max = SUMMARY_MAX): string {
-  const s =
-    ticket.summary.length > max
-      ? ticket.summary.slice(0, max - 1) + '…'
-      : ticket.summary
-  // Before the first Jira refresh the summary and status may still be empty.
-  return `🎫 ${ticket.key}${s ? ` ${s}` : ''} · ${ticket.status || '查詢中'}`
+function isWide(ch: string): boolean {
+  const c = ch.codePointAt(0) ?? 0
+  return (
+    (c >= 0x1100 && c <= 0x115f) ||
+    (c >= 0x2e80 && c <= 0xa4cf) ||
+    (c >= 0xac00 && c <= 0xd7a3) ||
+    (c >= 0xf900 && c <= 0xfaff) ||
+    (c >= 0xfe30 && c <= 0xfe4f) ||
+    (c >= 0xff00 && c <= 0xff60) ||
+    (c >= 0xffe0 && c <= 0xffe6) ||
+    (c >= 0x1f300 && c <= 0x1faff) ||
+    (c >= 0x20000 && c <= 0x3fffd)
+  )
+}
+
+// Cut to `max` columns on code-point boundaries, never splitting an emoji.
+function fitWidth(text: string, max: number): string {
+  if (displayWidth(text) <= max) return text
+  let out = ''
+  let w = 0
+  for (const ch of text) {
+    const cw = isWide(ch) ? 2 : 1
+    if (w + cw > max - 1) break
+    out += ch
+    w += cw
+  }
+  return out + '…'
+}
+
+// Columns the whole band may take; fits an 80-column terminal.
+const BAND_WIDTH = 78
+
+// One line above the prompt. `width` is the column budget for the whole line.
+export function formatBand(ticket: Ticket, width = BAND_WIDTH): string {
+  const status = ticket.status || '查詢中'
+  const head = `🎫 ${ticket.key}`
+  const tail = ` · ${fitWidth(status, 24)}`
+  const room = width - displayWidth(head) - displayWidth(tail) - 1
+  const summary = ticket.summary && room > 3 ? ` ${fitWidth(ticket.summary, room)}` : ''
+  return `${head}${summary}${tail}`
 }
 
 // The system prompt section: rules plus the current ticket, so they survive
@@ -78,7 +119,7 @@ export function rulesSection(ticket: Ticket | null, asked: readonly string[]): s
       .filter(a => a.startsWith(`${ticket.key}:`))
       .map(a => a.slice(ticket.key.length + 1))
     lines.push(
-      `Current ticket: ${ticket.key} "${ticket.summary}" (${ticket.status}). Points already asked: ${mine.length ? mine.join(', ') : 'none'}.`,
+      `Current ticket: ${ticket.key}. Points already asked: ${mine.length ? mine.join(', ') : 'none'}. Its summary and live status: mcp__branch8-jira-mod__get_ticket.`,
     )
   } else {
     lines.push('Current ticket: none set yet.')
