@@ -116,6 +116,15 @@ plugins/
                             Jira 專案有哪些 repo 記在 Jira 裡的「設定單」（label claude-config）
                             ——不放本 repo，因為專案名常含客戶名稱。
                             公司設定值在 config.env；整個關掉：設 BRANCH8_JIRA_CHECK=off
+                            skill jira-workflow：自己判斷要不要問單號（訊息、branch、本 session、
+                            搜尋指派給我的未完成單）、要不要開新單，並在開始動手 / 開 PR / 合併時
+                            從「這張單現在可走的轉換」推薦下一個狀態；每次寫入 Jira 都先用卡片問
+  branch8-jira-mod/         可選擴充（mod，需 Claude Code v2.1.287+，桌面版 v2.1.286+）：
+                            輸入框上方顯示目前的單、/jira-todo 列出我的待辦可點選、
+                            在三個時機點提醒 Claude、把規則放進 system prompt。
+                            第一版尚未加入 managed-settings，要用請手動安裝：
+                            /plugin install branch8-jira-mod@branch8
+                            沒裝也不影響 branch8-jira-check 與 skill
 template/
   plugin-template/          開發新 plugin 的起點，複製到 plugins/ 再改
                             沒列在 marketplace.json，所以永遠不會被發送
