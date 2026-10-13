@@ -175,6 +175,19 @@ plugins/                          自己寫的 plugin。目前只有 branch8-jir
                                   附加一次提醒（SessionStart 上膛、UserPromptSubmit 消耗），之後的訊息不附加
                                   SessionStart timeout 設 60 秒：開 session 時所有 hook 與 MCP 同時啟動，實測連
                                   0.02 秒的腳本都要 11 秒，原本 15 秒會被砍——被砍就沒上膛，第一則提醒也跟著消失
+                                  skills/jira-workflow：問單、開單、推薦狀態轉換的判斷規則。轉換一律從
+                                  listJiraIssueTransitions 的「現在可走」挑，不寫死狀態名——各專案流程差很多
+                                  （HS 10 個狀態、HTGO2 33 個），狀態類別也不可靠（HTGO2 的 WIP 歸在「未開始」）
+plugins/branch8-jira-mod/         可選的 mod 擴充（TypeScript function hooks，需 Claude Code v2.1.287+）：
+                                  輸入框上方顯示目前的單、/jira-todo、三個時機點的補漏提醒、system prompt 規則段落。
+                                  刻意做成「擴充」而非改寫 branch8-jira-check：mod 能否經 managed settings 自動
+                                  安裝到同事電腦、舊版 Claude Code 遇到 mod 的行為，都還沒驗證（2026-10-13）。
+                                  已實測：marketplace 安裝與版本更新的流程跟一般 plugin 相同。
+                                  注意：用專案 .claude/settings.json 啟用的 plugin 會被當成 repo-authored 而
+                                  不正式安裝，不能拿來模擬 managed settings。
+                                  列在 marketplace.json，但尚未加入 managed-settings.json（第一版只手動安裝試用）
+                                  hooks/logic.ts 是純函式（可單測），register.tsx 是引擎接線；
+                                  `claude plugin test plugins/branch8-jira-mod` 跑測試
 template/plugin-template/         開發新 plugin 的起點。刻意不列入 marketplace.json，
                                   所以不會被發送、也不會被 validate 檢查
                                   validate.py 會擋住把 ./template/ 當 source 的 entry

@@ -22,6 +22,13 @@
       "description": "Session-start Jira workflow: checks the Atlassian MCP connection and offers to connect, records each project's Jira board locally, and asks for (or creates) a Jira ticket for every new task. Adds /jira-check and /jira-board.",
       "category": "productivity",
       "keywords": ["jira", "atlassian", "hook"]
+    },
+    {
+      "name": "branch8-jira-mod",
+      "source": "./plugins/branch8-jira-mod",
+      "description": "Optional extension to branch8-jira-check: shows the current Jira ticket above the prompt, /jira-todo lists your open tickets to pick from, reminds Claude at start / PR / merge points. Needs Claude Code v2.1.287+ (desktop v2.1.286+).",
+      "category": "productivity",
+      "keywords": ["jira", "atlassian", "mod"]
     }
   ]
 }
