@@ -51,6 +51,10 @@ test('band text', () => {
   expect(long.includes('…')).toBe(true)
 })
 
+test('band before Jira answers: no blank summary or status', () => {
+  expect(formatBand({ ...T, summary: '', status: '' })).toBe('🎫 HS-1 · 查詢中')
+})
+
 test('rules section names the ticket and asked nodes', () => {
   expect(rulesSection(null, []).includes('jira-workflow')).toBe(true)
   const s = rulesSection(T, ['HS-1:start'])

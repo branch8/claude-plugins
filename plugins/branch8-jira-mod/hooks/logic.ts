@@ -62,7 +62,8 @@ export function formatBand(ticket: Ticket): string {
     ticket.summary.length > SUMMARY_MAX
       ? ticket.summary.slice(0, SUMMARY_MAX - 1) + '…'
       : ticket.summary
-  return `🎫 ${ticket.key} ${s} · ${ticket.status}`
+  // Before the first Jira refresh the summary and status may still be empty.
+  return `🎫 ${ticket.key}${s ? ` ${s}` : ''} · ${ticket.status || '查詢中'}`
 }
 
 // The system prompt section: rules plus the current ticket, so they survive
