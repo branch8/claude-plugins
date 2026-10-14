@@ -7,14 +7,18 @@ import type { Register } from 'claude-code'
 
 import type { Ticket } from '../types'
 import {
+  TODO_HELP,
   TODO_JQL,
   detectNode,
   bandText,
   formatBand,
+  groupTodos,
+  issueUrl,
   parseIssueList,
   parseIssueStatus,
   reminderFor,
   rulesSection,
+  todoRow,
 } from './logic'
 
 const P = 'branch8-jira-mod'
@@ -30,6 +34,8 @@ const todosAtom = atom({ plugin: 'branch8-jira-mod', key: 'todos' } as const, {
 // Whether the /jira-todo pane is open. Closed works as collapsed: the list
 // stays here, the band shows its count, /jira-todo reopens it at once.
 const todoOpenAtom = atom({ plugin: 'branch8-jira-mod', key: 'todoOpen' } as const, false)
+// Projects folded in the /jira-todo tree.
+const todoFoldedAtom = atom({ plugin: 'branch8-jira-mod', key: 'todoFolded' } as const, [])
 
 // The company Jira site, used when no ticket has given a cloudId yet.
 const SITE = 'https://branch8.atlassian.net'
@@ -37,6 +43,8 @@ const TODO_PANE = 'branch8-jira-todo'
 const TODO_LIMIT = 20
 // Columns a pane row may take; the pane is narrow and CJK titles wrap past it.
 const PANE_WIDTH = 46
+// A tree row: indent (4) and the link mark (2) come off the pane width.
+const ROW_WIDTH = PANE_WIDTH - 6
 
 // The Atlassian MCP under either name it is installed as.
 const ATLASSIAN = ['plugin:atlassian:atlassian', 'claude.ai Atlassian Rovo']
@@ -127,8 +135,9 @@ export const register: Register = on => {
   })
 
   on('ui.render', { component: 'Pane', requestId: TODO_PANE }, async ($, e) => {
-    const { Box, Button, Text } = $.ui.resolve(e)
+    const { Box, Button, Link, Text } = $.ui.resolve(e)
     const todos = await read($, todosAtom)
+    const folded = await read($, todoFoldedAtom)
     const current = (await read($, ticketAtom))?.key
     const cloudId = (await read($, ticketAtom))?.cloudId || SITE
     return (
@@ -142,24 +151,54 @@ export const register: Register = on => {
             await update($, todoOpenAtom, () => false)
           }}
         />
+        {TODO_HELP.map(line => (
+          <Text key={line} dimColor>
+            {line}
+          </Text>
+        ))}
         {todos.isLoading && <Text dimColor>{todos.items.length ? '更新中…' : '查詢中…'}</Text>}
         {todos.error && <Text>{todos.error}</Text>}
         {todos.isLoaded && !todos.isLoading && !todos.error && todos.items.length === 0 && (
           <Text dimColor>沒有指派給你、還沒完成的單。</Text>
         )}
-        {todos.items.map(item => (
-          <Button
-            key={item.key}
-            label={(item.key === current ? '▶ ' : '') + formatBand({ ...item, cloudId }, PANE_WIDTH)}
-            onPress={async () => {
-              const now = await $.clock.now()
-              await update($, ticketAtom, () => ({ ...item, cloudId }))
-              // The list was just read from Jira; no need to refresh at once.
-              await update($, refreshedAtom, () => now)
-              $.ui.toast(`目前的單：${item.key}`)
-            }}
-          />
-        ))}
+        {groupTodos(todos.items).map(group => {
+          const isFolded = folded.includes(group.project)
+          return (
+            <Box key={group.project} flexDirection="column">
+              <Button
+                key={`p-${group.project}`}
+                label={`${isFolded ? '▸' : '▾'} ${group.project}（${group.count}）`}
+                onPress={() =>
+                  update($, todoFoldedAtom, f =>
+                    f.includes(group.project) ? f.filter(x => x !== group.project) : [...f, group.project],
+                  )
+                }
+              />
+              {!isFolded &&
+                group.statuses.map(st => (
+                  <Box key={`${group.project}-${st.status}`} flexDirection="column" marginLeft={2}>
+                    <Text dimColor>{st.status || '（無狀態）'}</Text>
+                    {st.items.map(item => (
+                      <Box key={item.key} flexDirection="row" marginLeft={2}>
+                        <Button
+                          key={item.key}
+                          label={(item.key === current ? '▶ ' : '') + todoRow(item, ROW_WIDTH)}
+                          onPress={async () => {
+                            const now = await $.clock.now()
+                            await update($, ticketAtom, () => ({ ...item, cloudId }))
+                            // The list was just read from Jira; no need to refresh at once.
+                            await update($, refreshedAtom, () => now)
+                            $.ui.toast(`目前的單：${item.key}`)
+                          }}
+                        />
+                        <Link href={issueUrl(SITE, item.key)} label=" ↗" />
+                      </Box>
+                    ))}
+                  </Box>
+                ))}
+            </Box>
+          )
+        })}
       </Box>
     )
   })

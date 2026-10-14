@@ -122,6 +122,11 @@ plugins/
   branch8-jira-mod/         可選擴充（mod，需 Claude Code v2.1.287+，桌面版 v2.1.286+）：
                             輸入框上方顯示目前的單、/jira-todo 列出我的待辦可點選、
                             在三個時機點提醒 Claude、把規則放進 system prompt。
+                            /jira-todo 操作：Ctrl+X Tab 進面板（再按一次可切換）、↑↓ 移動、
+                            Enter 設為目前的單（在專案列上是收合／展開）、點 ↗ 在瀏覽器開該單、
+                            Esc 回輸入框（不會關面板）；清單依「專案 → 狀態」分層；
+                            「✕ 關閉」按鈕或再打一次 /jira-todo 關閉，關閉後清單保留，
+                            輸入框上方顯示待辦數量，重開立即顯示
                             第一版尚未加入 managed-settings，要用請手動安裝：
                             /plugin install branch8-jira-mod@branch8
                             沒裝也不影響 branch8-jira-check 與 skill

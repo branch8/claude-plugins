@@ -11,6 +11,7 @@ declare module 'claude-code' {
       refreshedAt: number
       todos: Todos
       todoOpen: boolean
+      todoFolded: string[]
     }
   }
 }

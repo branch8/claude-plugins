@@ -181,3 +181,48 @@ export function parseIssueList(content: Content): TodoItem[] | null {
   }
   return items
 }
+
+// Key help at the top of the /jira-todo pane; each line fits the pane.
+export const TODO_HELP = [
+  'Ctrl+X Tab 進面板 · Esc 回輸入框',
+  '↑↓ 移動 · Enter 選單或收合專案 · 點 ↗ 開 Jira',
+] as const
+
+export type TodoGroup = {
+  project: string
+  count: number
+  statuses: { status: string; items: TodoItem[] }[]
+}
+
+// Tree for the pane: project (key prefix), then status, both in the order
+// they first appear (the list is newest-updated first).
+export function groupTodos(items: readonly TodoItem[]): TodoGroup[] {
+  const groups: TodoGroup[] = []
+  for (const item of items) {
+    const project = item.key.split('-')[0] ?? item.key
+    let g = groups.find(x => x.project === project)
+    if (!g) {
+      g = { project, count: 0, statuses: [] }
+      groups.push(g)
+    }
+    g.count += 1
+    let s = g.statuses.find(x => x.status === item.status)
+    if (!s) {
+      s = { status: item.status, items: [] }
+      g.statuses.push(s)
+    }
+    s.items.push(item)
+  }
+  return groups
+}
+
+// The issue's page on the Jira site.
+export function issueUrl(site: string, key: string): string {
+  return `${site.replace(/\/+$/, '')}/browse/${key}`
+}
+
+// One tree row: key and summary only (the status is the row's group).
+export function todoRow(item: TodoItem, width: number): string {
+  const room = width - displayWidth(item.key) - 1
+  return room > 3 ? `${item.key} ${fitWidth(item.summary, room)}` : item.key
+}
