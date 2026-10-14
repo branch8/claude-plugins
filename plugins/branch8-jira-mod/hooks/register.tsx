@@ -3,17 +3,21 @@
 // current ticket, reminds Claude at the three points, puts the rules in the
 // system prompt and draws the ticket above the prompt. It never writes Jira.
 import { atom, read, update } from 'claude-code'
-import type { Register } from 'claude-code'
+import type { EngineInterface, Register } from 'claude-code'
 
 import type { Ticket } from '../types'
+import type { Lang, LangPref } from './logic'
 import {
-  TODO_HELP,
+  STRINGS,
   TODO_JQL,
   detectNode,
   bandText,
   formatBand,
   groupTodos,
   issueUrl,
+  nextLangPref,
+  resolveLang,
+  statusTone,
   parseIssueList,
   parseIssueStatus,
   reminderFor,
@@ -34,6 +38,10 @@ const todosAtom = atom({ plugin: 'branch8-jira-mod', key: 'todos' } as const, {
 // Whether the /jira-todo pane is open. Closed works as collapsed: the list
 // stays here, the band shows its count, /jira-todo reopens it at once.
 const todoOpenAtom = atom({ plugin: 'branch8-jira-mod', key: 'todoOpen' } as const, false)
+// Language of everything the mod draws: the pane's button picks it, kept in
+// $.store across sessions; "auto" follows Claude Code's language setting.
+const langPrefAtom = atom({ plugin: 'branch8-jira-mod', key: 'langPref' } as const, 'auto')
+const langAtom = atom({ plugin: 'branch8-jira-mod', key: 'lang' } as const, 'en')
 // Projects folded in the /jira-todo tree.
 const todoFoldedAtom = atom({ plugin: 'branch8-jira-mod', key: 'todoFolded' } as const, [])
 
@@ -43,15 +51,45 @@ const TODO_PANE = 'branch8-jira-todo'
 const TODO_LIMIT = 20
 // Columns a pane row may take; the pane is narrow and CJK titles wrap past it.
 const PANE_WIDTH = 46
-// A tree row: indent (4) and the link mark (2) come off the pane width.
-const ROW_WIDTH = PANE_WIDTH - 6
+// A tree row: indent (4) and the Open button (6) come off the pane width.
+const ROW_WIDTH = PANE_WIDTH - 10
 
 // The Atlassian MCP under either name it is installed as.
 const ATLASSIAN = ['plugin:atlassian:atlassian', 'claude.ai Atlassian Rovo']
 const REFRESH_MS = 60_000
-const UNKNOWN_STATUS = '狀態無法取得'
 
 const str = (v: unknown) => (typeof v === 'string' ? v : '')
+
+async function applyLang($: EngineInterface, pref: LangPref) {
+  let setting: string | undefined
+  try {
+    const { language } = (await $.settings.read()) as { language?: unknown }
+    setting = typeof language === 'string' ? language : undefined
+  } catch {
+    // Settings unreadable: fall back to the locale.
+  }
+  const lang: Lang = resolveLang(pref, setting, await $.env.get('LANG'))
+  await update($, langPrefAtom, () => pref)
+  await update($, langAtom, () => lang)
+}
+
+// Opens a URL in the person's browser: WSL hands it to Windows, macOS to
+// `open`, Linux to `xdg-open`, native Windows to `start`. False if none ran.
+async function openUrl($: EngineInterface, url: string): Promise<boolean> {
+  const wsl = await $.env.get('WSL_DISTRO_NAME')
+  const tries: string[][] = wsl
+    ? [['wslview', url], ['cmd.exe', '/c', 'start', '', url]]
+    : [['open', url], ['xdg-open', url], ['cmd', '/c', 'start', '', url]]
+  for (const argv of tries) {
+    try {
+      const r = await $.process.run(argv, { timeoutMs: 10_000 })
+      if (r.exitCode === 0) return true
+    } catch {
+      // Not installed here; try the next opener.
+    }
+  }
+  return false
+}
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
@@ -85,24 +123,33 @@ export const register: Register = on => {
     })
     await $.command.register({
       name: 'jira-todo',
-      description: '列出指派給我、還沒完成的 Jira 單，點一張設為目前的單',
+      description: 'Jira 待辦 / open tickets: pick one as the current ticket',
     })
+    // Last, and guarded: a language that fails to load must not cost the
+    // tools and the command registered above.
+    try {
+      const pref = await $.store.get('lang')
+      await applyLang($, pref === 'zh-TW' || pref === 'zh-CN' || pref === 'en' ? pref : 'auto')
+    } catch {
+      // Stays on the default (English).
+    }
     return next(e)
   })
 
   // /jira-todo toggles the pane: closes it when open, opens it otherwise.
   on('command.run', { command: 'jira-todo' }, async $ => {
+    const str = STRINGS[(await read($, langAtom)) as Lang]
     if (await read($, todoOpenAtom)) {
       await $.ui.close({ id: TODO_PANE })
       await update($, todoOpenAtom, () => false)
-      return { text: 'Jira 待辦面板已關閉（再打 /jira-todo 打開）。' }
+      return { text: str.closed }
     }
-    await $.ui.open({ id: TODO_PANE, title: 'Jira 待辦', focus: true })
+    await $.ui.open({ id: TODO_PANE, title: 'Jira', focus: true })
     await update($, todoOpenAtom, () => true)
     // Keep the last list on screen while it refreshes.
     await update($, todosAtom, t => ({ ...t, error: null, isLoading: true }))
     const cloudId = (await read($, ticketAtom))?.cloudId || SITE
-    let error = 'Jira 沒有連線（找不到 Atlassian MCP），請先跑 /jira-check'
+    let error = str.noJira
     for (const server of ATLASSIAN) {
       try {
         const res = await $.mcp.call(server, 'searchJiraIssuesUsingJql', {
@@ -112,15 +159,15 @@ export const register: Register = on => {
         })
         if (res.isError) {
           // Installed but signed out answers isError: try the other server.
-          error = 'Jira 查詢失敗：Atlassian 可能還沒登入，請跑 /jira-check'
+          error = str.signedOut
           continue
         }
         const items = parseIssueList(res.content as { type: string; text?: string }[])
         if (items) {
           await update($, todosAtom, () => ({ items, error: null, isLoading: false, isLoaded: true }))
-          return { text: `Jira 待辦：${items.length} 張。` }
+          return { text: str.todoCount(items.length) }
         }
-        error = 'Jira 查詢失敗，請稍後再試'
+        error = str.queryFailed
       } catch {
         // Not connected under this name; try the next one.
       }
@@ -135,63 +182,85 @@ export const register: Register = on => {
   })
 
   on('ui.render', { component: 'Pane', requestId: TODO_PANE }, async ($, e) => {
-    const { Box, Button, Link, Text } = $.ui.resolve(e)
+    const { Box, Button, Text } = $.ui.resolve(e)
     const todos = await read($, todosAtom)
     const folded = await read($, todoFoldedAtom)
-    const current = (await read($, ticketAtom))?.key
-    const cloudId = (await read($, ticketAtom))?.cloudId || SITE
+    const lang = (await read($, langAtom)) as Lang
+    const pref = (await read($, langPrefAtom)) as LangPref
+    const str = STRINGS[lang]
+    const ticket = await read($, ticketAtom)
+    const current = ticket?.key
+    const cloudId = ticket?.cloudId || SITE
     return (
       <Box flexDirection="column">
-        <Button
-          key="close"
-          label="✕ 關閉（/jira-todo 可再打開）"
-          onPress={async () => {
-            await $.ui.close({ id: TODO_PANE })
-            // A close from the plugin's own handler may not reach its ui.close hook.
-            await update($, todoOpenAtom, () => false)
-          }}
-        />
-        {TODO_HELP.map(line => (
+        {str.help.map(line => (
           <Text key={line} dimColor>
             {line}
           </Text>
         ))}
-        {todos.isLoading && <Text dimColor>{todos.items.length ? '更新中…' : '查詢中…'}</Text>}
-        {todos.error && <Text>{todos.error}</Text>}
+        <Box flexDirection="row" columnGap={2}>
+          <Button key="close" plain dimColor label={str.close} onPress={async () => {
+            await $.ui.close({ id: TODO_PANE })
+            // A close from the plugin's own handler may not reach its ui.close hook.
+            await update($, todoOpenAtom, () => false)
+          }} />
+          <Button key="lang" plain dimColor label={`${str.language}${str.langNames[pref]}`} onPress={async () => {
+            const next = nextLangPref(pref)
+            await $.store.set('lang', next)
+            await applyLang($, next)
+          }} />
+        </Box>
+        <Text> </Text>
+        {todos.isLoading && <Text dimColor>{todos.items.length ? str.refreshing : str.loading + '…'}</Text>}
+        {todos.error && <Text color="error">{todos.error}</Text>}
         {todos.isLoaded && !todos.isLoading && !todos.error && todos.items.length === 0 && (
-          <Text dimColor>沒有指派給你、還沒完成的單。</Text>
+          <Text dimColor>{str.empty}</Text>
         )}
         {groupTodos(todos.items).map(group => {
           const isFolded = folded.includes(group.project)
           return (
             <Box key={group.project} flexDirection="column">
-              <Button
-                key={`p-${group.project}`}
-                label={`${isFolded ? '▸' : '▾'} ${group.project}（${group.count}）`}
-                onPress={() =>
-                  update($, todoFoldedAtom, f =>
-                    f.includes(group.project) ? f.filter(x => x !== group.project) : [...f, group.project],
-                  )
-                }
-              />
+              <Box flexDirection="row">
+                <Button
+                  key={`p-${group.project}`}
+                  plain
+                  label={`${isFolded ? '▸' : '▾'} ${group.project}`}
+                  onPress={() =>
+                    update($, todoFoldedAtom, f =>
+                      f.includes(group.project) ? f.filter(x => x !== group.project) : [...f, group.project],
+                    )
+                  }
+                />
+                <Text color="claude" bold>{`  ${group.count}`}</Text>
+              </Box>
               {!isFolded &&
                 group.statuses.map(st => (
                   <Box key={`${group.project}-${st.status}`} flexDirection="column" marginLeft={2}>
-                    <Text dimColor>{st.status || '（無狀態）'}</Text>
+                    <Text color={statusTone(st.status)}>{`● ${st.status || str.noStatus}`}</Text>
                     {st.items.map(item => (
-                      <Box key={item.key} flexDirection="row" marginLeft={2}>
+                      <Box key={item.key} flexDirection="row" marginLeft={2} columnGap={1}>
                         <Button
                           key={item.key}
+                          plain
                           label={(item.key === current ? '▶ ' : '') + todoRow(item, ROW_WIDTH)}
                           onPress={async () => {
                             const now = await $.clock.now()
                             await update($, ticketAtom, () => ({ ...item, cloudId }))
                             // The list was just read from Jira; no need to refresh at once.
                             await update($, refreshedAtom, () => now)
-                            $.ui.toast(`目前的單：${item.key}`)
+                            $.ui.toast(str.current(item.key))
                           }}
                         />
-                        <Link href={issueUrl(SITE, item.key)} label=" ↗" />
+                        <Button
+                          key={`o-${item.key}`}
+                          plain
+                          dimColor
+                          label={str.open}
+                          onPress={async () => {
+                            const url = issueUrl(SITE, item.key)
+                            if (!(await openUrl($, url))) $.ui.toast(str.openFailed(url))
+                          }}
+                        />
                       </Box>
                     ))}
                   </Box>
@@ -257,7 +326,7 @@ export const register: Register = on => {
     const todos = await read($, todosAtom)
     // The count stands in for the pane while it is closed.
     const count = todos.isLoaded && !(await read($, todoOpenAtom)) ? todos.items.length : null
-    const line = bandText(t, count)
+    const line = bandText(t, count, undefined, STRINGS[(await read($, langAtom)) as Lang])
     if (!line || e.props.hasSurvey) return next(e)
     const { Text } = $.ui.resolve(e)
     return <Text>{line}</Text>
@@ -287,8 +356,9 @@ export const register: Register = on => {
         // Not connected under this name; try the next one.
       }
     }
+    const lang = (await read($, langAtom)) as Lang
     await update($, ticketAtom, cur =>
-      cur && cur.key === t.key ? { ...cur, ...(fresh ?? { status: UNKNOWN_STATUS }) } : cur,
+      cur && cur.key === t.key ? { ...cur, ...(fresh ?? { status: STRINGS[lang].statusUnknown }) } : cur,
     )
     return out
   })
