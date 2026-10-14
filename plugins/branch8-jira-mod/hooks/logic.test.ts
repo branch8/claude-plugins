@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { detectNode, reminderFor, formatBand, rulesSection, parseIssueStatus, parseIssueList, TODO_JQL, displayWidth, bandText, TODO_HELP, groupTodos, issueUrl, todoRow, langOf, STRINGS, statusTone, nextLangPref, resolveLang, recordFileName, ancestorDirs, parseRecord, projectOf, isOtherProject, applyScope, effectiveScope, foldersFor, suggestedFolder } from './logic'
+import { detectNode, reminderFor, formatBand, rulesSection, parseIssueStatus, parseIssueList, TODO_JQL, displayWidth, bandText, TODO_HELP, groupTodos, issueUrl, todoRow, langOf, STRINGS, statusTone, nextLangPref, resolveLang, recordFileName, ancestorDirs, parseRecord, projectOf, isOtherProject, applyScope, effectiveScope, foldersFor, suggestedFolder, typeIcon } from './logic'
 
 const T = { key: 'HS-1', summary: '修正請假審核通知', status: '待辦事項', cloudId: 'c' }
 
@@ -313,5 +313,52 @@ test('folders recorded for a project, for the move suggestion', () => {
   expect(suggestedFolder('/home/g/Branch8', 'ZZ')).toBe('/home/g/Branch8/ZZ')
   for (const lang of ['zh-TW', 'zh-CN', 'en'] as const) {
     expect(STRINGS[lang].moveHint('/w/htgo').includes('cd /w/htgo && claude')).toBe(true)
+  }
+})
+
+// --- Issue type icons, row menu ---
+
+test('issue type icons', () => {
+  expect(typeIcon('錯誤')).toBe('🐞')
+  expect(typeIcon('Bug')).toBe('🐞')
+  expect(typeIcon('漏洞')).toBe('🐞')
+  expect(typeIcon('故事')).toBe('✨')
+  expect(typeIcon('功能')).toBe('✨')
+  expect(typeIcon('Story')).toBe('✨')
+  expect(typeIcon('任務')).toBe('✅')
+  expect(typeIcon('Task')).toBe('✅')
+  expect(typeIcon('大型工作')).toBe('⚡')
+  expect(typeIcon('Epic')).toBe('⚡')
+  expect(typeIcon('Sub-task')).toBe('🔹')
+  expect(typeIcon('Subtask')).toBe('🔹')
+  expect(typeIcon('HOTFIX')).toBe('🔥')
+  expect(typeIcon('Inquire')).toBe('❓')
+  expect(typeIcon('Idea')).toBe('📄')
+  expect(typeIcon(undefined)).toBe('📄')
+})
+
+test('todo items carry the issue type', () => {
+  const issues = [{ key: 'HS-1', fields: { summary: 'S', status: { name: '進行中' }, issuetype: { name: '錯誤' } } }]
+  expect(parseIssueList([{ type: 'text', text: JSON.stringify({ issues }) }])).toEqual([
+    { key: 'HS-1', summary: 'S', status: '進行中', type: '錯誤' },
+  ])
+})
+
+test('menu and hotkey strings exist in every language', () => {
+  for (const lang of ['zh-TW', 'zh-CN', 'en'] as const) {
+    const s = STRINGS[lang]
+    expect(s.menuWork.length > 0 && s.menuOpen.includes('🔗') && s.menuCancel.length > 0).toBe(true)
+    expect(s.help.join(' ').includes(' o ')).toBe(true)
+    for (const line of s.help) expect(displayWidth(line) <= 46).toBe(true)
+  }
+})
+
+test('clear-ticket strings exist in every language', () => {
+  for (const lang of ['zh-TW', 'zh-CN', 'en'] as const) {
+    const s = STRINGS[lang]
+    expect(s.clearTicket('HS-1').includes('HS-1')).toBe(true)
+    expect(s.menuClear.includes('⏹')).toBe(true)
+    expect(s.cleared.length > 0).toBe(true)
+    expect(s.noFocus.includes('o')).toBe(true)
   }
 })
