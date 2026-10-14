@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { detectNode, reminderFor, formatBand, rulesSection, parseIssueStatus, parseIssueList, TODO_JQL, displayWidth, bandText, TODO_HELP, groupTodos, issueUrl, todoRow, langOf, STRINGS, statusTone, nextLangPref, resolveLang, recordFileName, ancestorDirs, parseRecord, projectOf, isOtherProject, applyScope, effectiveScope, foldersFor, suggestedFolder, typeIcon } from './logic'
+import { detectNode, reminderFor, formatBand, rulesSection, parseIssueStatus, parseIssueList, TODO_JQL, displayWidth, bandText, TODO_HELP, groupTodos, issueUrl, todoRow, langOf, STRINGS, statusTone, nextLangPref, resolveLang, recordFileName, ancestorDirs, parseRecord, projectOf, isOtherProject, applyScope, effectiveScope, foldersFor, suggestedFolder, typeIcon, focusedTicket } from './logic'
 
 const T = { key: 'HS-1', summary: '修正請假審核通知', status: '待辦事項', cloudId: 'c' }
 
@@ -361,4 +361,12 @@ test('clear-ticket strings exist in every language', () => {
     expect(s.cleared.length > 0).toBe(true)
     expect(s.noFocus.includes('o')).toBe(true)
   }
+})
+
+test('the o hotkey only targets a ticket the cursor is on now', () => {
+  expect(focusedTicket('HS-126')).toBe('HS-126')
+  expect(focusedTicket('hotkey-o')).toBeNull()
+  expect(focusedTicket('w-HS-126')).toBeNull()
+  expect(focusedTicket('lang')).toBeNull()
+  expect(focusedTicket(undefined)).toBeNull()
 })

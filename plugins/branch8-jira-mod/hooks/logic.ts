@@ -292,6 +292,7 @@ export type Strings = {
   cancel: string
   moveHint: (dir: string) => string
   menuWork: string
+  helpTitle: string
   menuOpen: string
   menuCancel: string
   clearTicket: (key: string) => string
@@ -306,7 +307,7 @@ export const STRINGS: Record<Lang, Strings> = {
   'zh-TW': {
     help: ['Ctrl+X Tab 進面板 · Esc 回輸入框', '↑↓ 移動 · Enter 選單／收合 · o 開啟 Jira'],
     close: '✕ 關閉',
-    language: '⚙ 語言：',
+    language: '語言：',
     langNames: { ...LANG_NAMES, auto: '自動' },
     open: '開啟',
     openFailed: url => `無法開啟瀏覽器：${url}`,
@@ -329,7 +330,7 @@ export const STRINGS: Record<Lang, Strings> = {
     setMapping: '   設定：/jira-board',
     thisFolderTag: '← 本資料夾的專案',
     otherTag: '← 其他專案（非本資料夾）',
-    scope: '⚙ 範圍：',
+    scope: '範圍：',
     scopeNames: { folder: '本資料夾', all: '全部專案' },
     confirmOther: (key, fp) => `${key} 不屬於本資料夾的專案（${fp}）`,
     moveThere: '到該專案資料夾開新 session（建議）',
@@ -337,6 +338,7 @@ export const STRINGS: Record<Lang, Strings> = {
     cancel: '取消',
     moveHint: dir => `在新終端機執行：cd ${dir} && claude`,
     menuWork: '▶ 設為目前的單並處理',
+    helpTitle: '⌨ 操作說明',
     menuOpen: '🔗 開啟 Jira',
     menuCancel: '✕ 取消',
     clearTicket: key => `⏹ 取消選定 ${key}`,
@@ -347,7 +349,7 @@ export const STRINGS: Record<Lang, Strings> = {
   'zh-CN': {
     help: ['Ctrl+X Tab 进面板 · Esc 回输入框', '↑↓ 移动 · Enter 菜单／收合 · o 打开 Jira'],
     close: '✕ 关闭',
-    language: '⚙ 语言：',
+    language: '语言：',
     langNames: { ...LANG_NAMES, auto: '自动' },
     open: '打开',
     openFailed: url => `无法打开浏览器：${url}`,
@@ -370,7 +372,7 @@ export const STRINGS: Record<Lang, Strings> = {
     setMapping: '   设置：/jira-board',
     thisFolderTag: '← 本文件夹的项目',
     otherTag: '← 其他项目（非本文件夹）',
-    scope: '⚙ 范围：',
+    scope: '范围：',
     scopeNames: { folder: '本文件夹', all: '全部项目' },
     confirmOther: (key, fp) => `${key} 不属于本文件夹的项目（${fp}）`,
     moveThere: '到该项目文件夹开新 session（建议）',
@@ -378,6 +380,7 @@ export const STRINGS: Record<Lang, Strings> = {
     cancel: '取消',
     moveHint: dir => `在新终端运行：cd ${dir} && claude`,
     menuWork: '▶ 设为当前的单并处理',
+    helpTitle: '⌨ 操作说明',
     menuOpen: '🔗 打开 Jira',
     menuCancel: '✕ 取消',
     clearTicket: key => `⏹ 取消选定 ${key}`,
@@ -388,7 +391,7 @@ export const STRINGS: Record<Lang, Strings> = {
   en: {
     help: ['Ctrl+X Tab: into pane · Esc: back', '↑↓ move · Enter menu/fold · o open Jira'],
     close: '✕ Close',
-    language: '⚙ Language: ',
+    language: 'Language: ',
     langNames: { ...LANG_NAMES, auto: 'Auto' },
     open: 'Open',
     openFailed: url => `Could not open a browser: ${url}`,
@@ -411,7 +414,7 @@ export const STRINGS: Record<Lang, Strings> = {
     setMapping: '   set: /jira-board',
     thisFolderTag: "← this folder's project",
     otherTag: '← other project',
-    scope: '⚙ Scope: ',
+    scope: 'Scope: ',
     scopeNames: { folder: 'this folder', all: 'all projects' },
     confirmOther: (key, fp) => `${key} is not this folder's project (${fp})`,
     moveThere: "Open a session in its folder (recommended)",
@@ -419,6 +422,7 @@ export const STRINGS: Record<Lang, Strings> = {
     cancel: 'Cancel',
     moveHint: dir => `In a new terminal: cd ${dir} && claude`,
     menuWork: '▶ Make it the current ticket',
+    helpTitle: '⌨ Keys',
     menuOpen: '🔗 Open in Jira',
     menuCancel: '✕ Cancel',
     clearTicket: key => `⏹ Unselect ${key}`,
@@ -532,4 +536,11 @@ export function typeIcon(type: string | undefined): string {
   if (/task|任務|任务/.test(t)) return '✅'
   if (/inquire|詢問|询问|question/.test(t)) return '❓'
   return '📄'
+}
+
+// The ticket under the pane's cursor, from the focused element's key: a
+// ticket row is keyed by its issue key; anything else (a button, a menu
+// item) means no ticket, so a stale one is never reused.
+export function focusedTicket(element: string | undefined): string | null {
+  return element && /^[A-Z][A-Z0-9_]*-\d+$/.test(element) ? element : null
 }

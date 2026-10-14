@@ -18,6 +18,7 @@ import {
   recordFileName,
   suggestedFolder,
   typeIcon,
+  focusedTicket,
   TODO_JQL,
   detectNode,
   bandText,
@@ -72,7 +73,6 @@ const TODO_LIMIT = 20
 const PANE_WIDTH = 46
 // A tree row: indent (4) and the Open button (6) come off the pane width.
 const ROW_WIDTH = PANE_WIDTH - 10
-const ISSUE_KEY = /^[A-Z][A-Z0-9_]*-\d+$/
 
 // The Atlassian MCP under either name it is installed as.
 const ATLASSIAN = ['plugin:atlassian:atlassian', 'claude.ai Atlassian Rovo']
@@ -282,7 +282,8 @@ export const register: Register = on => {
   })
 
   on('ui.focus', { requestId: TODO_PANE }, async ($, e, next) => {
-    if (e.element && ISSUE_KEY.test(e.element)) await update($, focusedAtom, () => e.element ?? null)
+    // Every move updates it, so leaving a ticket for a button clears it.
+    await update($, focusedAtom, () => focusedTicket(e.element))
     return next(e)
   })
 
@@ -329,12 +330,16 @@ export const register: Register = on => {
           <Text bold>{str.folderUnmapped(folder.dir || '?')}</Text>
         )}
         <Text dimColor>{folder.project ? str.changeMapping : str.setMapping}</Text>
-        {str.help.map(line => (
-          <Text key={line} dimColor>
-            {line}
-          </Text>
-        ))}
+        <Box flexDirection="column" borderStyle="round" borderDimColor paddingX={1} marginTop={1}>
+          <Text dimColor bold>{str.helpTitle}</Text>
+          {str.help.map(line => (
+            <Text key={line} dimColor>
+              {line}
+            </Text>
+          ))}
+        </Box>
         <Box flexDirection="row" columnGap={2}>
+          <Text color="claude" bold>⚙</Text>
           <Button key="close" plain dimColor label={str.close} onPress={async () => {
             await $.ui.close({ id: TODO_PANE })
             // A close from the plugin's own handler may not reach its ui.close hook.
@@ -360,7 +365,7 @@ export const register: Register = on => {
         {current && (
           <Button key="clear-top" plain label={str.clearTicket(current)} onPress={clearTicket} />
         )}
-        <Text> </Text>
+        <Text dimColor>{'─'.repeat(PANE_WIDTH - 4)}</Text>
         {todos.isLoading && <Text dimColor>{todos.items.length ? str.refreshing : str.loading + '…'}</Text>}
         {todos.error && <Text color="error">{todos.error}</Text>}
         {todos.isLoaded && !todos.isLoading && !todos.error && todos.items.length === 0 && (
