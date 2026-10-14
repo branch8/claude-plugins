@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { detectNode, reminderFor, formatBand, rulesSection, parseIssueStatus, parseIssueList, TODO_JQL, displayWidth, bandText } from './logic'
+import { detectNode, reminderFor, formatBand, rulesSection, parseIssueStatus, parseIssueList, TODO_JQL, displayWidth, bandText, TODO_HELP } from './logic'
 
 const T = { key: 'HS-1', summary: '修正請假審核通知', status: '待辦事項', cloudId: 'c' }
 
@@ -153,4 +153,10 @@ test('band with count still fits the width', () => {
   const b = bandText({ ...T, summary: '請'.repeat(60) }, 17)
   expect(b !== null && displayWidth(b) <= 78).toBe(true)
   expect(b?.endsWith(' · 待辦 17')).toBe(true)
+})
+
+test('pane key help fits the pane width', () => {
+  expect(TODO_HELP.length).toBe(2)
+  for (const line of TODO_HELP) expect(displayWidth(line) <= 46).toBe(true)
+  expect(TODO_HELP.join(' ').includes('Ctrl+X Tab')).toBe(true)
 })

@@ -181,3 +181,9 @@ export function parseIssueList(content: Content): TodoItem[] | null {
   }
   return items
 }
+
+// Key help at the top of the /jira-todo pane; each line fits the pane.
+export const TODO_HELP = [
+  'Ctrl+X Tab 進面板 · Esc 回輸入框',
+  '↑↓ 移動 · Enter 設為目前的單',
+] as const

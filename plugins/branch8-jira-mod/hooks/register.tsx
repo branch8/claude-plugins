@@ -7,6 +7,7 @@ import type { Register } from 'claude-code'
 
 import type { Ticket } from '../types'
 import {
+  TODO_HELP,
   TODO_JQL,
   detectNode,
   bandText,
@@ -142,6 +143,11 @@ export const register: Register = on => {
             await update($, todoOpenAtom, () => false)
           }}
         />
+        {TODO_HELP.map(line => (
+          <Text key={line} dimColor>
+            {line}
+          </Text>
+        ))}
         {todos.isLoading && <Text dimColor>{todos.items.length ? '更新中…' : '查詢中…'}</Text>}
         {todos.error && <Text>{todos.error}</Text>}
         {todos.isLoaded && !todos.isLoading && !todos.error && todos.items.length === 0 && (
