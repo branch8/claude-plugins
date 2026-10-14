@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { detectNode, reminderFor, formatBand, rulesSection, parseIssueStatus, parseIssueList, TODO_JQL, displayWidth, bandText, TODO_HELP } from './logic'
+import { detectNode, reminderFor, formatBand, rulesSection, parseIssueStatus, parseIssueList, TODO_JQL, displayWidth, bandText, TODO_HELP, groupTodos, issueUrl, todoRow } from './logic'
 
 const T = { key: 'HS-1', summary: '修正請假審核通知', status: '待辦事項', cloudId: 'c' }
 
@@ -159,4 +159,40 @@ test('pane key help fits the pane width', () => {
   expect(TODO_HELP.length).toBe(2)
   for (const line of TODO_HELP) expect(displayWidth(line) <= 46).toBe(true)
   expect(TODO_HELP.join(' ').includes('Ctrl+X Tab')).toBe(true)
+})
+
+// --- Tree by project, then status; links to Jira ---
+
+const ITEMS = [
+  { key: 'HS-126', summary: '請假日期少一天', status: '進行中' },
+  { key: 'HTGO2-3319', summary: '驗收文件備齊', status: '[HOTFIX] WIP' },
+  { key: 'HS-8', summary: 'Multi level approval', status: 'Pending for discussion' },
+  { key: 'HS-130', summary: '[測試] README', status: '進行中' },
+]
+
+test('todos group by project, then status, in first-seen order', () => {
+  expect(groupTodos(ITEMS)).toEqual([
+    {
+      project: 'HS',
+      count: 3,
+      statuses: [
+        { status: '進行中', items: [ITEMS[0], ITEMS[3]] },
+        { status: 'Pending for discussion', items: [ITEMS[2]] },
+      ],
+    },
+    { project: 'HTGO2', count: 1, statuses: [{ status: '[HOTFIX] WIP', items: [ITEMS[1]] }] },
+  ])
+  expect(groupTodos([])).toEqual([])
+})
+
+test('issue link points at the browse page', () => {
+  expect(issueUrl('https://branch8.atlassian.net', 'HS-126')).toBe('https://branch8.atlassian.net/browse/HS-126')
+  expect(issueUrl('https://branch8.atlassian.net/', 'HS-126')).toBe('https://branch8.atlassian.net/browse/HS-126')
+})
+
+test('tree row shows key and summary within the width, no status', () => {
+  const row = todoRow({ key: 'HS-126', summary: '請假日期員工端顯示少一天（off-by-one）', status: '進行中' }, 30)
+  expect(row.startsWith('HS-126 請假')).toBe(true)
+  expect(displayWidth(row) <= 30).toBe(true)
+  expect(row.includes('進行中')).toBe(false)
 })
