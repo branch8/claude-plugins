@@ -58,3 +58,12 @@ test('set_ticket without cloudId falls back to the company site', async ($, on) 
   const got = await $.tool.call({ tool: GET } as never)
   expect(JSON.stringify(got).includes('branch8.atlassian.net')).toBe(true)
 })
+
+test('clear_ticket leaves Claude with no current ticket', async ($, on) => {
+  fakeTools(on)
+  await $.tool.call({ tool: SET, key: 'HS-11', cloudId: 'c' } as never)
+  await $.tool.call({ tool: 'mcp__branch8-jira-mod__clear_ticket' } as never)
+  const got = (await $.tool.call({ tool: GET } as never)) as { result?: unknown; text?: string }
+  const body = typeof got.result === 'string' ? got.result : (got.text ?? '')
+  expect(JSON.parse(body).ticket).toBeNull()
+})

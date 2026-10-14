@@ -176,13 +176,18 @@ export function parseIssueList(content: Content): TodoItem[] | null {
   if (!Array.isArray(issues)) return null
   const items: TodoItem[] = []
   for (const raw of issues) {
-    const i = raw as { key?: unknown; fields?: { summary?: unknown; status?: { name?: unknown } } }
+    const i = raw as {
+      key?: unknown
+      fields?: { summary?: unknown; status?: { name?: unknown }; issuetype?: { name?: unknown } }
+    }
     if (typeof i?.key !== 'string') continue
-    items.push({
+    const item: TodoItem = {
       key: i.key,
       summary: typeof i.fields?.summary === 'string' ? i.fields.summary : '',
       status: typeof i.fields?.status?.name === 'string' ? i.fields.status.name : '',
-    })
+    }
+    if (typeof i.fields?.issuetype?.name === 'string') item.type = i.fields.issuetype.name
+    items.push(item)
   }
   return items
 }
@@ -286,13 +291,20 @@ export type Strings = {
   stayHere: string
   cancel: string
   moveHint: (dir: string) => string
+  menuWork: string
+  menuOpen: string
+  menuCancel: string
+  clearTicket: (key: string) => string
+  menuClear: string
+  cleared: string
+  noFocus: string
 }
 
 const LANG_NAMES = { 'zh-TW': '繁中', 'zh-CN': '简中', en: 'English' }
 
 export const STRINGS: Record<Lang, Strings> = {
   'zh-TW': {
-    help: ['Ctrl+X Tab 進面板 · Esc 回輸入框', '↑↓ 移動 · Enter 選定／收合 · 開啟＝瀏覽器'],
+    help: ['Ctrl+X Tab 進面板 · Esc 回輸入框', '↑↓ 移動 · Enter 選單／收合 · o 開啟 Jira'],
     close: '✕ 關閉',
     language: '⚙ 語言：',
     langNames: { ...LANG_NAMES, auto: '自動' },
@@ -324,9 +336,16 @@ export const STRINGS: Record<Lang, Strings> = {
     stayHere: '仍在這裡做',
     cancel: '取消',
     moveHint: dir => `在新終端機執行：cd ${dir} && claude`,
+    menuWork: '▶ 設為目前的單並處理',
+    menuOpen: '🔗 開啟 Jira',
+    menuCancel: '✕ 取消',
+    clearTicket: key => `⏹ 取消選定 ${key}`,
+    menuClear: '⏹ 取消選定此任務',
+    cleared: '已取消選定任務：Claude 目前沒有綁定任何單',
+    noFocus: '請先用 ↑↓ 把游標移到一張單上，再按 o',
   },
   'zh-CN': {
-    help: ['Ctrl+X Tab 进面板 · Esc 回输入框', '↑↓ 移动 · Enter 选定／收合 · 打开＝浏览器'],
+    help: ['Ctrl+X Tab 进面板 · Esc 回输入框', '↑↓ 移动 · Enter 菜单／收合 · o 打开 Jira'],
     close: '✕ 关闭',
     language: '⚙ 语言：',
     langNames: { ...LANG_NAMES, auto: '自动' },
@@ -358,9 +377,16 @@ export const STRINGS: Record<Lang, Strings> = {
     stayHere: '仍在这里做',
     cancel: '取消',
     moveHint: dir => `在新终端运行：cd ${dir} && claude`,
+    menuWork: '▶ 设为当前的单并处理',
+    menuOpen: '🔗 打开 Jira',
+    menuCancel: '✕ 取消',
+    clearTicket: key => `⏹ 取消选定 ${key}`,
+    menuClear: '⏹ 取消选定此任务',
+    cleared: '已取消选定任务：Claude 当前没有绑定任何单',
+    noFocus: '请先用 ↑↓ 把光标移到一张单上，再按 o',
   },
   en: {
-    help: ['Ctrl+X Tab: into pane · Esc: back', '↑↓ move · Enter pick/fold · Open: browser'],
+    help: ['Ctrl+X Tab: into pane · Esc: back', '↑↓ move · Enter menu/fold · o open Jira'],
     close: '✕ Close',
     language: '⚙ Language: ',
     langNames: { ...LANG_NAMES, auto: 'Auto' },
@@ -392,6 +418,13 @@ export const STRINGS: Record<Lang, Strings> = {
     stayHere: 'Work on it here',
     cancel: 'Cancel',
     moveHint: dir => `In a new terminal: cd ${dir} && claude`,
+    menuWork: '▶ Make it the current ticket',
+    menuOpen: '🔗 Open in Jira',
+    menuCancel: '✕ Cancel',
+    clearTicket: key => `⏹ Unselect ${key}`,
+    menuClear: '⏹ Unselect this ticket',
+    cleared: 'Ticket unselected: Claude has no current ticket',
+    noFocus: 'Move to a ticket with ↑↓ first, then press o',
   },
 }
 
@@ -486,4 +519,17 @@ export function foldersFor(records: readonly { dir: string; text: string }[], pr
 // Where branch8-jira-check suggests a new project folder.
 export function suggestedFolder(workspaceRoot: string, projectKey: string): string {
   return `${workspaceRoot.replace(/[/\\]+$/, '')}/${projectKey}`
+}
+
+// Icon for a Jira issue type, by name (each project names its own types).
+export function typeIcon(type: string | undefined): string {
+  const t = (type ?? '').toLowerCase()
+  if (/hotfix/.test(t)) return '🔥'
+  if (/sub-?task|子任務|子任务/.test(t)) return '🔹'
+  if (/bug|錯誤|错误|漏洞|defect/.test(t)) return '🐞'
+  if (/epic|大型工作/.test(t)) return '⚡'
+  if (/story|故事|功能|feature/.test(t)) return '✨'
+  if (/task|任務|任务/.test(t)) return '✅'
+  if (/inquire|詢問|询问|question/.test(t)) return '❓'
+  return '📄'
 }

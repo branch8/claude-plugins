@@ -17,6 +17,7 @@ import {
   projectOf,
   recordFileName,
   suggestedFolder,
+  typeIcon,
   TODO_JQL,
   detectNode,
   bandText,
@@ -58,8 +59,10 @@ const statusFoldedAtom = atom({ plugin: 'branch8-jira-mod', key: 'statusFolded' 
 const scopePrefAtom = atom({ plugin: 'branch8-jira-mod', key: 'scopePref' } as const, 'auto')
 // This session's folder and the Jira project branch8-jira-check recorded for it.
 const folderAtom = atom({ plugin: 'branch8-jira-mod', key: 'folder' } as const, { dir: '', project: null, name: '' })
-// A pick from another project waiting for the person's choice.
-const pendingAtom = atom({ plugin: 'branch8-jira-mod', key: 'pending' } as const, null)
+// The row menu open under one ticket (Enter on a row), if any.
+const menuAtom = atom({ plugin: 'branch8-jira-mod', key: 'menu' } as const, null)
+// The ticket row the pane's focus ring is on, for the "o" hotkey.
+const focusedAtom = atom({ plugin: 'branch8-jira-mod', key: 'focusedKey' } as const, null)
 
 // The company Jira site, used when no ticket has given a cloudId yet.
 const SITE = 'https://branch8.atlassian.net'
@@ -69,6 +72,7 @@ const TODO_LIMIT = 20
 const PANE_WIDTH = 46
 // A tree row: indent (4) and the Open button (6) come off the pane width.
 const ROW_WIDTH = PANE_WIDTH - 10
+const ISSUE_KEY = /^[A-Z][A-Z0-9_]*-\d+$/
 
 // The Atlassian MCP under either name it is installed as.
 const ATLASSIAN = ['plugin:atlassian:atlassian', 'claude.ai Atlassian Rovo']
@@ -189,6 +193,12 @@ export const register: Register = on => {
       isDeferred: false,
     })
     await $.tool.register({
+      name: 'clear_ticket',
+      description:
+        'Unselect the current Jira ticket, so this session is tied to none (the user asked to stop tracking a ticket, or the work is not ticket work).',
+      isDeferred: false,
+    })
+    await $.tool.register({
       name: 'mark_asked',
       description:
         'Record that the user was asked about a status transition at a point, as "<KEY>:<start|pr|merge>", so it is not asked again.',
@@ -271,6 +281,11 @@ export const register: Register = on => {
     return next(e)
   })
 
+  on('ui.focus', { requestId: TODO_PANE }, async ($, e, next) => {
+    if (e.element && ISSUE_KEY.test(e.element)) await update($, focusedAtom, () => e.element ?? null)
+    return next(e)
+  })
+
   on('ui.render', { component: 'Pane', requestId: TODO_PANE }, async ($, e) => {
     const { Box, Button, Text } = $.ui.resolve(e)
     const todos = await read($, todosAtom)
@@ -282,18 +297,28 @@ export const register: Register = on => {
     const folder = await read($, folderAtom)
     const scopePref = await read($, scopePrefAtom)
     const scope: Scope = effectiveScope(scopePref, folder.project)
-    const pending = await read($, pendingAtom)
+    const menu = await read($, menuAtom)
+    const focusedKey = await read($, focusedAtom)
     const ticket = await read($, ticketAtom)
     const current = ticket?.key
     const cloudId = ticket?.cloudId || SITE
 
     const pick = async (item: (typeof todos.items)[number]) => {
       const now = await $.clock.now()
-      await update($, pendingAtom, () => null)
+      await update($, menuAtom, () => null)
       await update($, ticketAtom, () => ({ ...item, cloudId }))
       // The list was just read from Jira; no need to refresh at once.
       await update($, refreshedAtom, () => now)
       $.ui.toast(str.current(item.key))
+    }
+    const clearTicket = async () => {
+      await update($, menuAtom, () => null)
+      await update($, ticketAtom, () => null)
+      $.ui.toast(str.cleared)
+    }
+    const openIssue = async (key: string) => {
+      const url = issueUrl(SITE, key)
+      if (!(await openUrl($, url))) $.ui.toast(str.openFailed(url))
     }
 
     return (
@@ -320,6 +345,10 @@ export const register: Register = on => {
             await $.store.set('lang', next)
             await applyLang($, next)
           }} />
+          <Button key="hotkey-o" plain dimColor hotkey="o" label={str.menuOpen} onPress={async () => {
+            if (focusedKey) await openIssue(focusedKey)
+            else $.ui.toast(str.noFocus)
+          }} />
           {folder.project && (
             <Button key="scope" plain dimColor label={`${str.scope}${str.scopeNames[scope]}`} onPress={async () => {
               const next: Scope = scope === 'folder' ? 'all' : 'folder'
@@ -328,6 +357,9 @@ export const register: Register = on => {
             }} />
           )}
         </Box>
+        {current && (
+          <Button key="clear-top" plain label={str.clearTicket(current)} onPress={clearTicket} />
+        )}
         <Text> </Text>
         {todos.isLoading && <Text dimColor>{todos.items.length ? str.refreshing : str.loading + '…'}</Text>}
         {todos.error && <Text color="error">{todos.error}</Text>}
@@ -375,40 +407,51 @@ export const register: Register = on => {
                       {!isStFolded &&
                         st.items.map(item => (
                           <Box key={item.key} flexDirection="column" marginLeft={2}>
-                            <Box flexDirection="row" columnGap={1}>
+                            <Box flexDirection="row">
                               <Button
                                 key={item.key}
                                 plain
-                                label={(item.key === current ? '▶ ' : '') + todoRow(item, ROW_WIDTH)}
+                                label={(item.key === current ? '▶ ' : '') + `${typeIcon(item.type)} ${todoRow(item, ROW_WIDTH - 3)}`}
                                 onPress={async () => {
-                                  if (!isOtherProject(item.key, folder.project)) return pick(item)
-                                  const dir = await folderForProject($, projectOf(item.key))
-                                  await update($, pendingAtom, () => ({ item, dir }))
+                                  if (menu?.item.key === item.key) return update($, menuAtom, () => null)
+                                  const other = isOtherProject(item.key, folder.project)
+                                  const dir = other ? await folderForProject($, projectOf(item.key)) : ''
+                                  await update($, menuAtom, () => ({ item, other, dir }))
+                                  await $.ui.focus({ requestId: TODO_PANE, key: `${other ? 'm' : 'w'}-${item.key}` })
                                 }}
                               />
-                              <Button
-                                key={`o-${item.key}`}
-                                plain
-                                dimColor
-                                label={str.open}
-                                onPress={async () => {
-                                  const url = issueUrl(SITE, item.key)
-                                  if (!(await openUrl($, url))) $.ui.toast(str.openFailed(url))
-                                }}
-                              />
+                              <Text color="suggestion">{' 🔗'}</Text>
                             </Box>
-                            {pending?.item.key === item.key && folder.project && (
-                              <Box flexDirection="column" marginLeft={2}>
-                                <Text color="warning">{str.confirmOther(item.key, folder.project)}</Text>
-                                <Text dimColor>{str.moveHint(pending.dir)}</Text>
-                                <Button key={`m-${item.key}`} plain label={`→ ${str.moveThere}`} onPress={async () => {
-                                  await update($, pendingAtom, () => null)
-                                  $.ui.toast(str.moveHint(pending.dir))
+                            {menu?.item.key === item.key && (
+                              <Box flexDirection="column" marginLeft={3}>
+                                {menu.other && folder.project && (
+                                  <Text color="warning">{str.confirmOther(item.key, folder.project)}</Text>
+                                )}
+                                {menu.other && <Text dimColor>{str.moveHint(menu.dir)}</Text>}
+                                {menu.other && (
+                                  <Button key={`m-${item.key}`} plain label={`→ ${str.moveThere}`} onPress={async () => {
+                                    await update($, menuAtom, () => null)
+                                    $.ui.toast(str.moveHint(menu.dir))
+                                  }} />
+                                )}
+                                {item.key === current ? (
+                                  <Button key={`w-${item.key}`} plain label={str.menuClear} onPress={clearTicket} />
+                                ) : (
+                                  <Button
+                                    key={`w-${item.key}`}
+                                    plain
+                                    label={menu.other ? `→ ${str.stayHere}` : str.menuWork}
+                                    onPress={() => pick(item)}
+                                  />
+                                )}
+                                <Button key={`o-${item.key}`} plain label={str.menuOpen} onPress={async () => {
+                                  await update($, menuAtom, () => null)
+                                  await openIssue(item.key)
                                 }} />
-                                <Button key={`h-${item.key}`} plain label={`→ ${str.stayHere}`} onPress={() => pick(item)} />
-                                <Button key={`c-${item.key}`} plain dimColor label={`→ ${str.cancel}`} onPress={() =>
-                                  update($, pendingAtom, () => null)
-                                } />
+                                <Button key={`c-${item.key}`} plain dimColor label={str.menuCancel} onPress={async () => {
+                                  await update($, menuAtom, () => null)
+                                  await $.ui.focus({ requestId: TODO_PANE, key: item.key })
+                                }} />
                               </Box>
                             )}
                           </Box>
@@ -445,6 +488,12 @@ export const register: Register = on => {
     await update($, ticketAtom, () => t)
     await update($, refreshedAtom, () => 0)
     return { result: `Current ticket set to ${t.key}.` as never }
+  }).catch(($, e, next) => next(e))
+
+  on('tool.call', { tool: 'mcp__branch8-jira-mod__clear_ticket' }, async $ => {
+    const was = (await read($, ticketAtom))?.key
+    await update($, ticketAtom, () => null)
+    return { result: (was ? `Unselected ${was}; no current ticket.` : 'No current ticket was set.') as never }
   }).catch(($, e, next) => next(e))
 
   on('tool.call', { tool: 'mcp__branch8-jira-mod__get_ticket' }, async $ => {

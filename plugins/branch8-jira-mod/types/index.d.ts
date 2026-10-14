@@ -1,6 +1,6 @@
 export type Node = 'start' | 'pr' | 'merge'
 export type Ticket = { key: string; summary: string; status: string; cloudId: string }
-export type TodoItem = { key: string; summary: string; status: string }
+export type TodoItem = { key: string; summary: string; status: string; type?: string }
 export type Todos = { items: TodoItem[]; error: string | null; isLoading: boolean; isLoaded: boolean }
 
 declare module 'claude-code' {
@@ -17,7 +17,8 @@ declare module 'claude-code' {
       statusFolded: string[]
       scopePref: 'auto' | 'folder' | 'all'
       folder: { dir: string; project: string | null; name: string }
-      pending: { item: TodoItem; dir: string } | null
+      menu: { item: TodoItem; other: boolean; dir: string } | null
+      focusedKey: string | null
     }
   }
 }
