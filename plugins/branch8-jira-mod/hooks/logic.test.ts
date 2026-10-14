@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { detectNode, reminderFor, formatBand, rulesSection, parseIssueStatus, parseIssueList, TODO_JQL, displayWidth, bandText, TODO_HELP, groupTodos, issueUrl, todoRow } from './logic'
+import { detectNode, reminderFor, formatBand, rulesSection, parseIssueStatus, parseIssueList, TODO_JQL, displayWidth, bandText, TODO_HELP, groupTodos, issueUrl, todoRow, langOf, STRINGS, statusTone, nextLangPref, resolveLang } from './logic'
 
 const T = { key: 'HS-1', summary: '修正請假審核通知', status: '待辦事項', cloudId: 'c' }
 
@@ -195,4 +195,59 @@ test('tree row shows key and summary within the width, no status', () => {
   expect(row.startsWith('HS-126 請假')).toBe(true)
   expect(displayWidth(row) <= 30).toBe(true)
   expect(row.includes('進行中')).toBe(false)
+})
+
+// --- Language follows Claude Code's setting; status colours ---
+
+test('language setting maps to zh-TW, zh-CN or en', () => {
+  expect(langOf('台灣繁體中文')).toBe('zh-TW')
+  expect(langOf('Chinese (Traditional)')).toBe('zh-TW')
+  expect(langOf('简体中文')).toBe('zh-CN')
+  expect(langOf('English')).toBe('en')
+  expect(langOf('日本語')).toBe('en')
+  expect(langOf(undefined, 'zh_TW.UTF-8')).toBe('zh-TW')
+  expect(langOf(undefined, undefined)).toBe('en')
+})
+
+test('every language has every string, and the help fits the pane', () => {
+  const keys = Object.keys(STRINGS['zh-TW']).sort()
+  for (const lang of ['zh-TW', 'zh-CN', 'en'] as const) {
+    expect(Object.keys(STRINGS[lang]).sort()).toEqual(keys)
+    for (const line of STRINGS[lang].help) expect(displayWidth(line) <= 46).toBe(true)
+  }
+})
+
+test('band speaks the user language', () => {
+  expect(bandText(null, 17, 78, STRINGS.en)).toBe('📋 Jira: 17 open · /jira-todo')
+  expect(bandText(T, 3, 78, STRINGS.en)?.endsWith(' · 3 open')).toBe(true)
+  expect(formatBand({ ...T, status: '' }, 78, STRINGS.en)).toBe('🎫 HS-1 修正請假審核通知 · loading')
+})
+
+test('status colours by meaning, not by Jira category', () => {
+  expect(statusTone('Dev done, QA to to')).toBe('warning')
+  expect(statusTone('進行中')).toBe('warning')
+  expect(statusTone('[HOTFIX] WIP')).toBe('warning')
+  expect(statusTone('[HOTFIX] QA DONE')).toBe('success')
+  expect(statusTone('Deployed')).toBe('success')
+  expect(statusTone('已取消')).toBe('inactive')
+  expect(statusTone('*Discard*')).toBe('inactive')
+  expect(statusTone('[STAG] Need to fix (release-fix)')).toBe('error')
+  expect(statusTone('Pending for discussion')).toBe('error')
+  expect(statusTone('待辦事項')).toBe('suggestion')
+  expect(statusTone('Backlog')).toBe('suggestion')
+  expect(statusTone('PHASE2')).toBe('subtle')
+})
+
+test('language button cycles 繁中 → 简中 → English → auto', () => {
+  expect(nextLangPref('zh-TW')).toBe('zh-CN')
+  expect(nextLangPref('zh-CN')).toBe('en')
+  expect(nextLangPref('en')).toBe('auto')
+  expect(nextLangPref('auto')).toBe('zh-TW')
+})
+
+test('a chosen language wins; auto follows Claude Code, then the locale', () => {
+  expect(resolveLang('en', '台灣繁體中文', undefined)).toBe('en')
+  expect(resolveLang('auto', '台灣繁體中文', undefined)).toBe('zh-TW')
+  expect(resolveLang('auto', undefined, 'zh_CN.UTF-8')).toBe('zh-CN')
+  expect(resolveLang('bogus', undefined, undefined)).toBe('en')
 })

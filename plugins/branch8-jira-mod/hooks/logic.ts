@@ -98,8 +98,8 @@ function fitWidth(text: string, max: number): string {
 const BAND_WIDTH = 78
 
 // One line above the prompt. `width` is the column budget for the whole line.
-export function formatBand(ticket: Ticket, width = BAND_WIDTH): string {
-  const status = ticket.status || '查詢中'
+export function formatBand(ticket: Ticket, width = BAND_WIDTH, str: Strings = STRINGS['zh-TW']): string {
+  const status = ticket.status || str.loading
   const head = `🎫 ${ticket.key}`
   const tail = ` · ${fitWidth(status, 24)}`
   const room = width - displayWidth(head) - displayWidth(tail) - 1
@@ -110,11 +110,16 @@ export function formatBand(ticket: Ticket, width = BAND_WIDTH): string {
 // The whole line above the prompt: the ticket, plus the open-ticket count
 // once /jira-todo has loaded it (so a closed pane still tells you how many).
 // Null when there is nothing to show.
-export function bandText(ticket: Ticket | null, todoCount: number | null, width = BAND_WIDTH): string | null {
-  if (!ticket) return todoCount === null ? null : `📋 Jira 待辦 ${todoCount} 張 · /jira-todo`
-  if (todoCount === null) return formatBand(ticket, width)
-  const tail = ` · 待辦 ${todoCount}`
-  return formatBand(ticket, width - displayWidth(tail)) + tail
+export function bandText(
+  ticket: Ticket | null,
+  todoCount: number | null,
+  width = BAND_WIDTH,
+  str: Strings = STRINGS['zh-TW'],
+): string | null {
+  if (!ticket) return todoCount === null ? null : str.bandNoTicket(todoCount)
+  if (todoCount === null) return formatBand(ticket, width, str)
+  const tail = str.bandTail(todoCount)
+  return formatBand(ticket, width - displayWidth(tail), str) + tail
 }
 
 // The system prompt section: rules plus the current ticket, so they survive
@@ -182,12 +187,6 @@ export function parseIssueList(content: Content): TodoItem[] | null {
   return items
 }
 
-// Key help at the top of the /jira-todo pane; each line fits the pane.
-export const TODO_HELP = [
-  'Ctrl+X Tab 進面板 · Esc 回輸入框',
-  '↑↓ 移動 · Enter 選單或收合專案 · 點 ↗ 開 Jira',
-] as const
-
 export type TodoGroup = {
   project: string
   count: number
@@ -225,4 +224,141 @@ export function issueUrl(site: string, key: string): string {
 export function todoRow(item: TodoItem, width: number): string {
   const room = width - displayWidth(item.key) - 1
   return room > 3 ? `${item.key} ${fitWidth(item.summary, room)}` : item.key
+}
+
+// --- Language ---
+
+export type Lang = 'zh-TW' | 'zh-CN' | 'en'
+export type LangPref = Lang | 'auto'
+
+// Same mapping as the branch8-jira-check hook: a Claude Code "language"
+// setting, else the locale; anything else is English.
+export function langOf(setting: string | undefined, locale?: string): Lang {
+  const v = (setting || locale || '').toLowerCase().replace(/_/g, '-')
+  if (/简体|簡體|simplified|^zh-cn|^zh-sg|^zh-hans/.test(v)) return 'zh-CN'
+  if (/中文|繁體|繁体|正體|台灣|臺灣|香港|chinese|^zh/.test(v)) return 'zh-TW'
+  return 'en'
+}
+
+const PREF_CYCLE: LangPref[] = ['zh-TW', 'zh-CN', 'en', 'auto']
+
+// The pane's language button: 繁中 → 简中 → English → auto → 繁中.
+export function nextLangPref(pref: LangPref): LangPref {
+  const i = PREF_CYCLE.indexOf(pref)
+  return PREF_CYCLE[(i + 1) % PREF_CYCLE.length] ?? 'auto'
+}
+
+// A chosen language wins; "auto" (or anything unknown) follows Claude Code.
+export function resolveLang(pref: unknown, setting: string | undefined, locale: string | undefined): Lang {
+  return pref === 'zh-TW' || pref === 'zh-CN' || pref === 'en' ? pref : langOf(setting, locale)
+}
+
+export type Strings = {
+  help: readonly [string, string]
+  close: string
+  language: string
+  langNames: Record<LangPref, string>
+  open: string
+  openFailed: (url: string) => string
+  loading: string
+  refreshing: string
+  statusUnknown: string
+  empty: string
+  noStatus: string
+  noJira: string
+  signedOut: string
+  queryFailed: string
+  todoCount: (n: number) => string
+  closed: string
+  current: (key: string) => string
+  bandNoTicket: (n: number) => string
+  bandTail: (n: number) => string
+}
+
+const LANG_NAMES = { 'zh-TW': '繁中', 'zh-CN': '简中', en: 'English' }
+
+export const STRINGS: Record<Lang, Strings> = {
+  'zh-TW': {
+    help: ['Ctrl+X Tab 進面板 · Esc 回輸入框', '↑↓ 移動 · Enter 選定／收合 · 開啟＝瀏覽器'],
+    close: '✕ 關閉',
+    language: '⚙ 語言：',
+    langNames: { ...LANG_NAMES, auto: '自動' },
+    open: '開啟',
+    openFailed: url => `無法開啟瀏覽器：${url}`,
+    loading: '查詢中',
+    refreshing: '更新中…',
+    statusUnknown: '狀態無法取得',
+    empty: '沒有指派給你、還沒完成的單。',
+    noStatus: '（無狀態）',
+    noJira: 'Jira 沒有連線（找不到 Atlassian MCP），請先跑 /jira-check',
+    signedOut: 'Jira 查詢失敗：Atlassian 可能還沒登入，請跑 /jira-check',
+    queryFailed: 'Jira 查詢失敗，請稍後再試',
+    todoCount: n => `Jira 待辦：${n} 張。`,
+    closed: 'Jira 待辦面板已關閉（再打 /jira-todo 打開）。',
+    current: key => `目前的單：${key}`,
+    bandNoTicket: n => `📋 Jira 待辦 ${n} 張 · /jira-todo`,
+    bandTail: n => ` · 待辦 ${n}`,
+  },
+  'zh-CN': {
+    help: ['Ctrl+X Tab 进面板 · Esc 回输入框', '↑↓ 移动 · Enter 选定／收合 · 打开＝浏览器'],
+    close: '✕ 关闭',
+    language: '⚙ 语言：',
+    langNames: { ...LANG_NAMES, auto: '自动' },
+    open: '打开',
+    openFailed: url => `无法打开浏览器：${url}`,
+    loading: '查询中',
+    refreshing: '更新中…',
+    statusUnknown: '无法取得状态',
+    empty: '没有指派给你、尚未完成的单。',
+    noStatus: '（无状态）',
+    noJira: 'Jira 未连接（找不到 Atlassian MCP），请先运行 /jira-check',
+    signedOut: 'Jira 查询失败：Atlassian 可能尚未登录，请运行 /jira-check',
+    queryFailed: 'Jira 查询失败，请稍后再试',
+    todoCount: n => `Jira 待办：${n} 张。`,
+    closed: 'Jira 待办面板已关闭（再输入 /jira-todo 打开）。',
+    current: key => `当前的单：${key}`,
+    bandNoTicket: n => `📋 Jira 待办 ${n} 张 · /jira-todo`,
+    bandTail: n => ` · 待办 ${n}`,
+  },
+  en: {
+    help: ['Ctrl+X Tab: into pane · Esc: back', '↑↓ move · Enter pick/fold · Open: browser'],
+    close: '✕ Close',
+    language: '⚙ Language: ',
+    langNames: { ...LANG_NAMES, auto: 'Auto' },
+    open: 'Open',
+    openFailed: url => `Could not open a browser: ${url}`,
+    loading: 'loading',
+    refreshing: 'Refreshing…',
+    statusUnknown: 'status unavailable',
+    empty: 'No open tickets assigned to you.',
+    noStatus: '(no status)',
+    noJira: 'Jira is not connected (no Atlassian MCP). Run /jira-check',
+    signedOut: 'Jira query failed: Atlassian may be signed out. Run /jira-check',
+    queryFailed: 'Jira query failed, try again later',
+    todoCount: n => `Jira: ${n} open tickets.`,
+    closed: 'Jira pane closed (/jira-todo opens it again).',
+    current: key => `Current ticket: ${key}`,
+    bandNoTicket: n => `📋 Jira: ${n} open · /jira-todo`,
+    bandTail: n => ` · ${n} open`,
+  },
+}
+
+// Kept for callers that want the default help lines.
+export const TODO_HELP = STRINGS['zh-TW'].help
+
+// --- Status colours ---
+
+export type Tone = 'success' | 'warning' | 'error' | 'suggestion' | 'inactive' | 'subtle'
+
+// Colour a status by what its name says; Jira's own categories are not
+// reliable here (HS files 已取消 as in progress, HTGO2 files WIP as to do).
+export function statusTone(status: string): Tone {
+  // The [HOTFIX] tag names a lane, not a problem; drop it before matching "fix".
+  const s = status.toLowerCase().replace(/hotfix/g, '')
+  if (/取消|cancel|discard/.test(s)) return 'inactive'
+  if (/fix|block|pending|hold|rca|root cause/.test(s)) return 'error'
+  if (/qa done|deployed|完成|^done|ready to deploy|merged|release/.test(s)) return 'success'
+  if (/進行中|进行中|wip|in progress|dev done|qa ?ing|qa to ?do|review|pr created/.test(s)) return 'warning'
+  if (/待辦|待办|to ?do|backlog|discuss|open/.test(s)) return 'suggestion'
+  return 'subtle'
 }

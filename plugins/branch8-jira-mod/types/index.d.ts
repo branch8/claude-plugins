@@ -12,6 +12,8 @@ declare module 'claude-code' {
       todos: Todos
       todoOpen: boolean
       todoFolded: string[]
+      langPref: 'zh-TW' | 'zh-CN' | 'en' | 'auto'
+      lang: 'zh-TW' | 'zh-CN' | 'en'
     }
   }
 }

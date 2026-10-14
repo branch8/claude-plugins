@@ -122,6 +122,8 @@ plugins/
   branch8-jira-mod/         可選擴充（mod，需 Claude Code v2.1.287+，桌面版 v2.1.286+）：
                             輸入框上方顯示目前的單、/jira-todo 列出我的待辦可點選、
                             在三個時機點提醒 Claude、把規則放進 system prompt。
+                            /jira-todo 面板最上方「⚙ 語言」可切換 繁中／简中／English／自動（自動＝跟著
+                            Claude Code 的 language 設定），選擇會記住；每張單後的「開啟」用瀏覽器開該單。
                             /jira-todo 操作：Ctrl+X Tab 進面板（再按一次可切換）、↑↓ 移動、
                             Enter 設為目前的單（在專案列上是收合／展開）、點 ↗ 在瀏覽器開該單、
                             Esc 回輸入框（不會關面板）；清單依「專案 → 狀態」分層；
