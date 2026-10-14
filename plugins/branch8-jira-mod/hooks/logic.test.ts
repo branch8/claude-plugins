@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { detectNode, reminderFor, formatBand, rulesSection, parseIssueStatus, parseIssueList, TODO_JQL, displayWidth, bandText, TODO_HELP, groupTodos, issueUrl, todoRow, langOf, STRINGS, statusTone, nextLangPref, resolveLang } from './logic'
+import { detectNode, reminderFor, formatBand, rulesSection, parseIssueStatus, parseIssueList, TODO_JQL, displayWidth, bandText, TODO_HELP, groupTodos, issueUrl, todoRow, langOf, STRINGS, statusTone, nextLangPref, resolveLang, recordFileName, ancestorDirs, parseRecord, projectOf, isOtherProject, applyScope, effectiveScope, foldersFor, suggestedFolder } from './logic'
 
 const T = { key: 'HS-1', summary: '修正請假審核通知', status: '待辦事項', cloudId: 'c' }
 
@@ -250,4 +250,68 @@ test('a chosen language wins; auto follows Claude Code, then the locale', () => 
   expect(resolveLang('auto', '台灣繁體中文', undefined)).toBe('zh-TW')
   expect(resolveLang('auto', undefined, 'zh_CN.UTF-8')).toBe('zh-CN')
   expect(resolveLang('bogus', undefined, undefined)).toBe('en')
+})
+
+// --- Folder ↔ Jira project (same records as branch8-jira-check) ---
+
+test('record file name matches branch8-jira-check', () => {
+  expect(recordFileName('/home/glenn/Development/Branch8/Projects/HR-system')).toBe('home_glenn_Development_Branch8_Projects_HR-system.json')
+  expect(recordFileName('C:\\Users\\a b\\HS')).toBe('C__Users_a_b_HS.json')
+  expect(recordFileName('/')).toBe('root.json')
+})
+
+test('ancestors walk up to the root', () => {
+  expect(ancestorDirs('/home/glenn/x')).toEqual(['/home/glenn/x', '/home/glenn', '/home', '/'])
+  expect(ancestorDirs('C:\\Users\\a')).toEqual(['C:\\Users\\a', 'C:\\Users', 'C:\\'])
+})
+
+test('records: a project, no Jira, personal, or unreadable', () => {
+  expect(parseRecord('{"projectKey":"HS","projectName":"HR System"}')).toEqual({ kind: 'project', key: 'HS', name: 'HR System' })
+  expect(parseRecord('{"projectDir":"x","jira":"none"}')).toEqual({ kind: 'none' })
+  expect(parseRecord('{"folder":"x","company":false}')).toEqual({ kind: 'none' })
+  expect(parseRecord('nope')).toBeNull()
+})
+
+test('other-project check and scope filter', () => {
+  expect(projectOf('HTGO2-3319')).toBe('HTGO2')
+  expect(isOtherProject('HTGO2-1', 'HS')).toBe(true)
+  expect(isOtherProject('HS-1', 'HS')).toBe(false)
+  expect(isOtherProject('HS-1', null)).toBe(false)
+  const items = [{ key: 'HS-1', summary: '', status: '' }, { key: 'HTGO2-1', summary: '', status: '' }]
+  expect(applyScope(items, 'folder', 'HS').map(i => i.key)).toEqual(['HS-1'])
+  expect(applyScope(items, 'all', 'HS').length).toBe(2)
+  expect(applyScope(items, 'folder', null).length).toBe(2)
+})
+
+test('scope defaults to this folder when it is mapped', () => {
+  expect(effectiveScope('auto', 'HS')).toBe('folder')
+  expect(effectiveScope('auto', null)).toBe('all')
+  expect(effectiveScope('all', 'HS')).toBe('all')
+  expect(effectiveScope('folder', null)).toBe('all')
+})
+
+test('new strings exist in every language and fit the pane', () => {
+  for (const lang of ['zh-TW', 'zh-CN', 'en'] as const) {
+    const s = STRINGS[lang]
+    expect(displayWidth(s.folderLine('claude-plugins', 'HS', 'HR System')) > 0).toBe(true)
+    expect(s.folderLine('a', 'HS', 'HR').includes('↔')).toBe(true)
+    expect(displayWidth(s.thisFolderTag) <= 24).toBe(true)
+    expect(displayWidth(s.otherTag) <= 26).toBe(true)
+    expect(s.confirmOther('HTGO2-1', 'HS').includes('HTGO2-1')).toBe(true)
+  }
+})
+
+test('folders recorded for a project, for the move suggestion', () => {
+  const recs = [
+    { dir: '/w/hs', text: '{"projectDir":"/w/hs","projectKey":"HS"}' },
+    { dir: '/w/htgo', text: '{"projectDir":"/w/htgo","projectKey":"HTGO2"}' },
+    { dir: '/w/x', text: '{"projectDir":"/w/x","jira":"none"}' },
+    { dir: '/w/bad', text: 'oops' },
+  ]
+  expect(foldersFor(recs, 'HTGO2')).toEqual(['/w/htgo'])
+  expect(foldersFor(recs, 'ZZ')).toEqual([])
+  expect(suggestedFolder('/home/g/Branch8', 'ZZ')).toBe('/home/g/Branch8/ZZ')
+  for (const lang of ['zh-TW', 'zh-CN', 'en'] as const) {
+    expect(STRINGS[lang].moveHint('/w/htgo').includes('cd /w/htgo && claude')).toBe(true)
+  }
 })

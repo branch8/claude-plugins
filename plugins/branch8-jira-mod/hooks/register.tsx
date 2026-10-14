@@ -6,9 +6,17 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { Ticket } from '../types'
-import type { Lang, LangPref } from './logic'
+import type { FolderRecord, Lang, LangPref, Scope } from './logic'
 import {
   STRINGS,
+  ancestorDirs,
+  applyScope,
+  effectiveScope,
+  isOtherProject,
+  parseRecord,
+  projectOf,
+  recordFileName,
+  suggestedFolder,
   TODO_JQL,
   detectNode,
   bandText,
@@ -44,6 +52,14 @@ const langPrefAtom = atom({ plugin: 'branch8-jira-mod', key: 'langPref' } as con
 const langAtom = atom({ plugin: 'branch8-jira-mod', key: 'lang' } as const, 'en')
 // Projects folded in the /jira-todo tree.
 const todoFoldedAtom = atom({ plugin: 'branch8-jira-mod', key: 'todoFolded' } as const, [])
+// Statuses folded in the tree, as "<PROJECT>/<status>".
+const statusFoldedAtom = atom({ plugin: 'branch8-jira-mod', key: 'statusFolded' } as const, [])
+// Scope of the list: "auto" (this folder's project when it has one), "folder" or "all".
+const scopePrefAtom = atom({ plugin: 'branch8-jira-mod', key: 'scopePref' } as const, 'auto')
+// This session's folder and the Jira project branch8-jira-check recorded for it.
+const folderAtom = atom({ plugin: 'branch8-jira-mod', key: 'folder' } as const, { dir: '', project: null, name: '' })
+// A pick from another project waiting for the person's choice.
+const pendingAtom = atom({ plugin: 'branch8-jira-mod', key: 'pending' } as const, null)
 
 // The company Jira site, used when no ticket has given a cloudId yet.
 const SITE = 'https://branch8.atlassian.net'
@@ -91,6 +107,60 @@ async function openUrl($: EngineInterface, url: string): Promise<boolean> {
   return false
 }
 
+async function homeDir($: EngineInterface): Promise<string> {
+  return (await $.env.get('HOME')) || (await $.env.get('USERPROFILE')) || ''
+}
+
+// The records branch8-jira-check writes, one file per folder.
+async function stateDir($: EngineInterface): Promise<string> {
+  return `${await homeDir($)}/.claude/branch8-jira/projects`
+}
+
+// Which Jira project this session's folder belongs to: the repo root inside a
+// git repo, else the folder; the nearest record above it wins (as lib.sh).
+async function resolveFolder($: EngineInterface): Promise<void> {
+  const cwd = await $.session.cwd()
+  let base = cwd
+  try {
+    const r = await $.process.run(['git', '-C', cwd, 'rev-parse', '--show-toplevel'], { timeoutMs: 5_000 })
+    if (r.exitCode === 0 && r.stdout.trim()) base = r.stdout.trim()
+  } catch {
+    // No git: the folder itself is the unit.
+  }
+  const dirs = await stateDir($)
+  let rec: FolderRecord | null = null
+  for (const dir of ancestorDirs(base)) {
+    const file = `${dirs}/${recordFileName(dir)}`
+    if (!(await $.fs.exists(file))) continue
+    rec = parseRecord(await $.fs.read(file))
+    if (rec) break
+  }
+  const name = base.split(/[/\\]/).filter(Boolean).pop() || base
+  await update($, folderAtom, () =>
+    rec?.kind === 'project' ? { dir: name, project: rec.key, name: rec.name } : { dir: name, project: null, name: '' },
+  )
+}
+
+// Where to suggest working on another project: a folder recorded for it,
+// else the workspace folder branch8-jira-check would create.
+async function folderForProject($: EngineInterface, key: string): Promise<string> {
+  const dirs = await stateDir($)
+  try {
+    for (const entry of await $.fs.list(dirs)) {
+      if (!entry.name.endsWith('.json')) continue
+      const text = await $.fs.read(`${dirs}/${entry.name}`)
+      const rec = parseRecord(text)
+      if (rec?.kind !== 'project' || rec.key !== key) continue
+      const dir = (JSON.parse(text) as { projectDir?: unknown }).projectDir
+      if (typeof dir === 'string' && dir) return dir
+    }
+  } catch {
+    // No records yet.
+  }
+  const root = (await $.env.get('BRANCH8_WORKSPACE_ROOT')) || `${await homeDir($)}/Branch8`
+  return suggestedFolder(root, key)
+}
+
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.tool.register({
@@ -105,6 +175,10 @@ export const register: Register = on => {
           summary: { type: 'string' },
           status: { type: 'string', description: 'Current status name' },
           cloudId: { type: 'string', description: 'Atlassian cloudId or site URL' },
+          confirmedOtherProject: {
+            type: 'boolean',
+            description: 'True only after the user agreed to work here on a ticket from a project other than this folder\'s',
+          },
         },
       },
       isDeferred: false,
@@ -128,6 +202,17 @@ export const register: Register = on => {
     // Last, and guarded: a language that fails to load must not cost the
     // tools and the command registered above.
     try {
+      await resolveFolder($)
+    } catch {
+      // Unknown folder: the list shows every project.
+    }
+    try {
+      const scope = await $.store.get('scope')
+      if (scope === 'folder' || scope === 'all') await update($, scopePrefAtom, () => scope)
+    } catch {
+      // Stays on auto.
+    }
+    try {
       const pref = await $.store.get('lang')
       await applyLang($, pref === 'zh-TW' || pref === 'zh-CN' || pref === 'en' ? pref : 'auto')
     } catch {
@@ -143,6 +228,11 @@ export const register: Register = on => {
       await $.ui.close({ id: TODO_PANE })
       await update($, todoOpenAtom, () => false)
       return { text: str.closed }
+    }
+    try {
+      await resolveFolder($)
+    } catch {
+      // Keep what session.start found.
     }
     await $.ui.open({ id: TODO_PANE, title: 'Jira', focus: true })
     await update($, todoOpenAtom, () => true)
@@ -185,14 +275,35 @@ export const register: Register = on => {
     const { Box, Button, Text } = $.ui.resolve(e)
     const todos = await read($, todosAtom)
     const folded = await read($, todoFoldedAtom)
+    const statusFolded = await read($, statusFoldedAtom)
     const lang = (await read($, langAtom)) as Lang
     const pref = (await read($, langPrefAtom)) as LangPref
     const str = STRINGS[lang]
+    const folder = await read($, folderAtom)
+    const scopePref = await read($, scopePrefAtom)
+    const scope: Scope = effectiveScope(scopePref, folder.project)
+    const pending = await read($, pendingAtom)
     const ticket = await read($, ticketAtom)
     const current = ticket?.key
     const cloudId = ticket?.cloudId || SITE
+
+    const pick = async (item: (typeof todos.items)[number]) => {
+      const now = await $.clock.now()
+      await update($, pendingAtom, () => null)
+      await update($, ticketAtom, () => ({ ...item, cloudId }))
+      // The list was just read from Jira; no need to refresh at once.
+      await update($, refreshedAtom, () => now)
+      $.ui.toast(str.current(item.key))
+    }
+
     return (
       <Box flexDirection="column">
+        {folder.project ? (
+          <Text bold>{str.folderLine(folder.dir, folder.project, folder.name)}</Text>
+        ) : (
+          <Text bold>{str.folderUnmapped(folder.dir || '?')}</Text>
+        )}
+        <Text dimColor>{folder.project ? str.changeMapping : str.setMapping}</Text>
         {str.help.map(line => (
           <Text key={line} dimColor>
             {line}
@@ -209,6 +320,13 @@ export const register: Register = on => {
             await $.store.set('lang', next)
             await applyLang($, next)
           }} />
+          {folder.project && (
+            <Button key="scope" plain dimColor label={`${str.scope}${str.scopeNames[scope]}`} onPress={async () => {
+              const next: Scope = scope === 'folder' ? 'all' : 'folder'
+              await $.store.set('scope', next)
+              await update($, scopePrefAtom, () => next)
+            }} />
+          )}
         </Box>
         <Text> </Text>
         {todos.isLoading && <Text dimColor>{todos.items.length ? str.refreshing : str.loading + '…'}</Text>}
@@ -216,8 +334,9 @@ export const register: Register = on => {
         {todos.isLoaded && !todos.isLoading && !todos.error && todos.items.length === 0 && (
           <Text dimColor>{str.empty}</Text>
         )}
-        {groupTodos(todos.items).map(group => {
+        {groupTodos(applyScope(todos.items, scope, folder.project)).map(group => {
           const isFolded = folded.includes(group.project)
+          const isMine = group.project === folder.project
           return (
             <Box key={group.project} flexDirection="column">
               <Box flexDirection="row">
@@ -232,39 +351,71 @@ export const register: Register = on => {
                   }
                 />
                 <Text color="claude" bold>{`  ${group.count}`}</Text>
+                {folder.project && (
+                  <Text color={isMine ? 'success' : 'subtle'}>{`   ${isMine ? str.thisFolderTag : str.otherTag}`}</Text>
+                )}
               </Box>
               {!isFolded &&
-                group.statuses.map(st => (
-                  <Box key={`${group.project}-${st.status}`} flexDirection="column" marginLeft={2}>
-                    <Text color={statusTone(st.status)}>{`● ${st.status || str.noStatus}`}</Text>
-                    {st.items.map(item => (
-                      <Box key={item.key} flexDirection="row" marginLeft={2} columnGap={1}>
+                group.statuses.map(st => {
+                  const fk = `${group.project}/${st.status}`
+                  const isStFolded = statusFolded.includes(fk)
+                  return (
+                    <Box key={fk} flexDirection="column" marginLeft={2}>
+                      <Box flexDirection="row">
                         <Button
-                          key={item.key}
+                          key={`s-${fk}`}
                           plain
-                          label={(item.key === current ? '▶ ' : '') + todoRow(item, ROW_WIDTH)}
-                          onPress={async () => {
-                            const now = await $.clock.now()
-                            await update($, ticketAtom, () => ({ ...item, cloudId }))
-                            // The list was just read from Jira; no need to refresh at once.
-                            await update($, refreshedAtom, () => now)
-                            $.ui.toast(str.current(item.key))
-                          }}
+                          label={isStFolded ? '▸' : '▾'}
+                          onPress={() =>
+                            update($, statusFoldedAtom, f => (f.includes(fk) ? f.filter(x => x !== fk) : [...f, fk]))
+                          }
                         />
-                        <Button
-                          key={`o-${item.key}`}
-                          plain
-                          dimColor
-                          label={str.open}
-                          onPress={async () => {
-                            const url = issueUrl(SITE, item.key)
-                            if (!(await openUrl($, url))) $.ui.toast(str.openFailed(url))
-                          }}
-                        />
+                        <Text color={statusTone(st.status)}>{` ● ${st.status || str.noStatus} (${st.items.length})`}</Text>
                       </Box>
-                    ))}
-                  </Box>
-                ))}
+                      {!isStFolded &&
+                        st.items.map(item => (
+                          <Box key={item.key} flexDirection="column" marginLeft={2}>
+                            <Box flexDirection="row" columnGap={1}>
+                              <Button
+                                key={item.key}
+                                plain
+                                label={(item.key === current ? '▶ ' : '') + todoRow(item, ROW_WIDTH)}
+                                onPress={async () => {
+                                  if (!isOtherProject(item.key, folder.project)) return pick(item)
+                                  const dir = await folderForProject($, projectOf(item.key))
+                                  await update($, pendingAtom, () => ({ item, dir }))
+                                }}
+                              />
+                              <Button
+                                key={`o-${item.key}`}
+                                plain
+                                dimColor
+                                label={str.open}
+                                onPress={async () => {
+                                  const url = issueUrl(SITE, item.key)
+                                  if (!(await openUrl($, url))) $.ui.toast(str.openFailed(url))
+                                }}
+                              />
+                            </Box>
+                            {pending?.item.key === item.key && folder.project && (
+                              <Box flexDirection="column" marginLeft={2}>
+                                <Text color="warning">{str.confirmOther(item.key, folder.project)}</Text>
+                                <Text dimColor>{str.moveHint(pending.dir)}</Text>
+                                <Button key={`m-${item.key}`} plain label={`→ ${str.moveThere}`} onPress={async () => {
+                                  await update($, pendingAtom, () => null)
+                                  $.ui.toast(str.moveHint(pending.dir))
+                                }} />
+                                <Button key={`h-${item.key}`} plain label={`→ ${str.stayHere}`} onPress={() => pick(item)} />
+                                <Button key={`c-${item.key}`} plain dimColor label={`→ ${str.cancel}`} onPress={() =>
+                                  update($, pendingAtom, () => null)
+                                } />
+                              </Box>
+                            )}
+                          </Box>
+                        ))}
+                    </Box>
+                  )
+                })}
             </Box>
           )
         })}
@@ -282,6 +433,14 @@ export const register: Register = on => {
     }
     if (!/^[A-Z][A-Z0-9_]*-\d+$/.test(t.key)) {
       return { result: `Not a Jira issue key: "${str(input.key)}".` as never }
+    }
+    // Another project's ticket in this folder: the person decides first.
+    const folder = await read($, folderAtom)
+    if (isOtherProject(t.key, folder.project) && input.confirmedOtherProject !== true) {
+      const dir = await folderForProject($, projectOf(t.key))
+      return {
+        result: `Not set: ${t.key} belongs to ${projectOf(t.key)}, but this folder is mapped to Jira ${folder.project}. Ask the user with one question card, in their language: (1) open a new session in that project's folder — recommended — telling them to run \`cd ${dir} && claude\`; (2) work on it here anyway; (3) cancel. Only on (2), call set_ticket again with confirmedOtherProject: true, then continue. On (1) or (3) do not start the work.` as never,
+      }
     }
     await update($, ticketAtom, () => t)
     await update($, refreshedAtom, () => 0)

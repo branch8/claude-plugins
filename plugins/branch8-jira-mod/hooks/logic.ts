@@ -273,6 +273,19 @@ export type Strings = {
   current: (key: string) => string
   bandNoTicket: (n: number) => string
   bandTail: (n: number) => string
+  folderLine: (dir: string, key: string, name: string) => string
+  folderUnmapped: (dir: string) => string
+  changeMapping: string
+  setMapping: string
+  thisFolderTag: string
+  otherTag: string
+  scope: string
+  scopeNames: Record<'folder' | 'all', string>
+  confirmOther: (key: string, folderProject: string) => string
+  moveThere: string
+  stayHere: string
+  cancel: string
+  moveHint: (dir: string) => string
 }
 
 const LANG_NAMES = { 'zh-TW': '繁中', 'zh-CN': '简中', en: 'English' }
@@ -298,6 +311,19 @@ export const STRINGS: Record<Lang, Strings> = {
     current: key => `目前的單：${key}`,
     bandNoTicket: n => `📋 Jira 待辦 ${n} 張 · /jira-todo`,
     bandTail: n => ` · 待辦 ${n}`,
+    folderLine: (dir, key, name) => `📁 ${dir} ↔ Jira ${key}${name ? `（${name}）` : ''}`,
+    folderUnmapped: dir => `📁 ${dir} ↔ （未對應 Jira 專案）`,
+    changeMapping: '   改對應：/jira-board',
+    setMapping: '   設定：/jira-board',
+    thisFolderTag: '← 本資料夾的專案',
+    otherTag: '← 其他專案（非本資料夾）',
+    scope: '⚙ 範圍：',
+    scopeNames: { folder: '本資料夾', all: '全部專案' },
+    confirmOther: (key, fp) => `${key} 不屬於本資料夾的專案（${fp}）`,
+    moveThere: '到該專案資料夾開新 session（建議）',
+    stayHere: '仍在這裡做',
+    cancel: '取消',
+    moveHint: dir => `在新終端機執行：cd ${dir} && claude`,
   },
   'zh-CN': {
     help: ['Ctrl+X Tab 进面板 · Esc 回输入框', '↑↓ 移动 · Enter 选定／收合 · 打开＝浏览器'],
@@ -319,6 +345,19 @@ export const STRINGS: Record<Lang, Strings> = {
     current: key => `当前的单：${key}`,
     bandNoTicket: n => `📋 Jira 待办 ${n} 张 · /jira-todo`,
     bandTail: n => ` · 待办 ${n}`,
+    folderLine: (dir, key, name) => `📁 ${dir} ↔ Jira ${key}${name ? `（${name}）` : ''}`,
+    folderUnmapped: dir => `📁 ${dir} ↔ （未对应 Jira 项目）`,
+    changeMapping: '   改对应：/jira-board',
+    setMapping: '   设置：/jira-board',
+    thisFolderTag: '← 本文件夹的项目',
+    otherTag: '← 其他项目（非本文件夹）',
+    scope: '⚙ 范围：',
+    scopeNames: { folder: '本文件夹', all: '全部项目' },
+    confirmOther: (key, fp) => `${key} 不属于本文件夹的项目（${fp}）`,
+    moveThere: '到该项目文件夹开新 session（建议）',
+    stayHere: '仍在这里做',
+    cancel: '取消',
+    moveHint: dir => `在新终端运行：cd ${dir} && claude`,
   },
   en: {
     help: ['Ctrl+X Tab: into pane · Esc: back', '↑↓ move · Enter pick/fold · Open: browser'],
@@ -340,6 +379,19 @@ export const STRINGS: Record<Lang, Strings> = {
     current: key => `Current ticket: ${key}`,
     bandNoTicket: n => `📋 Jira: ${n} open · /jira-todo`,
     bandTail: n => ` · ${n} open`,
+    folderLine: (dir, key, name) => `📁 ${dir} ↔ Jira ${key}${name ? ` (${name})` : ''}`,
+    folderUnmapped: dir => `📁 ${dir} ↔ (no Jira project)`,
+    changeMapping: '   change: /jira-board',
+    setMapping: '   set: /jira-board',
+    thisFolderTag: "← this folder's project",
+    otherTag: '← other project',
+    scope: '⚙ Scope: ',
+    scopeNames: { folder: 'this folder', all: 'all projects' },
+    confirmOther: (key, fp) => `${key} is not this folder's project (${fp})`,
+    moveThere: "Open a session in its folder (recommended)",
+    stayHere: 'Work on it here',
+    cancel: 'Cancel',
+    moveHint: dir => `In a new terminal: cd ${dir} && claude`,
   },
 }
 
@@ -361,4 +413,77 @@ export function statusTone(status: string): Tone {
   if (/進行中|进行中|wip|in progress|dev done|qa ?ing|qa to ?do|review|pr created/.test(s)) return 'warning'
   if (/待辦|待办|to ?do|backlog|discuss|open/.test(s)) return 'suggestion'
   return 'subtle'
+}
+
+// --- Folder ↔ Jira project: the records branch8-jira-check keeps ---
+
+// File name of a folder's record, exactly as hooks/lib.sh computes it.
+export function recordFileName(dir: string): string {
+  const key = dir.replace(/[/\\: ]/g, '_').replace(/^_+/, '')
+  return `${key || 'root'}.json`
+}
+
+// The folder itself, then each parent up to the root (POSIX or Windows).
+export function ancestorDirs(dir: string): string[] {
+  const sep = dir.includes('\\') ? '\\' : '/'
+  const out: string[] = []
+  let cur = dir.replace(/[/\\]+$/, '') || sep
+  for (;;) {
+    out.push(cur)
+    const i = cur.lastIndexOf(sep)
+    if (i < 0) break
+    const parent = i === 0 ? sep : /^[A-Za-z]:$/.test(cur.slice(0, i)) ? cur.slice(0, i) + sep : cur.slice(0, i)
+    if (parent === cur) break
+    cur = parent
+  }
+  return out
+}
+
+export type FolderRecord = { kind: 'project'; key: string; name: string } | { kind: 'none' }
+
+export function parseRecord(text: string): FolderRecord | null {
+  try {
+    const r = JSON.parse(text) as { projectKey?: unknown; projectName?: unknown; jira?: unknown; company?: unknown }
+    if (typeof r.projectKey === 'string' && r.projectKey) {
+      return { kind: 'project', key: r.projectKey, name: typeof r.projectName === 'string' ? r.projectName : '' }
+    }
+    if (r.jira === 'none' || r.company === false) return { kind: 'none' }
+    return null
+  } catch {
+    return null
+  }
+}
+
+export function projectOf(key: string): string {
+  return key.split('-')[0] ?? key
+}
+
+// A ticket outside this folder's Jira project (false when the folder has none).
+export function isOtherProject(key: string, folderProject: string | null): boolean {
+  return !!folderProject && projectOf(key) !== folderProject
+}
+
+export type Scope = 'folder' | 'all'
+
+// "auto" (or unknown) shows this folder's project when it has one.
+export function effectiveScope(pref: unknown, folderProject: string | null): Scope {
+  if (!folderProject) return 'all'
+  return pref === 'all' ? 'all' : 'folder'
+}
+
+export function applyScope(items: readonly TodoItem[], scope: Scope, folderProject: string | null): TodoItem[] {
+  return scope === 'folder' && folderProject ? items.filter(i => projectOf(i.key) === folderProject) : [...items]
+}
+
+// Folders recorded for a Jira project, for "open a session there".
+export function foldersFor(records: readonly { dir: string; text: string }[], projectKey: string): string[] {
+  return records.filter(r => {
+    const rec = parseRecord(r.text)
+    return rec?.kind === 'project' && rec.key === projectKey
+  }).map(r => r.dir)
+}
+
+// Where branch8-jira-check suggests a new project folder.
+export function suggestedFolder(workspaceRoot: string, projectKey: string): string {
+  return `${workspaceRoot.replace(/[/\\]+$/, '')}/${projectKey}`
 }
