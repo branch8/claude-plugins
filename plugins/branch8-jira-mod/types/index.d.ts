@@ -14,6 +14,10 @@ declare module 'claude-code' {
       todoFolded: string[]
       langPref: 'zh-TW' | 'zh-CN' | 'en' | 'auto'
       lang: 'zh-TW' | 'zh-CN' | 'en'
+      statusFolded: string[]
+      scopePref: 'auto' | 'folder' | 'all'
+      folder: { dir: string; project: string | null; name: string }
+      pending: { item: TodoItem; dir: string } | null
     }
   }
 }

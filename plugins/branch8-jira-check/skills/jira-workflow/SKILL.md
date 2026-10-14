@@ -23,6 +23,12 @@ Stop at the first step that gives an answer:
    - 1–3 candidates → one card: each as `KEY summary (status)`, plus "none of these", "create a new one", "no ticket needed".
    - none → one card: "I have one (give the key)", "create one", "no ticket needed".
 
+**Another project's ticket:** if the resolved ticket's project (the key prefix) is not the
+folder's recorded project, do not start. One card: "open a new session in that project's
+folder (recommended)" — give `cd <folder> && claude`, the folder from the project's record
+(`lookup`) or `~/Branch8/<KEY>` — / "work on it here" / "cancel". Only "work on it here"
+continues (with the mod: `set_ticket` with `confirmedOtherProject: true`).
+
 **Creating:** draft a summary (one line, the user's language) and a short description
 (goal, scope). Show the summary **in the card** so the same answer approves it.
 `createJiraIssue` in the folder's project with its `defaultIssueType` (default Task).
