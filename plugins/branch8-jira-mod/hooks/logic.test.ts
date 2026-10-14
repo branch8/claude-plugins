@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { detectNode, reminderFor, formatBand, rulesSection, parseIssueStatus, parseIssueList, TODO_JQL, displayWidth } from './logic'
+import { detectNode, reminderFor, formatBand, rulesSection, parseIssueStatus, parseIssueList, TODO_JQL, displayWidth, bandText } from './logic'
 
 const T = { key: 'HS-1', summary: '修正請假審核通知', status: '待辦事項', cloudId: 'c' }
 
@@ -132,4 +132,25 @@ test('rules section carries no status or summary (keeps the prompt cache stable)
   expect(s.includes('待辦事項')).toBe(false)
   expect(s.includes('修正請假審核通知')).toBe(false)
   expect(s.includes('HS-1')).toBe(true)
+})
+
+// --- Pane closed acts as collapsed: the band carries the todo count ---
+
+test('band adds the todo count after the ticket', () => {
+  expect(bandText(T, 17)).toBe('🎫 HS-1 修正請假審核通知 · 待辦事項 · 待辦 17')
+})
+
+test('band without a ticket still shows the todo count', () => {
+  expect(bandText(null, 17)).toBe('📋 Jira 待辦 17 張 · /jira-todo')
+})
+
+test('band hides when there is neither a ticket nor a known count', () => {
+  expect(bandText(null, null)).toBeNull()
+  expect(bandText(T, null)).toBe(formatBand(T))
+})
+
+test('band with count still fits the width', () => {
+  const b = bandText({ ...T, summary: '請'.repeat(60) }, 17)
+  expect(b !== null && displayWidth(b) <= 78).toBe(true)
+  expect(b?.endsWith(' · 待辦 17')).toBe(true)
 })
