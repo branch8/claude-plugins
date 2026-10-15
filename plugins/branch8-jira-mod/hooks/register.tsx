@@ -18,6 +18,8 @@ import {
   recordFileName,
   suggestedFolder,
   typeIcon,
+  focusedTicket,
+  isOrgAccount,
   TODO_JQL,
   detectNode,
   bandText,
@@ -59,6 +61,8 @@ const statusFoldedAtom = atom({ plugin: 'branch8-jira-mod', key: 'statusFolded' 
 const scopePrefAtom = atom({ plugin: 'branch8-jira-mod', key: 'scopePref' } as const, 'auto')
 // This session's folder and the Jira project branch8-jira-check recorded for it.
 const folderAtom = atom({ plugin: 'branch8-jira-mod', key: 'folder' } as const, { dir: '', project: null, name: '' })
+// Open the pane by itself at session start on the organisation account.
+const autoOpenAtom = atom({ plugin: 'branch8-jira-mod', key: 'autoOpen' } as const, true)
 // The row menu open under one ticket (Enter on a row), if any.
 const menuAtom = atom({ plugin: 'branch8-jira-mod', key: 'menu' } as const, null)
 // The ticket row the pane's focus ring is on, for the "o" hotkey.
@@ -66,13 +70,16 @@ const focusedAtom = atom({ plugin: 'branch8-jira-mod', key: 'focusedKey' } as co
 
 // The company Jira site, used when no ticket has given a cloudId yet.
 const SITE = 'https://branch8.atlassian.net'
+// Branch8's Claude organisation (as branch8-jira-check's config.env); BRANCH8_ORG_ID overrides.
+const DEFAULT_ORG_ID = 'a4a2aa1a-21cd-467f-af54-8253e2ed15d8'
+// Retries for the start-up load while the Atlassian MCP is still connecting.
+const AUTO_RETRY_MS = [5_000, 15_000, 30_000]
 const TODO_PANE = 'branch8-jira-todo'
 const TODO_LIMIT = 20
 // Columns a pane row may take; the pane is narrow and CJK titles wrap past it.
 const PANE_WIDTH = 46
 // A tree row: indent (4) and the Open button (6) come off the pane width.
 const ROW_WIDTH = PANE_WIDTH - 10
-const ISSUE_KEY = /^[A-Z][A-Z0-9_]*-\d+$/
 
 // The Atlassian MCP under either name it is installed as.
 const ATLASSIAN = ['plugin:atlassian:atlassian', 'claude.ai Atlassian Rovo']
@@ -165,6 +172,55 @@ async function folderForProject($: EngineInterface, key: string): Promise<string
   return suggestedFolder(root, key)
 }
 
+// Reads the open-ticket list into the pane's state; the reply for the command.
+async function loadTodos($: EngineInterface, str: (typeof STRINGS)[Lang]): Promise<{ ok: boolean; text: string }> {
+  await update($, todosAtom, t => ({ ...t, error: null, isLoading: true }))
+  const cloudId = (await read($, ticketAtom))?.cloudId || SITE
+  let error = str.noJira
+  for (const server of ATLASSIAN) {
+    try {
+      const res = await $.mcp.call(server, 'searchJiraIssuesUsingJql', { cloudId, jql: TODO_JQL, maxResults: TODO_LIMIT })
+      if (res.isError) {
+        // Installed but signed out answers isError: try the other server.
+        error = str.signedOut
+        continue
+      }
+      const items = parseIssueList(res.content as { type: string; text?: string }[])
+      if (items) {
+        await update($, todosAtom, () => ({ items, error: null, isLoading: false, isLoaded: true }))
+        return { ok: true, text: str.todoCount(items.length) }
+      }
+      error = str.queryFailed
+    } catch {
+      // Not connected under this name; try the next one.
+    }
+  }
+  await update($, todosAtom, t => ({ ...t, error, isLoading: false }))
+  return { ok: false, text: error }
+}
+
+// Signed in to the Branch8 organisation through claude.ai (not an API key,
+// token or cloud provider), read from the config dir's .claude.json.
+async function onOrgAccount($: EngineInterface): Promise<boolean> {
+  const overrides = [
+    await $.env.get('ANTHROPIC_API_KEY'),
+    await $.env.get('ANTHROPIC_AUTH_TOKEN'),
+    await $.env.get('CLAUDE_CODE_OAUTH_TOKEN'),
+    await $.env.get('CLAUDE_CODE_USE_BEDROCK'),
+    await $.env.get('CLAUDE_CODE_USE_VERTEX'),
+    await $.env.get('CLAUDE_CODE_USE_FOUNDRY'),
+  ]
+  const home = await homeDir($)
+  const dirs = [(await $.env.get('CLAUDE_CONFIG_DIR')) || home, home]
+  for (const dir of dirs) {
+    const file = `${dir}/.claude.json`
+    if (!(await $.fs.exists(file))) continue
+    const orgId = (await $.env.get('BRANCH8_ORG_ID')) || DEFAULT_ORG_ID
+    return isOrgAccount(await $.fs.read(file), orgId, overrides.some(Boolean))
+  }
+  return false
+}
+
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.tool.register({
@@ -228,6 +284,31 @@ export const register: Register = on => {
     } catch {
       // Stays on the default (English).
     }
+    // Last: open the pane by itself on the organisation account, without
+    // taking the keyboard, and fill it once the Atlassian MCP answers.
+    try {
+      const pref = await $.store.get('autoOpen')
+      await update($, autoOpenAtom, () => pref !== false)
+      if (pref !== false && (await onOrgAccount($))) {
+        await $.ui.open({ id: TODO_PANE, title: 'Jira' })
+        await update($, todoOpenAtom, () => true)
+        const str = STRINGS[(await read($, langAtom)) as Lang]
+        const first = await loadTodos($, str)
+        if (!first.ok) {
+          for (const ms of AUTO_RETRY_MS) {
+            $.clock.after(ms, () => {
+              void (async () => {
+                const todos = await read($, todosAtom)
+                if (todos.isLoaded || !(await read($, todoOpenAtom))) return
+                await loadTodos($, STRINGS[(await read($, langAtom)) as Lang])
+              })()
+            })
+          }
+        }
+      }
+    } catch {
+      // No auto-open; /jira-todo still works.
+    }
     return next(e)
   })
 
@@ -246,34 +327,7 @@ export const register: Register = on => {
     }
     await $.ui.open({ id: TODO_PANE, title: 'Jira', focus: true })
     await update($, todoOpenAtom, () => true)
-    // Keep the last list on screen while it refreshes.
-    await update($, todosAtom, t => ({ ...t, error: null, isLoading: true }))
-    const cloudId = (await read($, ticketAtom))?.cloudId || SITE
-    let error = str.noJira
-    for (const server of ATLASSIAN) {
-      try {
-        const res = await $.mcp.call(server, 'searchJiraIssuesUsingJql', {
-          cloudId,
-          jql: TODO_JQL,
-          maxResults: TODO_LIMIT,
-        })
-        if (res.isError) {
-          // Installed but signed out answers isError: try the other server.
-          error = str.signedOut
-          continue
-        }
-        const items = parseIssueList(res.content as { type: string; text?: string }[])
-        if (items) {
-          await update($, todosAtom, () => ({ items, error: null, isLoading: false, isLoaded: true }))
-          return { text: str.todoCount(items.length) }
-        }
-        error = str.queryFailed
-      } catch {
-        // Not connected under this name; try the next one.
-      }
-    }
-    await update($, todosAtom, t => ({ ...t, error, isLoading: false }))
-    return { text: error }
+    return { text: (await loadTodos($, str)).text }
   })
 
   on('ui.close', async ($, e, next) => {
@@ -282,7 +336,8 @@ export const register: Register = on => {
   })
 
   on('ui.focus', { requestId: TODO_PANE }, async ($, e, next) => {
-    if (e.element && ISSUE_KEY.test(e.element)) await update($, focusedAtom, () => e.element ?? null)
+    // Every move updates it, so leaving a ticket for a button clears it.
+    await update($, focusedAtom, () => focusedTicket(e.element))
     return next(e)
   })
 
@@ -299,6 +354,7 @@ export const register: Register = on => {
     const scope: Scope = effectiveScope(scopePref, folder.project)
     const menu = await read($, menuAtom)
     const focusedKey = await read($, focusedAtom)
+    const autoOpen = await read($, autoOpenAtom)
     const ticket = await read($, ticketAtom)
     const current = ticket?.key
     const cloudId = ticket?.cloudId || SITE
@@ -329,12 +385,16 @@ export const register: Register = on => {
           <Text bold>{str.folderUnmapped(folder.dir || '?')}</Text>
         )}
         <Text dimColor>{folder.project ? str.changeMapping : str.setMapping}</Text>
-        {str.help.map(line => (
-          <Text key={line} dimColor>
-            {line}
-          </Text>
-        ))}
+        <Box flexDirection="column" borderStyle="round" borderDimColor paddingX={1} marginTop={1}>
+          <Text dimColor bold>{str.helpTitle}</Text>
+          {str.help.map(line => (
+            <Text key={line} dimColor>
+              {line}
+            </Text>
+          ))}
+        </Box>
         <Box flexDirection="row" columnGap={2}>
+          <Text color="claude" bold>⚙</Text>
           <Button key="close" plain dimColor label={str.close} onPress={async () => {
             await $.ui.close({ id: TODO_PANE })
             // A close from the plugin's own handler may not reach its ui.close hook.
@@ -349,6 +409,10 @@ export const register: Register = on => {
             if (focusedKey) await openIssue(focusedKey)
             else $.ui.toast(str.noFocus)
           }} />
+          <Button key="auto" plain dimColor label={str.autoOpen(autoOpen)} onPress={async () => {
+            await $.store.set('autoOpen', !autoOpen)
+            await update($, autoOpenAtom, () => !autoOpen)
+          }} />
           {folder.project && (
             <Button key="scope" plain dimColor label={`${str.scope}${str.scopeNames[scope]}`} onPress={async () => {
               const next: Scope = scope === 'folder' ? 'all' : 'folder'
@@ -360,7 +424,7 @@ export const register: Register = on => {
         {current && (
           <Button key="clear-top" plain label={str.clearTicket(current)} onPress={clearTicket} />
         )}
-        <Text> </Text>
+        <Text dimColor>{'─'.repeat(PANE_WIDTH - 4)}</Text>
         {todos.isLoading && <Text dimColor>{todos.items.length ? str.refreshing : str.loading + '…'}</Text>}
         {todos.error && <Text color="error">{todos.error}</Text>}
         {todos.isLoaded && !todos.isLoading && !todos.error && todos.items.length === 0 && (
