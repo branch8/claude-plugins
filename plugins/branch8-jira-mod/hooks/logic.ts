@@ -579,3 +579,14 @@ export function isOrgAccount(claudeJson: string, orgId: string, hasLoginOverride
     return false
   }
 }
+
+// A tool call that may have written a branch8-jira-check folder record, so
+// the pane's folder ↔ project line should be read again at once.
+export function touchesFolderRecords(tool: string, input: Record<string, unknown>): boolean {
+  const path = /branch8-jira[/\\]projects/
+  if (tool === 'Write' || tool === 'Edit' || tool === 'MultiEdit') {
+    return typeof input.file_path === 'string' && path.test(input.file_path)
+  }
+  if (tool === 'Bash') return typeof input.command === 'string' && path.test(input.command)
+  return false
+}

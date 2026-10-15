@@ -20,6 +20,7 @@ import {
   typeIcon,
   focusedTicket,
   isOrgAccount,
+  touchesFolderRecords,
   TODO_JQL,
   detectNode,
   bandText,
@@ -603,6 +604,15 @@ export const register: Register = on => {
   on('tool.call', async ($, e, next) => {
     const ran = await next(e)
     if (ran.deny !== undefined || ran.isError) return ran
+    // A folder record was just written (e.g. Claude recording the board):
+    // refresh the pane's folder ↔ project line now, not next session.
+    if (touchesFolderRecords(e.tool, e as unknown as Record<string, unknown>)) {
+      try {
+        await resolveFolder($)
+      } catch {
+        // Keep the previous answer.
+      }
+    }
     // Subagents and engine forks cannot ask the user; leave the point for the
     // main loop instead of spending it there.
     if ((e as { agentId?: string }).agentId) return ran
@@ -635,6 +645,12 @@ export const register: Register = on => {
   // Pick up status changes made in Jira, at most once a minute.
   on('turn.complete', async ($, e, next) => {
     const out = await next(e)
+    // Records can change outside this session, or /cd can move it.
+    try {
+      await resolveFolder($)
+    } catch {
+      // Keep the previous answer.
+    }
     const t = await read($, ticketAtom)
     if (!t) return out
     const now = await $.clock.now()
