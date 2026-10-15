@@ -293,6 +293,7 @@ export type Strings = {
   moveHint: (dir: string) => string
   menuWork: string
   helpTitle: string
+  autoOpen: (on: boolean) => string
   menuOpen: string
   menuCancel: string
   clearTicket: (key: string) => string
@@ -339,6 +340,7 @@ export const STRINGS: Record<Lang, Strings> = {
     moveHint: dir => `在新終端機執行：cd ${dir} && claude`,
     menuWork: '▶ 設為目前的單並處理',
     helpTitle: '⌨ 操作說明',
+    autoOpen: on => `開場自動開啟：${on ? '開' : '關'}`,
     menuOpen: '🔗 開啟 Jira',
     menuCancel: '✕ 取消',
     clearTicket: key => `⏹ 取消選定 ${key}`,
@@ -381,6 +383,7 @@ export const STRINGS: Record<Lang, Strings> = {
     moveHint: dir => `在新终端运行：cd ${dir} && claude`,
     menuWork: '▶ 设为当前的单并处理',
     helpTitle: '⌨ 操作说明',
+    autoOpen: on => `启动时自动打开：${on ? '开' : '关'}`,
     menuOpen: '🔗 打开 Jira',
     menuCancel: '✕ 取消',
     clearTicket: key => `⏹ 取消选定 ${key}`,
@@ -423,6 +426,7 @@ export const STRINGS: Record<Lang, Strings> = {
     moveHint: dir => `In a new terminal: cd ${dir} && claude`,
     menuWork: '▶ Make it the current ticket',
     helpTitle: '⌨ Keys',
+    autoOpen: on => `Open at start: ${on ? 'on' : 'off'}`,
     menuOpen: '🔗 Open in Jira',
     menuCancel: '✕ Cancel',
     clearTicket: key => `⏹ Unselect ${key}`,
@@ -543,4 +547,17 @@ export function typeIcon(type: string | undefined): string {
 // item) means no ticket, so a stale one is never reused.
 export function focusedTicket(element: string | undefined): string | null {
   return element && /^[A-Z][A-Z0-9_]*-\d+$/.test(element) ? element : null
+}
+
+// Whether Claude Code is signed in to the Branch8 organisation, from the
+// config dir's .claude.json (as branch8-jira-check's banner decides). An API
+// key, token or cloud provider overrides that login, so it never counts.
+export function isOrgAccount(claudeJson: string, orgId: string, hasLoginOverride: boolean): boolean {
+  if (hasLoginOverride || !orgId) return false
+  try {
+    const j = JSON.parse(claudeJson) as { oauthAccount?: { organizationUuid?: unknown } }
+    return j.oauthAccount?.organizationUuid === orgId
+  } catch {
+    return false
+  }
 }

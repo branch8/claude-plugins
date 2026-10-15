@@ -19,6 +19,7 @@ declare module 'claude-code' {
       folder: { dir: string; project: string | null; name: string }
       menu: { item: TodoItem; other: boolean; dir: string } | null
       focusedKey: string | null
+      autoOpen: boolean
     }
   }
 }

@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { detectNode, reminderFor, formatBand, rulesSection, parseIssueStatus, parseIssueList, TODO_JQL, displayWidth, bandText, TODO_HELP, groupTodos, issueUrl, todoRow, langOf, STRINGS, statusTone, nextLangPref, resolveLang, recordFileName, ancestorDirs, parseRecord, projectOf, isOtherProject, applyScope, effectiveScope, foldersFor, suggestedFolder, typeIcon, focusedTicket } from './logic'
+import { detectNode, reminderFor, formatBand, rulesSection, parseIssueStatus, parseIssueList, TODO_JQL, displayWidth, bandText, TODO_HELP, groupTodos, issueUrl, todoRow, langOf, STRINGS, statusTone, nextLangPref, resolveLang, recordFileName, ancestorDirs, parseRecord, projectOf, isOtherProject, applyScope, effectiveScope, foldersFor, suggestedFolder, typeIcon, focusedTicket, isOrgAccount } from './logic'
 
 const T = { key: 'HS-1', summary: '修正請假審核通知', status: '待辦事項', cloudId: 'c' }
 
@@ -369,4 +369,27 @@ test('the o hotkey only targets a ticket the cursor is on now', () => {
   expect(focusedTicket('w-HS-126')).toBeNull()
   expect(focusedTicket('lang')).toBeNull()
   expect(focusedTicket(undefined)).toBeNull()
+})
+
+// --- Auto-open on the Branch8 organisation account ---
+
+const ORG = 'a4a2aa1a-21cd-467f-af54-8253e2ed15d8'
+
+test('organisation account is read from .claude.json', () => {
+  const org = JSON.stringify({ oauthAccount: { emailAddress: 'a@branch8.com', organizationUuid: ORG } })
+  const personal = JSON.stringify({ oauthAccount: { emailAddress: 'a@gmail.com', organizationUuid: 'x' } })
+  expect(isOrgAccount(org, ORG, false)).toBe(true)
+  expect(isOrgAccount(personal, ORG, false)).toBe(false)
+  expect(isOrgAccount('{}', ORG, false)).toBe(false)
+  expect(isOrgAccount('not json', ORG, false)).toBe(false)
+  // An API key, token or cloud provider overrides the claude.ai login.
+  expect(isOrgAccount(org, ORG, true)).toBe(false)
+})
+
+test('auto-open strings exist in every language', () => {
+  for (const lang of ['zh-TW', 'zh-CN', 'en'] as const) {
+    const s = STRINGS[lang]
+    expect(s.autoOpen(true).length > 0 && s.autoOpen(false).length > 0).toBe(true)
+    expect(s.autoOpen(true) !== s.autoOpen(false)).toBe(true)
+  }
 })
