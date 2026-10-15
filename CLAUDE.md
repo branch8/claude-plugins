@@ -142,7 +142,7 @@ MIT 授權的 vendored 程式碼、維護腳本、文件。已掃描確認無硬
 
 ```
 .claude-plugin/marketplace.json   發送清單，只放「官方沒上架」的 plugin
-managed-settings.json             Claude Code 那一側的清單（官方 6 個 + vendored 1 個 + 自家 1 個 + 內建 1 個）
+managed-settings.json             Claude Code 那一側的清單（官方 6 個 + vendored 1 個 + 自家 2 個 + 內建 1 個）
                                   這兩份是不同的東西，別互相複製
 plugins/                          自己寫的 plugin。目前只有 branch8-jira-check：
                                   SessionStart hook 只負責注入指示，實際檢查由 Claude 在第一輪做
@@ -185,7 +185,9 @@ plugins/branch8-jira-mod/         可選的 mod 擴充（TypeScript function hoo
                                   已實測：marketplace 安裝與版本更新的流程跟一般 plugin 相同。
                                   注意：用專案 .claude/settings.json 啟用的 plugin 會被當成 repo-authored 而
                                   不正式安裝，不能拿來模擬 managed settings。
-                                  列在 marketplace.json，但尚未加入 managed-settings.json（第一版只手動安裝試用）
+                                  2026-10-15 加入 managed-settings.json 發給全 team。當時仍未驗證：managed settings
+                                  自動安裝 mod、v2.1.287 以前的 Claude Code 遇到 mod 的行為——出問題時 jira-check 與
+                                  skill 不受影響，最差只是少了面板與補漏
                                   hooks/logic.ts 是純函式（可單測），register.tsx 是引擎接線；
                                   `claude plugin test plugins/branch8-jira-mod` 跑測試
 template/plugin-template/         開發新 plugin 的起點。刻意不列入 marketplace.json，
