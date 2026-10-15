@@ -20,6 +20,7 @@ declare module 'claude-code' {
       menu: { item: TodoItem; other: boolean; dir: string } | null
       focusedKey: string | null
       autoOpen: boolean
+      isOrg: boolean
     }
   }
 }
