@@ -115,10 +115,15 @@ export function bandText(
   todoCount: number | null,
   width = BAND_WIDTH,
   str: Strings = STRINGS['zh-TW'],
+  hint = false,
 ): string | null {
-  if (!ticket) return todoCount === null ? null : str.bandNoTicket(todoCount)
-  if (todoCount === null) return formatBand(ticket, width, str)
-  const tail = str.bandTail(todoCount)
+  // hint: org account with the pane closed, so the line says how to open it.
+  if (!ticket) {
+    if (todoCount !== null) return str.bandNoTicket(todoCount)
+    return hint ? str.bandHint : null
+  }
+  if (todoCount === null && !hint) return formatBand(ticket, width, str)
+  const tail = (todoCount === null ? '' : str.bandTail(todoCount)) + (hint ? ' · /jira-todo' : '')
   return formatBand(ticket, width - displayWidth(tail), str) + tail
 }
 
@@ -128,6 +133,7 @@ export function rulesSection(ticket: Ticket | null, asked: readonly string[]): s
   const lines = [
     'Branch8 Jira workflow (branch8-jira-mod): use the jira-workflow skill whenever the user starts a new unit of work, when work on it starts, when a pull request is opened, and when it is merged. Ask with question cards; never move a Jira status without the user confirming.',
     'After resolving or creating a ticket call mcp__branch8-jira-mod__set_ticket; after asking about a transition at a point call mcp__branch8-jira-mod__mark_asked with "<KEY>:<start|pr|merge>".',
+    'When the user asks about their Jira todos or tickets, also tell them that typing /jira-todo opens the todo pane.',
   ]
   if (ticket) {
     const mine = asked
@@ -294,6 +300,9 @@ export type Strings = {
   menuWork: string
   helpTitle: string
   autoOpen: (on: boolean) => string
+  bandHint: string
+  closedHint: string
+  narrowHint: string
   menuOpen: string
   menuCancel: string
   clearTicket: (key: string) => string
@@ -341,6 +350,9 @@ export const STRINGS: Record<Lang, Strings> = {
     menuWork: '▶ 設為目前的單並處理',
     helpTitle: '⌨ 操作說明',
     autoOpen: on => `開場自動開啟：${on ? '開' : '關'}`,
+    bandHint: '📋 輸入 /jira-todo 開啟 Jira 待辦',
+    closedHint: '已關閉，輸入 /jira-todo 可再打開',
+    narrowHint: 'Jira 待辦面板需要較寬的視窗：拉寬視窗，或隨時輸入 /jira-todo',
     menuOpen: '🔗 開啟 Jira',
     menuCancel: '✕ 取消',
     clearTicket: key => `⏹ 取消選定 ${key}`,
@@ -384,6 +396,9 @@ export const STRINGS: Record<Lang, Strings> = {
     menuWork: '▶ 设为当前的单并处理',
     helpTitle: '⌨ 操作说明',
     autoOpen: on => `启动时自动打开：${on ? '开' : '关'}`,
+    bandHint: '📋 输入 /jira-todo 打开 Jira 待办',
+    closedHint: '已关闭，输入 /jira-todo 可再打开',
+    narrowHint: 'Jira 待办面板需要较宽的窗口：拉宽窗口，或随时输入 /jira-todo',
     menuOpen: '🔗 打开 Jira',
     menuCancel: '✕ 取消',
     clearTicket: key => `⏹ 取消选定 ${key}`,
@@ -427,6 +442,9 @@ export const STRINGS: Record<Lang, Strings> = {
     menuWork: '▶ Make it the current ticket',
     helpTitle: '⌨ Keys',
     autoOpen: on => `Open at start: ${on ? 'on' : 'off'}`,
+    bandHint: '📋 Type /jira-todo for your Jira todos',
+    closedHint: 'Closed. Type /jira-todo to open it again',
+    narrowHint: 'The Jira pane needs a wider window: widen it, or type /jira-todo any time',
     menuOpen: '🔗 Open in Jira',
     menuCancel: '✕ Cancel',
     clearTicket: key => `⏹ Unselect ${key}`,
@@ -560,4 +578,15 @@ export function isOrgAccount(claudeJson: string, orgId: string, hasLoginOverride
   } catch {
     return false
   }
+}
+
+// A tool call that may have written a branch8-jira-check folder record, so
+// the pane's folder ↔ project line should be read again at once.
+export function touchesFolderRecords(tool: string, input: Record<string, unknown>): boolean {
+  const path = /branch8-jira[/\\]projects/
+  if (tool === 'Write' || tool === 'Edit' || tool === 'MultiEdit') {
+    return typeof input.file_path === 'string' && path.test(input.file_path)
+  }
+  if (tool === 'Bash') return typeof input.command === 'string' && path.test(input.command)
+  return false
 }

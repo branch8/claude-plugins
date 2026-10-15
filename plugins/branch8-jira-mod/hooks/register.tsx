@@ -20,6 +20,7 @@ import {
   typeIcon,
   focusedTicket,
   isOrgAccount,
+  touchesFolderRecords,
   TODO_JQL,
   detectNode,
   bandText,
@@ -63,6 +64,8 @@ const scopePrefAtom = atom({ plugin: 'branch8-jira-mod', key: 'scopePref' } as c
 const folderAtom = atom({ plugin: 'branch8-jira-mod', key: 'folder' } as const, { dir: '', project: null, name: '' })
 // Open the pane by itself at session start on the organisation account.
 const autoOpenAtom = atom({ plugin: 'branch8-jira-mod', key: 'autoOpen' } as const, true)
+// Signed in to the Branch8 organisation: hints about /jira-todo while the pane is closed.
+const orgAtom = atom({ plugin: 'branch8-jira-mod', key: 'isOrg' } as const, false)
 // The row menu open under one ticket (Enter on a row), if any.
 const menuAtom = atom({ plugin: 'branch8-jira-mod', key: 'menu' } as const, null)
 // The ticket row the pane's focus ring is on, for the "o" hotkey.
@@ -289,10 +292,14 @@ export const register: Register = on => {
     try {
       const pref = await $.store.get('autoOpen')
       await update($, autoOpenAtom, () => pref !== false)
-      if (pref !== false && (await onOrgAccount($))) {
-        await $.ui.open({ id: TODO_PANE, title: 'Jira' })
+      const isOrg = await onOrgAccount($)
+      await update($, orgAtom, () => isOrg)
+      if (pref !== false && isOrg) {
+        const opened = await $.ui.open({ id: TODO_PANE, title: 'Jira' })
         await update($, todoOpenAtom, () => true)
         const str = STRINGS[(await read($, langAtom)) as Lang]
+        // Opened unasked, a narrow terminal keeps it undrawn: say how to get it.
+        if (!opened.isPlaced) $.ui.toast(str.narrowHint)
         const first = await loadTodos($, str)
         if (!first.ok) {
           for (const ms of AUTO_RETRY_MS) {
@@ -331,7 +338,12 @@ export const register: Register = on => {
   })
 
   on('ui.close', async ($, e, next) => {
-    if (e.id === TODO_PANE) await update($, todoOpenAtom, () => false)
+    if (e.id === TODO_PANE) {
+      await update($, todoOpenAtom, () => false)
+      if (e.origin.kind === 'person' && (await read($, orgAtom))) {
+        $.ui.toast(STRINGS[(await read($, langAtom)) as Lang].closedHint)
+      }
+    }
     return next(e)
   })
 
@@ -359,6 +371,15 @@ export const register: Register = on => {
     const current = ticket?.key
     const cloudId = ticket?.cloudId || SITE
 
+    // A menu item disappears with the menu; hand the ring back to its row,
+    // or the arrows have nothing to move from.
+    const backToRow = async (key: string) => {
+      try {
+        await $.ui.focus({ requestId: TODO_PANE, key })
+      } catch {
+        // The row is gone (list refreshed); the ring stays where the engine left it.
+      }
+    }
     const pick = async (item: (typeof todos.items)[number]) => {
       const now = await $.clock.now()
       await update($, menuAtom, () => null)
@@ -366,6 +387,7 @@ export const register: Register = on => {
       // The list was just read from Jira; no need to refresh at once.
       await update($, refreshedAtom, () => now)
       $.ui.toast(str.current(item.key))
+      await backToRow(item.key)
     }
     const clearTicket = async () => {
       await update($, menuAtom, () => null)
@@ -399,6 +421,7 @@ export const register: Register = on => {
             await $.ui.close({ id: TODO_PANE })
             // A close from the plugin's own handler may not reach its ui.close hook.
             await update($, todoOpenAtom, () => false)
+            if (await read($, orgAtom)) $.ui.toast(str.closedHint)
           }} />
           <Button key="lang" plain dimColor label={`${str.language}${str.langNames[pref]}`} onPress={async () => {
             const next = nextLangPref(pref)
@@ -496,10 +519,14 @@ export const register: Register = on => {
                                   <Button key={`m-${item.key}`} plain label={`→ ${str.moveThere}`} onPress={async () => {
                                     await update($, menuAtom, () => null)
                                     $.ui.toast(str.moveHint(menu.dir))
+                                    await backToRow(item.key)
                                   }} />
                                 )}
                                 {item.key === current ? (
-                                  <Button key={`w-${item.key}`} plain label={str.menuClear} onPress={clearTicket} />
+                                  <Button key={`w-${item.key}`} plain label={str.menuClear} onPress={async () => {
+                                    await clearTicket()
+                                    await backToRow(item.key)
+                                  }} />
                                 ) : (
                                   <Button
                                     key={`w-${item.key}`}
@@ -511,6 +538,7 @@ export const register: Register = on => {
                                 <Button key={`o-${item.key}`} plain label={str.menuOpen} onPress={async () => {
                                   await update($, menuAtom, () => null)
                                   await openIssue(item.key)
+                                  await backToRow(item.key)
                                 }} />
                                 <Button key={`c-${item.key}`} plain dimColor label={str.menuCancel} onPress={async () => {
                                   await update($, menuAtom, () => null)
@@ -576,6 +604,15 @@ export const register: Register = on => {
   on('tool.call', async ($, e, next) => {
     const ran = await next(e)
     if (ran.deny !== undefined || ran.isError) return ran
+    // A folder record was just written (e.g. Claude recording the board):
+    // refresh the pane's folder ↔ project line now, not next session.
+    if (touchesFolderRecords(e.tool, e as unknown as Record<string, unknown>)) {
+      try {
+        await resolveFolder($)
+      } catch {
+        // Keep the previous answer.
+      }
+    }
     // Subagents and engine forks cannot ask the user; leave the point for the
     // main loop instead of spending it there.
     if ((e as { agentId?: string }).agentId) return ran
@@ -598,7 +635,8 @@ export const register: Register = on => {
     const todos = await read($, todosAtom)
     // The count stands in for the pane while it is closed.
     const count = todos.isLoaded && !(await read($, todoOpenAtom)) ? todos.items.length : null
-    const line = bandText(t, count, undefined, STRINGS[(await read($, langAtom)) as Lang])
+    const hint = (await read($, orgAtom)) && !(await read($, todoOpenAtom))
+    const line = bandText(t, count, undefined, STRINGS[(await read($, langAtom)) as Lang], hint)
     if (!line || e.props.hasSurvey) return next(e)
     const { Text } = $.ui.resolve(e)
     return <Text>{line}</Text>
@@ -607,6 +645,12 @@ export const register: Register = on => {
   // Pick up status changes made in Jira, at most once a minute.
   on('turn.complete', async ($, e, next) => {
     const out = await next(e)
+    // Records can change outside this session, or /cd can move it.
+    try {
+      await resolveFolder($)
+    } catch {
+      // Keep the previous answer.
+    }
     const t = await read($, ticketAtom)
     if (!t) return out
     const now = await $.clock.now()

@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { detectNode, reminderFor, formatBand, rulesSection, parseIssueStatus, parseIssueList, TODO_JQL, displayWidth, bandText, TODO_HELP, groupTodos, issueUrl, todoRow, langOf, STRINGS, statusTone, nextLangPref, resolveLang, recordFileName, ancestorDirs, parseRecord, projectOf, isOtherProject, applyScope, effectiveScope, foldersFor, suggestedFolder, typeIcon, focusedTicket, isOrgAccount } from './logic'
+import { detectNode, reminderFor, formatBand, rulesSection, parseIssueStatus, parseIssueList, TODO_JQL, displayWidth, bandText, TODO_HELP, groupTodos, issueUrl, todoRow, langOf, STRINGS, statusTone, nextLangPref, resolveLang, recordFileName, ancestorDirs, parseRecord, projectOf, isOtherProject, applyScope, effectiveScope, foldersFor, suggestedFolder, typeIcon, focusedTicket, isOrgAccount, touchesFolderRecords } from './logic'
 
 const T = { key: 'HS-1', summary: '修正請假審核通知', status: '待辦事項', cloudId: 'c' }
 
@@ -392,4 +392,42 @@ test('auto-open strings exist in every language', () => {
     expect(s.autoOpen(true).length > 0 && s.autoOpen(false).length > 0).toBe(true)
     expect(s.autoOpen(true) !== s.autoOpen(false)).toBe(true)
   }
+})
+
+// --- Hints to open the pane: org account with the pane closed ---
+
+test('band hints at /jira-todo on the org account when the pane is closed', () => {
+  const s = STRINGS['zh-TW']
+  expect(bandText(null, null, 78, s, true)).toBe('📋 輸入 /jira-todo 開啟 Jira 待辦')
+  expect(bandText(null, 16, 78, s, true)).toBe('📋 Jira 待辦 16 張 · /jira-todo')
+  const withTicket = bandText(T, 16, 78, s, true)
+  expect(withTicket?.endsWith(' · 待辦 16 · /jira-todo')).toBe(true)
+  expect(withTicket !== null && displayWidth(withTicket) <= 78).toBe(true)
+  // No hint off the org account: unchanged behaviour.
+  expect(bandText(null, null, 78, s, false)).toBeNull()
+  expect(bandText(T, 16, 78, s, false)?.endsWith(' · 待辦 16')).toBe(true)
+})
+
+test('hint strings exist in every language', () => {
+  for (const lang of ['zh-TW', 'zh-CN', 'en'] as const) {
+    const s = STRINGS[lang]
+    expect(s.bandHint.includes('/jira-todo')).toBe(true)
+    expect(s.closedHint.includes('/jira-todo')).toBe(true)
+    expect(s.narrowHint.includes('/jira-todo')).toBe(true)
+  }
+})
+
+test('rules tell Claude to mention /jira-todo, without changing with pane state', () => {
+  expect(rulesSection(null, []).includes('/jira-todo')).toBe(true)
+})
+
+test('tool calls that write branch8-jira-check folder records', () => {
+  const rec = '/home/g/.claude/branch8-jira/projects/home_g_work_x.json'
+  expect(touchesFolderRecords('Write', { file_path: rec })).toBe(true)
+  expect(touchesFolderRecords('Edit', { file_path: rec })).toBe(true)
+  expect(touchesFolderRecords('Bash', { command: `mkdir -p ~/.claude/branch8-jira/projects && cat > "${rec}" <<'EOF'` })).toBe(true)
+  expect(touchesFolderRecords('Bash', { command: 'bash /p/bin/branch8-jira record-path /w' })).toBe(false)
+  expect(touchesFolderRecords('Write', { file_path: '/home/g/work/README.md' })).toBe(false)
+  expect(touchesFolderRecords('Read', { file_path: rec })).toBe(false)
+  expect(touchesFolderRecords('Write', { file_path: 'C:\\Users\\g\\.claude\\branch8-jira\\projects\\x.json' })).toBe(true)
 })
