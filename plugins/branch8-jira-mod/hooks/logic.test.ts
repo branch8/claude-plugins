@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { detectNode, reminderFor, formatBand, rulesSection, parseIssueStatus, parseIssueList, TODO_JQL, TODO_FIELDS, ISSUE_FIELDS, displayWidth, bandText, TODO_HELP, groupTodos, issueUrl, todoRow, langOf, STRINGS, statusTone, nextLangPref, resolveLang, recordFileName, ancestorDirs, parseRecord, projectOf, isOtherProject, applyScope, effectiveScope, foldersFor, suggestedFolder, typeIcon, focusedTicket, isOrgAccount, touchesFolderRecords, focusOrder, stepFocus, isArrowScroll, settingsValues, menuValues, leftFrom } from './logic'
+import { detectNode, reminderFor, formatBand, rulesSection, parseIssueStatus, parseIssueList, todoJql, nextRange, parseIssuePage, TODO_FIELDS, ISSUE_FIELDS, displayWidth, bandText, TODO_HELP, groupTodos, issueUrl, todoRow, langOf, STRINGS, statusTone, nextLangPref, resolveLang, recordFileName, ancestorDirs, parseRecord, projectOf, isOtherProject, applyScope, effectiveScope, foldersFor, suggestedFolder, typeIcon, focusedTicket, isOrgAccount, touchesFolderRecords, focusOrder, stepFocus, isArrowScroll, settingsValues, menuValues, leftFrom } from './logic'
 
 const T = { key: 'HS-1', summary: '修正請假審核通知', status: '待辦事項', cloudId: 'c' }
 
@@ -96,7 +96,7 @@ test('parse searchJiraIssuesUsingJql output into todo items', () => {
 })
 
 test('todo JQL lists my unresolved issues, newest first', () => {
-  expect(TODO_JQL).toBe('assignee = currentUser() AND statusCategory != Done ORDER BY updated DESC')
+  expect(todoJql({ days: 0, project: null })).toBe('assignee = currentUser() AND statusCategory != Done ORDER BY updated DESC')
 })
 
 // --- Final review fixes ---
@@ -486,8 +486,8 @@ test('focus order skips folded branches and adds open menus and the unselect but
 })
 
 test('popup options in order', () => {
-  expect(settingsValues(true)).toEqual(['lang', 'auto', 'scope', 'close', 'back'])
-  expect(settingsValues(false)).toEqual(['lang', 'auto', 'close', 'back'])
+  expect(settingsValues(true)).toEqual(['lang', 'auto', 'scope', 'range', 'close', 'back'])
+  expect(settingsValues(false)).toEqual(['lang', 'auto', 'range', 'close', 'back'])
   expect(menuValues(false, false)).toEqual(['work', 'open', 'cancel'])
   expect(menuValues(true, false)).toEqual(['move', 'work', 'open', 'cancel'])
   expect(menuValues(false, true)).toEqual(['clear', 'open', 'cancel'])
@@ -520,4 +520,55 @@ test('only the arrow keys count as arrow scrolls, not the wheel, page keys or a 
   expect(isArrowScroll({ by: 1, origin: { kind: 'person' }, pointer: { row: 3 } })).toBe(false)
   expect(isArrowScroll({ by: 12, origin: { kind: 'person' } })).toBe(false)
   expect(isArrowScroll({ by: 1, origin: { kind: 'plugin' } })).toBe(false)
+})
+
+test('todo JQL narrows by update age and project, newest first', () => {
+  expect(todoJql({ days: 90, project: 'HS' })).toBe(
+    'assignee = currentUser() AND statusCategory != Done AND project = "HS" AND updated >= -90d ORDER BY updated DESC',
+  )
+  expect(todoJql({ days: 30, project: null })).toBe(
+    'assignee = currentUser() AND statusCategory != Done AND updated >= -30d ORDER BY updated DESC',
+  )
+})
+
+test('range setting cycles 1, 3, 6 months and no limit', () => {
+  expect(nextRange(30)).toBe(90)
+  expect(nextRange(90)).toBe(180)
+  expect(nextRange(180)).toBe(0)
+  expect(nextRange(0)).toBe(30)
+  expect(nextRange(7)).toBe(90)
+})
+
+test('a search page carries the next page token until the last page', () => {
+  const page = (o: object) => [{ type: 'text', text: JSON.stringify({ data: o }) }]
+  const issues = [{ key: 'HS-1', fields: { summary: 'a', status: { name: 'x' } } }]
+  expect(parseIssuePage(page({ issues, nextPageToken: 'T', isLast: false }))).toEqual({
+    items: [{ key: 'HS-1', summary: 'a', status: 'x' }],
+    next: 'T',
+  })
+  expect(parseIssuePage(page({ issues, nextPageToken: 'T', isLast: true }))?.next).toBeNull()
+  expect(parseIssuePage(page({ issues }))?.next).toBeNull()
+  expect(parseIssuePage([{ type: 'text', text: 'nope' }])).toBeNull()
+})
+
+test('the load-more button is the last stop when there is more', () => {
+  const order = focusOrder({ groups: ORDER_GROUPS, folded: [], statusFolded: [], more: true })
+  expect(order[order.length - 1]).toBe('more')
+})
+
+test('range and load-more strings in every language', () => {
+  for (const lang of ['zh-TW', 'zh-CN', 'en'] as const) {
+    expect(STRINGS[lang].rangeLabel(90).length > 0).toBe(true)
+    expect(STRINGS[lang].rangeLabel(0).length > 0).toBe(true)
+    expect(STRINGS[lang].loadMore(20).length > 0).toBe(true)
+  }
+  expect(STRINGS['zh-TW'].rangeLabel(90)).toBe('時間：近 3 個月')
+  expect(STRINGS['zh-TW'].rangeLabel(0)).toBe('時間：不限')
+})
+
+test('a nodes page carries its cursor in pageInfo', () => {
+  const nodes = [{ key: 'HS-1', fields: { summary: 'a', status: { name: 'x' } } }]
+  const text = (o: object) => [{ type: 'text', text: JSON.stringify(o) }]
+  expect(parseIssuePage(text({ issues: { nodes, pageInfo: { hasNextPage: true, endCursor: 'C' } } }))?.next).toBe('C')
+  expect(parseIssuePage(text({ issues: { nodes, pageInfo: { hasNextPage: false, endCursor: 'C' } } }))?.next).toBeNull()
 })

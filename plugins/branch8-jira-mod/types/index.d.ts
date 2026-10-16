@@ -1,7 +1,14 @@
 export type Node = 'start' | 'pr' | 'merge'
 export type Ticket = { key: string; summary: string; status: string; cloudId: string }
 export type TodoItem = { key: string; summary: string; status: string; type?: string }
-export type Todos = { items: TodoItem[]; error: string | null; isLoading: boolean; isLoaded: boolean }
+export type Todos = {
+  items: TodoItem[]
+  error: string | null
+  isLoading: boolean
+  isLoaded: boolean
+  // The search's token for the next page; null when everything is loaded.
+  next: string | null
+}
 
 declare module 'claude-code' {
   interface PluginState {
@@ -24,6 +31,8 @@ declare module 'claude-code' {
       // The settings popup: null when closed.
       settings: string | null
       autoOpen: boolean
+      // Only tickets updated within this many days; 0 for any age.
+      range: number
       isOrg: boolean
     }
   }

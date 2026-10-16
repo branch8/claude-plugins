@@ -27,7 +27,10 @@ import {
   leftFrom,
   settingsValues,
   menuValues,
-  TODO_JQL,
+  todoJql,
+  nextRange,
+  parseIssuePage,
+  DEFAULT_RANGE,
   TODO_FIELDS,
   ISSUE_FIELDS,
   detectNode,
@@ -54,7 +57,10 @@ const todosAtom = atom({ plugin: 'branch8-jira-mod', key: 'todos' } as const, {
   error: null,
   isLoading: false,
   isLoaded: false,
+  next: null,
 })
+// Only tickets updated within this many days (0: any age); kept in $.store.
+const rangeAtom = atom({ plugin: 'branch8-jira-mod', key: 'range' } as const, DEFAULT_RANGE)
 // Whether the /jira-todo pane is open. Closed works as collapsed: the list
 // stays here, the band shows its count, /jira-todo reopens it at once.
 const todoOpenAtom = atom({ plugin: 'branch8-jira-mod', key: 'todoOpen' } as const, false)
@@ -195,26 +201,41 @@ async function focusOn($: EngineInterface, key: string): Promise<void> {
   await $.ui.focus({ requestId: TODO_PANE, key })
 }
 
-async function loadTodos($: EngineInterface, str: (typeof STRINGS)[Lang]): Promise<{ ok: boolean; text: string }> {
+// Fills the pane's list: the first page afresh, or with `more` the next page
+// after what is loaded. The search names its range and, scoped to this
+// folder, its project, so Jira sends only what the pane shows.
+async function loadTodos(
+  $: EngineInterface,
+  str: (typeof STRINGS)[Lang],
+  more = false,
+): Promise<{ ok: boolean; text: string }> {
+  const before = await read($, todosAtom)
+  if (more && !before.next) return { ok: true, text: str.todoCount(before.items.length) }
   await update($, todosAtom, t => ({ ...t, error: null, isLoading: true }))
   const cloudId = (await read($, ticketAtom))?.cloudId || SITE
+  const folder = await read($, folderAtom)
+  const scope = effectiveScope(await read($, scopePrefAtom), folder.project)
+  const jql = todoJql({ days: await read($, rangeAtom), project: scope === 'folder' ? folder.project : null })
   let error = str.noJira
   for (const server of ATLASSIAN) {
     try {
       const res = await $.mcp.call(server, 'searchJiraIssuesUsingJql', {
         cloudId,
-        jql: TODO_JQL,
+        jql,
         maxResults: TODO_LIMIT,
         fields: TODO_FIELDS,
+        ...(more && before.next ? { nextPageToken: before.next } : {}),
       })
       if (res.isError) {
         // Installed but signed out answers isError: try the other server.
         error = str.signedOut
         continue
       }
-      const items = parseIssueList(res.content as { type: string; text?: string }[])
-      if (items) {
-        await update($, todosAtom, () => ({ items, error: null, isLoading: false, isLoaded: true }))
+      const page = parseIssuePage(res.content as { type: string; text?: string }[])
+      if (page) {
+        const seen = new Set(more ? before.items.map(i => i.key) : [])
+        const items = more ? [...before.items, ...page.items.filter(i => !seen.has(i.key))] : page.items
+        await update($, todosAtom, () => ({ items, error: null, isLoading: false, isLoaded: true, next: page.next }))
         return { ok: true, text: str.todoCount(items.length) }
       }
       error = str.queryFailed
@@ -306,6 +327,12 @@ export const register: Register = on => {
       // Stays on auto.
     }
     try {
+      const range = await $.store.get('range')
+      if (typeof range === 'number' && range >= 0) await update($, rangeAtom, () => range)
+    } catch {
+      // Stays on the default range.
+    }
+    try {
       const pref = await $.store.get('lang')
       await applyLang($, pref === 'zh-TW' || pref === 'zh-CN' || pref === 'en' ? pref : 'auto')
     } catch {
@@ -390,13 +417,15 @@ export const register: Register = on => {
     const settings = await read($, settingsAtom)
     const current = (await read($, ticketAtom))?.key ?? null
     const menu = await read($, menuAtom)
+    const todos = await read($, todosAtom)
     const order = focusOrder({
-      groups: groupTodos(applyScope((await read($, todosAtom)).items, scope, folder.project)),
+      groups: groupTodos(applyScope(todos.items, scope, folder.project)),
       folded: await read($, todoFoldedAtom),
       statusFolded: await read($, statusFoldedAtom),
       settings: settings ? settingsValues(Boolean(folder.project)) : null,
       current,
       menu: menu ? { key: menu.item.key, values: menuValues(menu.other, menu.item.key === current) } : null,
+      more: Boolean(todos.next),
     })
     const to = stepFocus(order, await read($, ringAtom), e.by)
     if (!to) return next(e)
@@ -423,6 +452,7 @@ export const register: Register = on => {
     const focusedKey = await read($, focusedAtom)
     const autoOpen = await read($, autoOpenAtom)
     const settings = await read($, settingsAtom)
+    const range = await read($, rangeAtom)
     const ticket = await read($, ticketAtom)
     const current = ticket?.key
     const cloudId = ticket?.cloudId || SITE
@@ -486,6 +516,7 @@ export const register: Register = on => {
             lang: `${str.language}${str.langNames[pref]}`,
             auto: str.autoOpen(autoOpen),
             scope: `${str.scope}${str.scopeNames[scope]}`,
+            range: str.rangeLabel(range),
             close: str.close,
             back: str.settingsBack,
           }
@@ -501,6 +532,12 @@ export const register: Register = on => {
               const next: Scope = scope === 'folder' ? 'all' : 'folder'
               await $.store.set('scope', next)
               await update($, scopePrefAtom, () => next)
+              await loadTodos($, str)
+            } else if (value === 'range') {
+              const next = nextRange(range)
+              await $.store.set('range', next)
+              await update($, rangeAtom, () => next)
+              await loadTodos($, str)
             } else if (value === 'close') {
               await update($, settingsAtom, () => null)
               await $.ui.close({ id: TODO_PANE })
@@ -642,6 +679,23 @@ export const register: Register = on => {
             </Box>
           )
         })}
+        {todos.next && (
+          <Button
+            key="more"
+            plain
+            dimColor
+            label={todos.isLoading ? str.refreshing : str.loadMore(TODO_LIMIT)}
+            onPress={async () => {
+              if (todos.isLoading) return
+              const had = new Set(todos.items.map(i => i.key))
+              await loadTodos($, str, true)
+              // The ring would keep the button's place in the order, now on an
+              // old row: put it on the first ticket just loaded, once drawn.
+              const first = (await read($, todosAtom)).items.find(i => !had.has(i.key))
+              if (first) $.clock.after(300, () => void backToRow(first.key))
+            }}
+          />
+        )}
       </Box>
     )
   })

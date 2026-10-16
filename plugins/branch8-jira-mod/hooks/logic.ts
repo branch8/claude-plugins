@@ -171,8 +171,25 @@ export function parseIssueStatus(content: Content): { summary?: string; status?:
   return typeof summary === 'string' ? { summary, status } : { status }
 }
 
-// Open tickets assigned to the person, for the /jira-todo pane.
-export const TODO_JQL = 'assignee = currentUser() AND statusCategory != Done ORDER BY updated DESC'
+// Open tickets assigned to the person, for the /jira-todo pane: newest
+// first, only those updated within `days` (0: any age), in one project when
+// the scope is this folder's. Older ones are what bloated the list.
+export function todoJql(o: { days: number; project: string | null }): string {
+  return (
+    'assignee = currentUser() AND statusCategory != Done' +
+    (o.project ? ` AND project = "${o.project}"` : '') +
+    (o.days > 0 ? ` AND updated >= -${o.days}d` : '') +
+    ' ORDER BY updated DESC'
+  )
+}
+
+// The range setting's steps in days, 0 for no limit; 90 is the default.
+export const RANGES = [30, 90, 180, 0] as const
+export const DEFAULT_RANGE = 90
+export function nextRange(days: number): number {
+  const i = (RANGES as readonly number[]).indexOf(days)
+  return i < 0 ? DEFAULT_RANGE : (RANGES[(i + 1) % RANGES.length] ?? DEFAULT_RANGE)
+}
 // Only what the pane and the band draw. The default fields carry each issue's
 // description: 20 of them passed the MCP's size limit, which then answers a
 // pointer to a saved file instead of the JSON (2026-10-16).
@@ -181,9 +198,16 @@ export const ISSUE_FIELDS = ['summary', 'status']
 
 // Items from a searchJiraIssuesUsingJql result; null when unreadable.
 export function parseIssueList(content: Content): TodoItem[] | null {
+  return parseIssuePage(content)?.items ?? null
+}
+
+// One page of a search: its items and the token for the next page, null on
+// the last one; null when unreadable.
+export function parseIssuePage(content: Content): { items: TodoItem[]; next: string | null } | null {
   const json = firstJson(content) as { data?: unknown } | null
   if (!json) return null
-  const found = ((json.data ?? json) as { issues?: unknown }).issues
+  const page = (json.data ?? json) as { issues?: unknown; nextPageToken?: unknown; isLast?: unknown }
+  const found = page.issues
   // An array, or { nodes: [...] } when the search names its fields.
   const issues = Array.isArray(found) ? found : (found as { nodes?: unknown } | undefined)?.nodes
   if (!Array.isArray(issues)) return null
@@ -202,7 +226,16 @@ export function parseIssueList(content: Content): TodoItem[] | null {
     if (typeof i.fields?.issuetype?.name === 'string') item.type = i.fields.issuetype.name
     items.push(item)
   }
-  return items
+  // The token: nextPageToken beside an array, pageInfo.endCursor beside nodes.
+  const info = (found as { pageInfo?: { hasNextPage?: unknown; endCursor?: unknown } } | undefined)?.pageInfo
+  const next = info
+    ? info.hasNextPage === true && typeof info.endCursor === 'string'
+      ? info.endCursor
+      : null
+    : page.isLast !== true && typeof page.nextPageToken === 'string'
+      ? page.nextPageToken
+      : null
+  return { items, next }
 }
 
 export type TodoGroup = {
@@ -318,6 +351,8 @@ export type Strings = {
   noFocus: string
   settings: string
   settingsBack: string
+  rangeLabel: (days: number) => string
+  loadMore: (n: number) => string
 }
 
 const LANG_NAMES = { 'zh-TW': '繁中', 'zh-CN': '简中', en: 'English' }
@@ -328,6 +363,8 @@ export const STRINGS: Record<Lang, Strings> = {
     close: '✕ 關閉 Jira 面板',
     settings: '⚙ 設定',
     settingsBack: '↩ 返回',
+    rangeLabel: days => `時間：${days ? `近 ${days / 30} 個月` : '不限'}`,
+    loadMore: n => `⋯ 再載入 ${n} 張`,
     language: '語言：',
     langNames: { ...LANG_NAMES, auto: '自動' },
     open: '開啟',
@@ -376,6 +413,8 @@ export const STRINGS: Record<Lang, Strings> = {
     close: '✕ 关闭 Jira 面板',
     settings: '⚙ 设置',
     settingsBack: '↩ 返回',
+    rangeLabel: days => `时间：${days ? `近 ${days / 30} 个月` : '不限'}`,
+    loadMore: n => `⋯ 再加载 ${n} 张`,
     language: '语言：',
     langNames: { ...LANG_NAMES, auto: '自动' },
     open: '打开',
@@ -424,6 +463,8 @@ export const STRINGS: Record<Lang, Strings> = {
     close: '✕ Close the Jira pane',
     settings: '⚙ Settings',
     settingsBack: '↩ Back',
+    rangeLabel: days => `Updated: ${days ? `last ${days / 30} month${days > 30 ? 's' : ''}` : 'any time'}`,
+    loadMore: n => `⋯ Load ${n} more`,
     language: 'Language: ',
     langNames: { ...LANG_NAMES, auto: 'Auto' },
     open: 'Open',
@@ -608,7 +649,7 @@ export function touchesFolderRecords(tool: string, input: Record<string, unknown
 
 // What the ⚙ popup offers, in order; scope only where the folder has a project.
 export function settingsValues(hasProject: boolean): string[] {
-  return ['lang', 'auto', ...(hasProject ? ['scope'] : []), 'close', 'back']
+  return ['lang', 'auto', ...(hasProject ? ['scope'] : []), 'range', 'close', 'back']
 }
 
 // What a row's menu offers, in order: another project's ticket first offers its
@@ -626,6 +667,7 @@ export function focusOrder(o: {
   settings?: readonly string[] | null
   current?: string | null
   menu?: { key: string; values: readonly string[] } | null
+  more?: boolean
 }): string[] {
   const keys = ['settings', 'hotkey-o']
   for (const v of o.settings ?? []) keys.push(`settings-${v}`)
@@ -643,6 +685,7 @@ export function focusOrder(o: {
       }
     }
   }
+  if (o.more) keys.push('more')
   return keys
 }
 
