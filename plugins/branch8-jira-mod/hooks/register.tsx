@@ -21,6 +21,12 @@ import {
   focusedTicket,
   isOrgAccount,
   touchesFolderRecords,
+  focusOrder,
+  stepFocus,
+  isArrowScroll,
+  leftFrom,
+  settingsValues,
+  menuValues,
   TODO_JQL,
   TODO_FIELDS,
   ISSUE_FIELDS,
@@ -70,11 +76,12 @@ const autoOpenAtom = atom({ plugin: 'branch8-jira-mod', key: 'autoOpen' } as con
 const orgAtom = atom({ plugin: 'branch8-jira-mod', key: 'isOrg' } as const, false)
 // The row menu open under one ticket (Enter on a row), if any.
 const menuAtom = atom({ plugin: 'branch8-jira-mod', key: 'menu' } as const, null)
-// The settings popup under the toolbar's ⚙ button: null when closed, else
-// the option last picked, where the cursor rests when it is drawn again.
+// The settings popup under the toolbar's ⚙ button: null when closed.
 const settingsAtom = atom({ plugin: 'branch8-jira-mod', key: 'settings' } as const, null)
 // The ticket row the pane's focus ring is on, for the "o" hotkey.
 const focusedAtom = atom({ plugin: 'branch8-jira-mod', key: 'focusedKey' } as const, null)
+// The pane element the ring is on, of any kind: where the arrows step from.
+const ringAtom = atom({ plugin: 'branch8-jira-mod', key: 'ring' } as const, null)
 
 // The company Jira site, used when no ticket has given a cloudId yet.
 const SITE = 'https://branch8.atlassian.net'
@@ -181,6 +188,13 @@ async function folderForProject($: EngineInterface, key: string): Promise<string
 }
 
 // Reads the open-ticket list into the pane's state; the reply for the command.
+// Moves the pane's ring and records it at once: the ui.focus hook records it
+// too, but not before the next arrow when the element is drawn in this pass.
+async function focusOn($: EngineInterface, key: string): Promise<void> {
+  await update($, ringAtom, () => key)
+  await $.ui.focus({ requestId: TODO_PANE, key })
+}
+
 async function loadTodos($: EngineInterface, str: (typeof STRINGS)[Lang]): Promise<{ ok: boolean; text: string }> {
   await update($, todosAtom, t => ({ ...t, error: null, isLoading: true }))
   const cloudId = (await read($, ticketAtom))?.cloudId || SITE
@@ -360,14 +374,42 @@ export const register: Register = on => {
   on('ui.focus', { requestId: TODO_PANE }, async ($, e, next) => {
     // Every move updates it, so leaving a ticket for a button clears it.
     await update($, focusedAtom, () => focusedTicket(e.element))
+    // No element: the ring went to one of the engine's stops or left the pane.
+    await update($, ringAtom, ring => (e.element ? e.element : leftFrom(ring)))
     return next(e)
   })
 
+  // A list taller than the pane's window makes the arrows scroll it a row
+  // instead of moving the ring, and the highlight is soon out of view. Walk the
+  // ring instead; it keeps the element it lands on in view. Wheel and page keys
+  // still scroll.
+  on('ui.scroll', { requestId: TODO_PANE }, async ($, e, next) => {
+    if (!isArrowScroll(e)) return next(e)
+    const folder = await read($, folderAtom)
+    const scope = effectiveScope(await read($, scopePrefAtom), folder.project)
+    const settings = await read($, settingsAtom)
+    const current = (await read($, ticketAtom))?.key ?? null
+    const menu = await read($, menuAtom)
+    const order = focusOrder({
+      groups: groupTodos(applyScope((await read($, todosAtom)).items, scope, folder.project)),
+      folded: await read($, todoFoldedAtom),
+      statusFolded: await read($, statusFoldedAtom),
+      settings: settings ? settingsValues(Boolean(folder.project)) : null,
+      current,
+      menu: menu ? { key: menu.item.key, values: menuValues(menu.other, menu.item.key === current) } : null,
+    })
+    const to = stepFocus(order, await read($, ringAtom), e.by)
+    if (!to) return next(e)
+    try {
+      await focusOn($, to)
+    } catch {
+      return next(e)
+    }
+    return {}
+  })
+
   on('ui.render', { component: 'Pane', requestId: TODO_PANE }, async ($, e) => {
-    const ui = $.ui.resolve(e)
-    const { Box, Button, Text } = ui
-    // Select is every surface's picker but mobile's; there, menu items are buttons.
-    const Select = 'Select' in ui ? ui.Select : null
+    const { Box, Button, Text } = $.ui.resolve(e)
     const todos = await read($, todosAtom)
     const folded = await read($, todoFoldedAtom)
     const statusFolded = await read($, statusFoldedAtom)
@@ -389,7 +431,7 @@ export const register: Register = on => {
     // or the arrows have nothing to move from.
     const backToRow = async (key: string) => {
       try {
-        await $.ui.focus({ requestId: TODO_PANE, key })
+        await focusOn($, key)
       } catch {
         // The row is gone (list refreshed); the ring stays where the engine left it.
       }
@@ -431,9 +473,7 @@ export const register: Register = on => {
         <Box flexDirection="row" columnGap={2}>
           <Button key="settings" plain dimColor={!settings} label={str.settings} onPress={async () => {
             await update($, settingsAtom, open => (open ? null : 'lang'))
-            if (!settings) {
-              await $.ui.focus({ requestId: TODO_PANE, key: `settings-menu-${pref}-${autoOpen}-${scope}` })
-            }
+            if (!settings) await focusOn($, 'settings-lang')
           }} />
           {/* Outside the popup: a hotkey works only while its button is drawn. */}
           <Button key="hotkey-o" plain dimColor hotkey="o" label={str.menuOpen} onPress={async () => {
@@ -442,54 +482,42 @@ export const register: Register = on => {
           }} />
         </Box>
         {settings && (() => {
-          const options = [
-            { value: 'lang', label: `${str.language}${str.langNames[pref]}` },
-            { value: 'auto', label: str.autoOpen(autoOpen) },
-            ...(folder.project ? [{ value: 'scope', label: `${str.scope}${str.scopeNames[scope]}` }] : []),
-            { value: 'close', label: str.close },
-            { value: 'back', label: str.settingsBack },
-          ]
-          // A pick folds a Select to one line; a new key per state draws it open again.
-          const menuKey = `settings-menu-${pref}-${autoOpen}-${scope}`
-          const choose = (value: string) => {
-            void (async () => {
-              if (value !== 'close' && value !== 'back') await update($, settingsAtom, () => value)
-              if (value === 'lang') {
-                const next = nextLangPref(pref)
-                await $.store.set('lang', next)
-                await applyLang($, next)
-                $.clock.after(300, () => void backToRow(`settings-menu-${next}-${autoOpen}-${scope}`))
-              } else if (value === 'auto') {
-                await $.store.set('autoOpen', !autoOpen)
-                await update($, autoOpenAtom, () => !autoOpen)
-                $.clock.after(300, () => void backToRow(`settings-menu-${pref}-${!autoOpen}-${scope}`))
-              } else if (value === 'scope') {
-                const next: Scope = scope === 'folder' ? 'all' : 'folder'
-                await $.store.set('scope', next)
-                await update($, scopePrefAtom, () => next)
-                $.clock.after(300, () => void backToRow(`settings-menu-${pref}-${autoOpen}-${next}`))
-              } else if (value === 'close') {
-                await update($, settingsAtom, () => null)
-                await $.ui.close({ id: TODO_PANE })
-                // A close from the plugin's own handler may not reach its ui.close hook.
-                await update($, todoOpenAtom, () => false)
-                if (await read($, orgAtom)) $.ui.toast(str.closedHint)
-              } else {
-                await update($, settingsAtom, () => null)
-                await backToRow('settings')
-              }
-            })()
+          const labels: Record<string, string> = {
+            lang: `${str.language}${str.langNames[pref]}`,
+            auto: str.autoOpen(autoOpen),
+            scope: `${str.scope}${str.scopeNames[scope]}`,
+            close: str.close,
+            back: str.settingsBack,
           }
-          // Toggles keep the popup open so several can be changed in a row.
+          const choose = async (value: string) => {
+            if (value === 'lang') {
+              const next = nextLangPref(pref)
+              await $.store.set('lang', next)
+              await applyLang($, next)
+            } else if (value === 'auto') {
+              await $.store.set('autoOpen', !autoOpen)
+              await update($, autoOpenAtom, () => !autoOpen)
+            } else if (value === 'scope') {
+              const next: Scope = scope === 'folder' ? 'all' : 'folder'
+              await $.store.set('scope', next)
+              await update($, scopePrefAtom, () => next)
+            } else if (value === 'close') {
+              await update($, settingsAtom, () => null)
+              await $.ui.close({ id: TODO_PANE })
+              // A close from the plugin's own handler may not reach its ui.close hook.
+              await update($, todoOpenAtom, () => false)
+              if (await read($, orgAtom)) $.ui.toast(str.closedHint)
+            } else {
+              await update($, settingsAtom, () => null)
+              await backToRow('settings')
+            }
+          }
+          // A toggle keeps the popup open and the ring on it, to change several in a row.
           return (
             <Box flexDirection="column" borderStyle="round" borderColor="claude" paddingX={1} marginLeft={2}>
-              {Select ? (
-                <Select key={menuKey} autoFocus value={settings} options={options} onSelect={choose} />
-              ) : (
-                options.map(o => (
-                  <Button key={`settings-${o.value}`} plain label={o.label} onPress={() => choose(o.value)} />
-                ))
-              )}
+              {settingsValues(Boolean(folder.project)).map(v => (
+                <Button key={`settings-${v}`} plain label={labels[v] ?? v} onPress={() => choose(v)} />
+              ))}
             </Box>
           )
         })()}
@@ -553,7 +581,8 @@ export const register: Register = on => {
                                   const other = isOtherProject(item.key, folder.project)
                                   const dir = other ? await folderForProject($, projectOf(item.key)) : ''
                                   await update($, menuAtom, () => ({ item, other, dir }))
-                                  await $.ui.focus({ requestId: TODO_PANE, key: `menu-${item.key}` })
+                                  const first = menuValues(other, item.key === current)[0]
+                                  await focusOn($, `menu-${item.key}-${first}`)
                                 }}
                               />
                               <Text color="suggestion">{' 🔗'}</Text>
@@ -572,37 +601,36 @@ export const register: Register = on => {
                                 )}
                                 {menu.other && <Text dimColor>{str.moveHint(menu.dir)}</Text>}
                                 {(() => {
-                                  const options = [
-                                    ...(menu.other ? [{ value: 'move', label: `→ ${str.moveThere}` }] : []),
-                                    item.key === current
-                                      ? { value: 'clear', label: str.menuClear }
-                                      : { value: 'work', label: menu.other ? `→ ${str.stayHere}` : str.menuWork },
-                                    { value: 'open', label: str.menuOpen },
-                                    { value: 'cancel', label: str.menuCancel },
-                                  ]
-                                  const choose = (value: string) => {
-                                    void (async () => {
-                                      if (value === 'work') await pick(item)
-                                      else if (value === 'clear') await clearTicket()
-                                      else if (value === 'open') await openIssue(item.key)
-                                      else if (value === 'move') $.ui.toast(str.moveHint(menu.dir))
-                                      await update($, menuAtom, () => null)
-                                      await backToRow(item.key)
-                                      // Setting or clearing the ticket adds or drops the unselect
-                                      // button above the list after this redraw, and the ring keeps
-                                      // its place in the order, a row off: point it again once drawn.
-                                      if (value === 'work' || value === 'clear') {
-                                        $.clock.after(300, () => void backToRow(item.key))
-                                      }
-                                    })()
+                                  const labels: Record<string, string> = {
+                                    move: `→ ${str.moveThere}`,
+                                    work: menu.other ? `→ ${str.stayHere}` : str.menuWork,
+                                    clear: str.menuClear,
+                                    open: str.menuOpen,
+                                    cancel: str.menuCancel,
                                   }
-                                  return Select ? (
-                                    <Select key={`menu-${item.key}`} autoFocus value={options[0]!.value} options={options} onSelect={choose} />
-                                  ) : (
-                                    options.map(o => (
-                                      <Button key={`menu-${item.key}-${o.value}`} plain label={o.label} onPress={() => choose(o.value)} />
-                                    ))
-                                  )
+                                  const choose = async (value: string) => {
+                                    if (value === 'work') await pick(item)
+                                    else if (value === 'clear') await clearTicket()
+                                    else if (value === 'open') await openIssue(item.key)
+                                    else if (value === 'move') $.ui.toast(str.moveHint(menu.dir))
+                                    await update($, menuAtom, () => null)
+                                    await backToRow(item.key)
+                                    // Setting or clearing the ticket adds or drops the unselect
+                                    // button above the list after this redraw, and the ring keeps
+                                    // its place in the order, a row off: point it again once drawn.
+                                    if (value === 'work' || value === 'clear') {
+                                      $.clock.after(300, () => void backToRow(item.key))
+                                    }
+                                  }
+                                  return menuValues(menu.other, item.key === current).map(v => (
+                                    <Button
+                                      key={`menu-${item.key}-${v}`}
+                                      plain
+                                      dimColor={v === 'cancel'}
+                                      label={labels[v] ?? v}
+                                      onPress={() => choose(v)}
+                                    />
+                                  ))
                                 })()}
                               </Box>
                             )}

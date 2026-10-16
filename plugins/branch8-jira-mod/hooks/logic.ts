@@ -605,3 +605,71 @@ export function touchesFolderRecords(tool: string, input: Record<string, unknown
   if (tool === 'Bash') return typeof input.command === 'string' && path.test(input.command)
   return false
 }
+
+// What the ⚙ popup offers, in order; scope only where the folder has a project.
+export function settingsValues(hasProject: boolean): string[] {
+  return ['lang', 'auto', ...(hasProject ? ['scope'] : []), 'close', 'back']
+}
+
+// What a row's menu offers, in order: another project's ticket first offers its
+// own folder; the current ticket offers unselecting instead of selecting.
+export function menuValues(other: boolean, isCurrent: boolean): string[] {
+  return [...(other ? ['move'] : []), isCurrent ? 'clear' : 'work', 'open', 'cancel']
+}
+
+// The pane's focusable elements in the order the tree draws them: the arrows
+// walk this list (see isArrowScroll). Keep it in step with the pane's render.
+export function focusOrder(o: {
+  groups: readonly TodoGroup[]
+  folded: readonly string[]
+  statusFolded: readonly string[]
+  settings?: readonly string[] | null
+  current?: string | null
+  menu?: { key: string; values: readonly string[] } | null
+}): string[] {
+  const keys = ['settings', 'hotkey-o']
+  for (const v of o.settings ?? []) keys.push(`settings-${v}`)
+  if (o.current) keys.push('clear-top')
+  for (const g of o.groups) {
+    keys.push(`p-${g.project}`)
+    if (o.folded.includes(g.project)) continue
+    for (const st of g.statuses) {
+      const fk = `${g.project}/${st.status}`
+      keys.push(`s-${fk}`)
+      if (o.statusFolded.includes(fk)) continue
+      for (const item of st.items) {
+        keys.push(item.key)
+        if (o.menu?.key === item.key) for (const v of o.menu.values) keys.push(`menu-${item.key}-${v}`)
+      }
+    }
+  }
+  return keys
+}
+
+// Where the ring was when it left the pane (Esc, a click on the prompt): the
+// first arrow back lands there again rather than a step past it.
+const LEFT = '\u0000left:'
+export function leftFrom(key: string | null): string | null {
+  return key === null || key.startsWith(LEFT) ? key : LEFT + key
+}
+
+// The element one step from `current` (by > 0 down), held at the ends; from
+// nothing, or from an element no longer drawn, the first or the last.
+export function stepFocus(order: readonly string[], current: string | null, by: number): string | null {
+  if (!order.length) return null
+  if (current?.startsWith(LEFT)) {
+    const was = current.slice(LEFT.length)
+    if (order.includes(was)) return was
+    current = null
+  }
+  const i = current ? order.indexOf(current) : -1
+  if (i < 0) return (by > 0 ? order[0] : order[order.length - 1]) ?? null
+  return order[Math.min(order.length - 1, Math.max(0, i + Math.sign(by)))] ?? null
+}
+
+// A pane taller than its window scrolls a row on each arrow instead of moving
+// the ring (2026-10-16, Tabby on WSL): a person's one-row move with no pointer
+// is an arrow key; the wheel carries a pointer, the page keys move further.
+export function isArrowScroll(e: { by: number; origin: { kind: string }; pointer?: unknown }): boolean {
+  return e.origin.kind === 'person' && !e.pointer && Math.abs(e.by) === 1
+}

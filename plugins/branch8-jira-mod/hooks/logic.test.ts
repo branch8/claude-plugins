@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { detectNode, reminderFor, formatBand, rulesSection, parseIssueStatus, parseIssueList, TODO_JQL, TODO_FIELDS, ISSUE_FIELDS, displayWidth, bandText, TODO_HELP, groupTodos, issueUrl, todoRow, langOf, STRINGS, statusTone, nextLangPref, resolveLang, recordFileName, ancestorDirs, parseRecord, projectOf, isOtherProject, applyScope, effectiveScope, foldersFor, suggestedFolder, typeIcon, focusedTicket, isOrgAccount, touchesFolderRecords } from './logic'
+import { detectNode, reminderFor, formatBand, rulesSection, parseIssueStatus, parseIssueList, TODO_JQL, TODO_FIELDS, ISSUE_FIELDS, displayWidth, bandText, TODO_HELP, groupTodos, issueUrl, todoRow, langOf, STRINGS, statusTone, nextLangPref, resolveLang, recordFileName, ancestorDirs, parseRecord, projectOf, isOtherProject, applyScope, effectiveScope, foldersFor, suggestedFolder, typeIcon, focusedTicket, isOrgAccount, touchesFolderRecords, focusOrder, stepFocus, isArrowScroll, settingsValues, menuValues, leftFrom } from './logic'
 
 const T = { key: 'HS-1', summary: '修正請假審核通知', status: '待辦事項', cloudId: 'c' }
 
@@ -453,4 +453,71 @@ test('settings popup strings in every language', () => {
     expect(STRINGS[lang].settingsBack.length > 0).toBe(true)
   }
   expect(STRINGS['zh-TW'].settings).toBe('⚙ 設定')
+})
+
+const ORDER_GROUPS = groupTodos([
+  { key: 'HS-1', summary: 'a', status: '待辦' },
+  { key: 'HS-2', summary: 'b', status: '進行中' },
+  { key: 'HTGO2-9', summary: 'c', status: '待辦' },
+])
+
+test('focus order follows the drawn tree', () => {
+  expect(focusOrder({ groups: ORDER_GROUPS, folded: [], statusFolded: [] })).toEqual([
+    'settings', 'hotkey-o',
+    'p-HS', 's-HS/待辦', 'HS-1', 's-HS/進行中', 'HS-2',
+    'p-HTGO2', 's-HTGO2/待辦', 'HTGO2-9',
+  ])
+})
+
+test('focus order skips folded branches and adds open menus and the unselect button', () => {
+  expect(
+    focusOrder({
+      groups: ORDER_GROUPS,
+      folded: ['HTGO2'],
+      statusFolded: ['HS/進行中'],
+      settings: ['lang', 'back'],
+      current: 'HS-1',
+      menu: { key: 'HS-1', values: ['clear', 'cancel'] },
+    }),
+  ).toEqual([
+    'settings', 'hotkey-o', 'settings-lang', 'settings-back', 'clear-top',
+    'p-HS', 's-HS/待辦', 'HS-1', 'menu-HS-1-clear', 'menu-HS-1-cancel', 's-HS/進行中', 'p-HTGO2',
+  ])
+})
+
+test('popup options in order', () => {
+  expect(settingsValues(true)).toEqual(['lang', 'auto', 'scope', 'close', 'back'])
+  expect(settingsValues(false)).toEqual(['lang', 'auto', 'close', 'back'])
+  expect(menuValues(false, false)).toEqual(['work', 'open', 'cancel'])
+  expect(menuValues(true, false)).toEqual(['move', 'work', 'open', 'cancel'])
+  expect(menuValues(false, true)).toEqual(['clear', 'open', 'cancel'])
+})
+
+test('stepping the ring clamps at the ends and starts from an end when on nothing', () => {
+  const order = ['a', 'b', 'c']
+  expect(stepFocus(order, 'b', 1)).toBe('c')
+  expect(stepFocus(order, 'b', -1)).toBe('a')
+  expect(stepFocus(order, 'c', 1)).toBe('c')
+  expect(stepFocus(order, 'a', -1)).toBe('a')
+  expect(stepFocus(order, null, 1)).toBe('a')
+  expect(stepFocus(order, null, -1)).toBe('c')
+  expect(stepFocus(order, 'gone', 1)).toBe('a')
+  expect(stepFocus([], null, 1)).toBeNull()
+})
+
+test('back in the pane, the first arrow lands on where the ring was when it left', () => {
+  const order = ['a', 'b', 'c']
+  expect(stepFocus(order, leftFrom('b'), 1)).toBe('b')
+  expect(stepFocus(order, leftFrom('b'), -1)).toBe('b')
+  expect(stepFocus(order, leftFrom('gone'), 1)).toBe('a')
+  expect(leftFrom(leftFrom('b'))).toBe(leftFrom('b'))
+  expect(leftFrom(null)).toBeNull()
+})
+
+test('only the arrow keys count as arrow scrolls, not the wheel, page keys or a plugin', () => {
+  expect(isArrowScroll({ by: 1, origin: { kind: 'person' } })).toBe(true)
+  expect(isArrowScroll({ by: -1, origin: { kind: 'person' } })).toBe(true)
+  expect(isArrowScroll({ by: 1, origin: { kind: 'person' }, pointer: { row: 3 } })).toBe(false)
+  expect(isArrowScroll({ by: 12, origin: { kind: 'person' } })).toBe(false)
+  expect(isArrowScroll({ by: 1, origin: { kind: 'plugin' } })).toBe(false)
 })
