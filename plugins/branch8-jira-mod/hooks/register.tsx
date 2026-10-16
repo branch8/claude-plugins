@@ -22,6 +22,8 @@ import {
   isOrgAccount,
   touchesFolderRecords,
   TODO_JQL,
+  TODO_FIELDS,
+  ISSUE_FIELDS,
   detectNode,
   bandText,
   formatBand,
@@ -182,7 +184,12 @@ async function loadTodos($: EngineInterface, str: (typeof STRINGS)[Lang]): Promi
   let error = str.noJira
   for (const server of ATLASSIAN) {
     try {
-      const res = await $.mcp.call(server, 'searchJiraIssuesUsingJql', { cloudId, jql: TODO_JQL, maxResults: TODO_LIMIT })
+      const res = await $.mcp.call(server, 'searchJiraIssuesUsingJql', {
+        cloudId,
+        jql: TODO_JQL,
+        maxResults: TODO_LIMIT,
+        fields: TODO_FIELDS,
+      })
       if (res.isError) {
         // Installed but signed out answers isError: try the other server.
         error = str.signedOut
@@ -354,7 +361,10 @@ export const register: Register = on => {
   })
 
   on('ui.render', { component: 'Pane', requestId: TODO_PANE }, async ($, e) => {
-    const { Box, Button, Text } = $.ui.resolve(e)
+    const ui = $.ui.resolve(e)
+    const { Box, Button, Text } = ui
+    // Select is every surface's picker but mobile's; there, menu items are buttons.
+    const Select = 'Select' in ui ? ui.Select : null
     const todos = await read($, todosAtom)
     const folded = await read($, todoFoldedAtom)
     const statusFolded = await read($, statusFoldedAtom)
@@ -387,7 +397,6 @@ export const register: Register = on => {
       // The list was just read from Jira; no need to refresh at once.
       await update($, refreshedAtom, () => now)
       $.ui.toast(str.current(item.key))
-      await backToRow(item.key)
     }
     const clearTicket = async () => {
       await update($, menuAtom, () => null)
@@ -504,46 +513,57 @@ export const register: Register = on => {
                                   const other = isOtherProject(item.key, folder.project)
                                   const dir = other ? await folderForProject($, projectOf(item.key)) : ''
                                   await update($, menuAtom, () => ({ item, other, dir }))
-                                  await $.ui.focus({ requestId: TODO_PANE, key: `${other ? 'm' : 'w'}-${item.key}` })
+                                  await $.ui.focus({ requestId: TODO_PANE, key: `menu-${item.key}` })
                                 }}
                               />
                               <Text color="suggestion">{' 🔗'}</Text>
                             </Box>
                             {menu?.item.key === item.key && (
-                              <Box flexDirection="column" marginLeft={3}>
+                              <Box
+                                flexDirection="column"
+                                borderStyle="round"
+                                borderColor="claude"
+                                paddingX={1}
+                                marginLeft={3}
+                              >
+                                <Text bold color="claude">{item.key}</Text>
                                 {menu.other && folder.project && (
                                   <Text color="warning">{str.confirmOther(item.key, folder.project)}</Text>
                                 )}
                                 {menu.other && <Text dimColor>{str.moveHint(menu.dir)}</Text>}
-                                {menu.other && (
-                                  <Button key={`m-${item.key}`} plain label={`→ ${str.moveThere}`} onPress={async () => {
-                                    await update($, menuAtom, () => null)
-                                    $.ui.toast(str.moveHint(menu.dir))
-                                    await backToRow(item.key)
-                                  }} />
-                                )}
-                                {item.key === current ? (
-                                  <Button key={`w-${item.key}`} plain label={str.menuClear} onPress={async () => {
-                                    await clearTicket()
-                                    await backToRow(item.key)
-                                  }} />
-                                ) : (
-                                  <Button
-                                    key={`w-${item.key}`}
-                                    plain
-                                    label={menu.other ? `→ ${str.stayHere}` : str.menuWork}
-                                    onPress={() => pick(item)}
-                                  />
-                                )}
-                                <Button key={`o-${item.key}`} plain label={str.menuOpen} onPress={async () => {
-                                  await update($, menuAtom, () => null)
-                                  await openIssue(item.key)
-                                  await backToRow(item.key)
-                                }} />
-                                <Button key={`c-${item.key}`} plain dimColor label={str.menuCancel} onPress={async () => {
-                                  await update($, menuAtom, () => null)
-                                  await $.ui.focus({ requestId: TODO_PANE, key: item.key })
-                                }} />
+                                {(() => {
+                                  const options = [
+                                    ...(menu.other ? [{ value: 'move', label: `→ ${str.moveThere}` }] : []),
+                                    item.key === current
+                                      ? { value: 'clear', label: str.menuClear }
+                                      : { value: 'work', label: menu.other ? `→ ${str.stayHere}` : str.menuWork },
+                                    { value: 'open', label: str.menuOpen },
+                                    { value: 'cancel', label: str.menuCancel },
+                                  ]
+                                  const choose = (value: string) => {
+                                    void (async () => {
+                                      if (value === 'work') await pick(item)
+                                      else if (value === 'clear') await clearTicket()
+                                      else if (value === 'open') await openIssue(item.key)
+                                      else if (value === 'move') $.ui.toast(str.moveHint(menu.dir))
+                                      await update($, menuAtom, () => null)
+                                      await backToRow(item.key)
+                                      // Setting or clearing the ticket adds or drops the unselect
+                                      // button above the list after this redraw, and the ring keeps
+                                      // its place in the order, a row off: point it again once drawn.
+                                      if (value === 'work' || value === 'clear') {
+                                        $.clock.after(300, () => void backToRow(item.key))
+                                      }
+                                    })()
+                                  }
+                                  return Select ? (
+                                    <Select key={`menu-${item.key}`} autoFocus value={options[0]!.value} options={options} onSelect={choose} />
+                                  ) : (
+                                    options.map(o => (
+                                      <Button key={`menu-${item.key}-${o.value}`} plain label={o.label} onPress={() => choose(o.value)} />
+                                    ))
+                                  )
+                                })()}
                               </Box>
                             )}
                           </Box>
@@ -663,6 +683,7 @@ export const register: Register = on => {
         const res = await $.mcp.call(server, 'getJiraIssue', {
           cloudId: t.cloudId || SITE,
           issueIdOrKey: t.key,
+          fields: ISSUE_FIELDS,
         })
         // Installed but signed out answers isError: try the other server.
         if (res.isError) continue

@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { detectNode, reminderFor, formatBand, rulesSection, parseIssueStatus, parseIssueList, TODO_JQL, displayWidth, bandText, TODO_HELP, groupTodos, issueUrl, todoRow, langOf, STRINGS, statusTone, nextLangPref, resolveLang, recordFileName, ancestorDirs, parseRecord, projectOf, isOtherProject, applyScope, effectiveScope, foldersFor, suggestedFolder, typeIcon, focusedTicket, isOrgAccount, touchesFolderRecords } from './logic'
+import { detectNode, reminderFor, formatBand, rulesSection, parseIssueStatus, parseIssueList, TODO_JQL, TODO_FIELDS, ISSUE_FIELDS, displayWidth, bandText, TODO_HELP, groupTodos, issueUrl, todoRow, langOf, STRINGS, statusTone, nextLangPref, resolveLang, recordFileName, ancestorDirs, parseRecord, projectOf, isOtherProject, applyScope, effectiveScope, foldersFor, suggestedFolder, typeIcon, focusedTicket, isOrgAccount, touchesFolderRecords } from './logic'
 
 const T = { key: 'HS-1', summary: '修正請假審核通知', status: '待辦事項', cloudId: 'c' }
 
@@ -430,4 +430,19 @@ test('tool calls that write branch8-jira-check folder records', () => {
   expect(touchesFolderRecords('Write', { file_path: '/home/g/work/README.md' })).toBe(false)
   expect(touchesFolderRecords('Read', { file_path: rec })).toBe(false)
   expect(touchesFolderRecords('Write', { file_path: 'C:\\Users\\g\\.claude\\branch8-jira\\projects\\x.json' })).toBe(true)
+})
+
+test('Jira queries ask only for the fields drawn, never descriptions', () => {
+  expect(TODO_FIELDS.includes('description')).toBe(false)
+  expect(ISSUE_FIELDS.includes('description')).toBe(false)
+  expect(TODO_FIELDS.includes('issuetype')).toBe(true)
+})
+
+test('search results with issues under nodes (the shape a fields-limited search answers)', () => {
+  const text = JSON.stringify({
+    issues: {
+      nodes: [{ key: 'HS-134', fields: { summary: 'S', status: { name: '待辦事項' }, issuetype: { name: '任務' } } }],
+    },
+  })
+  expect(parseIssueList([{ type: 'text', text }])).toEqual([{ key: 'HS-134', summary: 'S', status: '待辦事項', type: '任務' }])
 })
