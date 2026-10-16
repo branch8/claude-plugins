@@ -316,6 +316,8 @@ export type Strings = {
   menuClear: string
   cleared: string
   noFocus: string
+  settings: string
+  settingsBack: string
 }
 
 const LANG_NAMES = { 'zh-TW': '繁中', 'zh-CN': '简中', en: 'English' }
@@ -323,7 +325,9 @@ const LANG_NAMES = { 'zh-TW': '繁中', 'zh-CN': '简中', en: 'English' }
 export const STRINGS: Record<Lang, Strings> = {
   'zh-TW': {
     help: ['Ctrl+X Tab 進面板 · Esc 回輸入框', '↑↓ 移動 · Enter 選單／收合 · o 開啟 Jira'],
-    close: '✕ 關閉',
+    close: '✕ 關閉 Jira 面板',
+    settings: '⚙ 設定',
+    settingsBack: '↩ 返回',
     language: '語言：',
     langNames: { ...LANG_NAMES, auto: '自動' },
     open: '開啟',
@@ -369,7 +373,9 @@ export const STRINGS: Record<Lang, Strings> = {
   },
   'zh-CN': {
     help: ['Ctrl+X Tab 进面板 · Esc 回输入框', '↑↓ 移动 · Enter 菜单／收合 · o 打开 Jira'],
-    close: '✕ 关闭',
+    close: '✕ 关闭 Jira 面板',
+    settings: '⚙ 设置',
+    settingsBack: '↩ 返回',
     language: '语言：',
     langNames: { ...LANG_NAMES, auto: '自动' },
     open: '打开',
@@ -415,7 +421,9 @@ export const STRINGS: Record<Lang, Strings> = {
   },
   en: {
     help: ['Ctrl+X Tab: into pane · Esc: back', '↑↓ move · Enter menu/fold · o open Jira'],
-    close: '✕ Close',
+    close: '✕ Close the Jira pane',
+    settings: '⚙ Settings',
+    settingsBack: '↩ Back',
     language: 'Language: ',
     langNames: { ...LANG_NAMES, auto: 'Auto' },
     open: 'Open',

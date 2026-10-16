@@ -70,6 +70,9 @@ const autoOpenAtom = atom({ plugin: 'branch8-jira-mod', key: 'autoOpen' } as con
 const orgAtom = atom({ plugin: 'branch8-jira-mod', key: 'isOrg' } as const, false)
 // The row menu open under one ticket (Enter on a row), if any.
 const menuAtom = atom({ plugin: 'branch8-jira-mod', key: 'menu' } as const, null)
+// The settings popup under the toolbar's ⚙ button: null when closed, else
+// the option last picked, where the cursor rests when it is drawn again.
+const settingsAtom = atom({ plugin: 'branch8-jira-mod', key: 'settings' } as const, null)
 // The ticket row the pane's focus ring is on, for the "o" hotkey.
 const focusedAtom = atom({ plugin: 'branch8-jira-mod', key: 'focusedKey' } as const, null)
 
@@ -377,6 +380,7 @@ export const register: Register = on => {
     const menu = await read($, menuAtom)
     const focusedKey = await read($, focusedAtom)
     const autoOpen = await read($, autoOpenAtom)
+    const settings = await read($, settingsAtom)
     const ticket = await read($, ticketAtom)
     const current = ticket?.key
     const cloudId = ticket?.cloudId || SITE
@@ -425,34 +429,70 @@ export const register: Register = on => {
           ))}
         </Box>
         <Box flexDirection="row" columnGap={2}>
-          <Text color="claude" bold>⚙</Text>
-          <Button key="close" plain dimColor label={str.close} onPress={async () => {
-            await $.ui.close({ id: TODO_PANE })
-            // A close from the plugin's own handler may not reach its ui.close hook.
-            await update($, todoOpenAtom, () => false)
-            if (await read($, orgAtom)) $.ui.toast(str.closedHint)
+          <Button key="settings" plain dimColor={!settings} label={str.settings} onPress={async () => {
+            await update($, settingsAtom, open => (open ? null : 'lang'))
+            if (!settings) {
+              await $.ui.focus({ requestId: TODO_PANE, key: `settings-menu-${pref}-${autoOpen}-${scope}` })
+            }
           }} />
-          <Button key="lang" plain dimColor label={`${str.language}${str.langNames[pref]}`} onPress={async () => {
-            const next = nextLangPref(pref)
-            await $.store.set('lang', next)
-            await applyLang($, next)
-          }} />
+          {/* Outside the popup: a hotkey works only while its button is drawn. */}
           <Button key="hotkey-o" plain dimColor hotkey="o" label={str.menuOpen} onPress={async () => {
             if (focusedKey) await openIssue(focusedKey)
             else $.ui.toast(str.noFocus)
           }} />
-          <Button key="auto" plain dimColor label={str.autoOpen(autoOpen)} onPress={async () => {
-            await $.store.set('autoOpen', !autoOpen)
-            await update($, autoOpenAtom, () => !autoOpen)
-          }} />
-          {folder.project && (
-            <Button key="scope" plain dimColor label={`${str.scope}${str.scopeNames[scope]}`} onPress={async () => {
-              const next: Scope = scope === 'folder' ? 'all' : 'folder'
-              await $.store.set('scope', next)
-              await update($, scopePrefAtom, () => next)
-            }} />
-          )}
         </Box>
+        {settings && (() => {
+          const options = [
+            { value: 'lang', label: `${str.language}${str.langNames[pref]}` },
+            { value: 'auto', label: str.autoOpen(autoOpen) },
+            ...(folder.project ? [{ value: 'scope', label: `${str.scope}${str.scopeNames[scope]}` }] : []),
+            { value: 'close', label: str.close },
+            { value: 'back', label: str.settingsBack },
+          ]
+          // A pick folds a Select to one line; a new key per state draws it open again.
+          const menuKey = `settings-menu-${pref}-${autoOpen}-${scope}`
+          const choose = (value: string) => {
+            void (async () => {
+              if (value !== 'close' && value !== 'back') await update($, settingsAtom, () => value)
+              if (value === 'lang') {
+                const next = nextLangPref(pref)
+                await $.store.set('lang', next)
+                await applyLang($, next)
+                $.clock.after(300, () => void backToRow(`settings-menu-${next}-${autoOpen}-${scope}`))
+              } else if (value === 'auto') {
+                await $.store.set('autoOpen', !autoOpen)
+                await update($, autoOpenAtom, () => !autoOpen)
+                $.clock.after(300, () => void backToRow(`settings-menu-${pref}-${!autoOpen}-${scope}`))
+              } else if (value === 'scope') {
+                const next: Scope = scope === 'folder' ? 'all' : 'folder'
+                await $.store.set('scope', next)
+                await update($, scopePrefAtom, () => next)
+                $.clock.after(300, () => void backToRow(`settings-menu-${pref}-${autoOpen}-${next}`))
+              } else if (value === 'close') {
+                await update($, settingsAtom, () => null)
+                await $.ui.close({ id: TODO_PANE })
+                // A close from the plugin's own handler may not reach its ui.close hook.
+                await update($, todoOpenAtom, () => false)
+                if (await read($, orgAtom)) $.ui.toast(str.closedHint)
+              } else {
+                await update($, settingsAtom, () => null)
+                await backToRow('settings')
+              }
+            })()
+          }
+          // Toggles keep the popup open so several can be changed in a row.
+          return (
+            <Box flexDirection="column" borderStyle="round" borderColor="claude" paddingX={1} marginLeft={2}>
+              {Select ? (
+                <Select key={menuKey} autoFocus value={settings} options={options} onSelect={choose} />
+              ) : (
+                options.map(o => (
+                  <Button key={`settings-${o.value}`} plain label={o.label} onPress={() => choose(o.value)} />
+                ))
+              )}
+            </Box>
+          )
+        })()}
         {current && (
           <Button key="clear-top" plain label={str.clearTicket(current)} onPress={clearTicket} />
         )}

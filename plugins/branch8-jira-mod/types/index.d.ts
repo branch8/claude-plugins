@@ -19,6 +19,8 @@ declare module 'claude-code' {
       folder: { dir: string; project: string | null; name: string }
       menu: { item: TodoItem; other: boolean; dir: string } | null
       focusedKey: string | null
+      // The settings popup: null when closed, else the option the cursor rests on.
+      settings: string | null
       autoOpen: boolean
       isOrg: boolean
     }

@@ -446,3 +446,11 @@ test('search results with issues under nodes (the shape a fields-limited search 
   })
   expect(parseIssueList([{ type: 'text', text }])).toEqual([{ key: 'HS-134', summary: 'S', status: '待辦事項', type: '任務' }])
 })
+
+test('settings popup strings in every language', () => {
+  for (const lang of ['zh-TW', 'zh-CN', 'en'] as const) {
+    expect(STRINGS[lang].settings.startsWith('⚙')).toBe(true)
+    expect(STRINGS[lang].settingsBack.length > 0).toBe(true)
+  }
+  expect(STRINGS['zh-TW'].settings).toBe('⚙ 設定')
+})
