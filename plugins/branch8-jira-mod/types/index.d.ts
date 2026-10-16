@@ -1,7 +1,14 @@
 export type Node = 'start' | 'pr' | 'merge'
 export type Ticket = { key: string; summary: string; status: string; cloudId: string }
 export type TodoItem = { key: string; summary: string; status: string; type?: string }
-export type Todos = { items: TodoItem[]; error: string | null; isLoading: boolean; isLoaded: boolean }
+export type Todos = {
+  items: TodoItem[]
+  error: string | null
+  isLoading: boolean
+  isLoaded: boolean
+  // The search's token for the next page; null when everything is loaded.
+  next: string | null
+}
 
 declare module 'claude-code' {
   interface PluginState {
@@ -19,9 +26,13 @@ declare module 'claude-code' {
       folder: { dir: string; project: string | null; name: string }
       menu: { item: TodoItem; other: boolean; dir: string } | null
       focusedKey: string | null
-      // The settings popup: null when closed, else the option the cursor rests on.
+      // The pane element the focus ring is on, any kind (the arrows step from it).
+      ring: string | null
+      // The settings popup: null when closed.
       settings: string | null
       autoOpen: boolean
+      // Only tickets updated within this many days; 0 for any age.
+      range: number
       isOrg: boolean
     }
   }
