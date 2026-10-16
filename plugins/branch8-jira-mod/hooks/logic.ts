@@ -173,12 +173,19 @@ export function parseIssueStatus(content: Content): { summary?: string; status?:
 
 // Open tickets assigned to the person, for the /jira-todo pane.
 export const TODO_JQL = 'assignee = currentUser() AND statusCategory != Done ORDER BY updated DESC'
+// Only what the pane and the band draw. The default fields carry each issue's
+// description: 20 of them passed the MCP's size limit, which then answers a
+// pointer to a saved file instead of the JSON (2026-10-16).
+export const TODO_FIELDS = ['summary', 'status', 'issuetype']
+export const ISSUE_FIELDS = ['summary', 'status']
 
 // Items from a searchJiraIssuesUsingJql result; null when unreadable.
 export function parseIssueList(content: Content): TodoItem[] | null {
   const json = firstJson(content) as { data?: unknown } | null
   if (!json) return null
-  const issues = ((json.data ?? json) as { issues?: unknown }).issues
+  const found = ((json.data ?? json) as { issues?: unknown }).issues
+  // An array, or { nodes: [...] } when the search names its fields.
+  const issues = Array.isArray(found) ? found : (found as { nodes?: unknown } | undefined)?.nodes
   if (!Array.isArray(issues)) return null
   const items: TodoItem[] = []
   for (const raw of issues) {
