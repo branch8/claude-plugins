@@ -188,6 +188,14 @@ plugins/branch8-jira-mod/         可選的 mod 擴充（TypeScript function hoo
                                   2026-10-15 加入 managed-settings.json 發給全 team。當時仍未驗證：managed settings
                                   自動安裝 mod、v2.1.287 以前的 Claude Code 遇到 mod 的行為——出問題時 jira-check 與
                                   skill 不受影響，最差只是少了面板與補漏
+                                  面板內容高過視窗時，引擎把方向鍵當「捲一行」而不是移游標（2026-10-16 Tabby/WSL
+                                  回報「上下鍵壞了」的真因；高視窗測不出來）：ui.scroll hook 攔下方向鍵改走 focusOrder。
+                                  focusOrder 必須與面板 render 的按鈕順序一致；選單用外框＋Button，不用 Select
+                                  （Select 一定畫「目前值 ▴」標頭，看起來像多一層收折）
+                                  清單查詢只取 summary/status/issuetype、預設只撈近 90 天、每頁 20 張＋「再載入」：
+                                  預設欄位含描述，同事 20 張單就超過 MCP 上限被轉存成檔案（2026-10-16，約 12 萬字元）。
+                                  指定 fields 後回應是 {issues:{nodes,pageInfo:{hasNextPage,endCursor}}}，不是陣列＋
+                                  nextPageToken——兩種都要解析（parseIssuePage）
                                   hooks/logic.ts 是純函式（可單測），register.tsx 是引擎接線；
                                   `claude plugin test plugins/branch8-jira-mod` 跑測試
 template/plugin-template/         開發新 plugin 的起點。刻意不列入 marketplace.json，
