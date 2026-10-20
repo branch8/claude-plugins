@@ -26,6 +26,7 @@ import {
   isArrowScroll,
   pickNote,
   manifestVersion,
+  isNewer,
   leftFrom,
   settingsValues,
   menuValues,
@@ -92,6 +93,11 @@ const focusedAtom = atom({ plugin: 'branch8-jira-mod', key: 'focusedKey' } as co
 const ringAtom = atom({ plugin: 'branch8-jira-mod', key: 'ring' } as const, null)
 // This mod's version, from its plugin.json, so a person can tell which one runs.
 const versionAtom = atom({ plugin: 'branch8-jira-mod', key: 'version' } as const, null)
+// The version published on main, and whether an update the pane started runs.
+const latestAtom = atom({ plugin: 'branch8-jira-mod', key: 'latest' } as const, { version: null, isUpdating: false })
+// The published manifest: the repo is public, so no sign-in is needed.
+const LATEST_URL = 'https://raw.githubusercontent.com/branch8/claude-plugins/main/plugins/branch8-jira-mod/.claude-plugin/plugin.json'
+const PLUGIN_ID = 'branch8-jira-mod@branch8'
 
 // The company Jira site, used when no ticket has given a cloudId yet.
 const SITE = 'https://branch8.atlassian.net'
@@ -216,6 +222,45 @@ async function tellClaude($: EngineInterface, ticket: Ticket | null): Promise<vo
     await $.session.append({ message: { type: 'user', content: [{ type: 'text', text: pickNote(ticket) }] } })
   } catch {
     // The band and the rules section still show the ticket.
+  }
+}
+
+// Reads the version published on main; a refused or failed fetch leaves it
+// unknown and the pane offers no update.
+async function checkLatest($: EngineInterface): Promise<void> {
+  try {
+    const res = await $.http.fetch(LATEST_URL)
+    if (res.ok) await update($, latestAtom, l => ({ ...l, version: manifestVersion(res.text) }))
+  } catch {
+    // Offline, or the organisation's web-fetch policy refused it.
+  }
+}
+
+// Updates the marketplace, then this plugin, as the person would with
+// /plugin; then reloads plugins so the new version runs. The CLI only: on
+// other surfaces the process call fails and the toast gives the command.
+async function runUpdate($: EngineInterface, str: (typeof STRINGS)[Lang], to: string): Promise<void> {
+  await update($, latestAtom, l => ({ ...l, isUpdating: true }))
+  $.ui.toast(str.updating)
+  try {
+    const steps = [
+      ['claude', 'plugin', 'marketplace', 'update', 'branch8'],
+      ['claude', 'plugin', 'update', PLUGIN_ID],
+    ]
+    for (const argv of steps) {
+      const r = await $.process.run(argv, { timeoutMs: 120_000 })
+      if (r.exitCode !== 0) throw new Error(r.stderr || r.stdout)
+    }
+    $.ui.toast(str.updated(to))
+    try {
+      await $.command.run({ command: 'reload-plugins' })
+    } catch {
+      // The toast already says to open a new session if it does not take.
+    }
+  } catch {
+    $.ui.toast(str.updateFailed)
+  } finally {
+    await update($, latestAtom, l => ({ ...l, isUpdating: false }))
   }
 }
 
@@ -347,6 +392,8 @@ export const register: Register = on => {
     } catch {
       // The pane shows no version.
     }
+    // In the background: the pane offers the update once it answers.
+    void checkLatest($)
     try {
       const range = await $.store.get('range')
       if (typeof range === 'number' && range >= 0) await update($, rangeAtom, () => range)
@@ -447,6 +494,7 @@ export const register: Register = on => {
       current,
       menu: menu ? { key: menu.item.key, values: menuValues(menu.other, menu.item.key === current) } : null,
       more: Boolean(todos.next),
+      update: isNewer((await read($, latestAtom)).version, await read($, versionAtom)),
     })
     const to = stepFocus(order, await read($, ringAtom), e.by)
     if (!to) return next(e)
@@ -475,6 +523,8 @@ export const register: Register = on => {
     const settings = await read($, settingsAtom)
     const range = await read($, rangeAtom)
     const version = await read($, versionAtom)
+    const latest = await read($, latestAtom)
+    const canUpdate = isNewer(latest.version, version)
     const ticket = await read($, ticketAtom)
     const current = ticket?.key
     const cloudId = ticket?.cloudId || SITE
@@ -534,6 +584,17 @@ export const register: Register = on => {
             if (focusedKey) await openIssue(focusedKey)
             else $.ui.toast(str.noFocus)
           }} />
+          {canUpdate && latest.version && (
+            <Button
+              key="update"
+              plain
+              label={latest.isUpdating ? str.updating : str.updateTo(latest.version)}
+              onPress={async () => {
+                if (latest.isUpdating || !latest.version) return
+                await runUpdate($, str, latest.version)
+              }}
+            />
+          )}
         </Box>
         {settings && (() => {
           const labels: Record<string, string> = {

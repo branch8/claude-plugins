@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { detectNode, reminderFor, formatBand, rulesSection, parseIssueStatus, parseIssueList, todoJql, nextRange, parseIssuePage, TODO_FIELDS, ISSUE_FIELDS, displayWidth, bandText, TODO_HELP, groupTodos, issueUrl, todoRow, langOf, STRINGS, statusTone, nextLangPref, resolveLang, recordFileName, ancestorDirs, parseRecord, projectOf, isOtherProject, applyScope, effectiveScope, foldersFor, suggestedFolder, typeIcon, focusedTicket, isOrgAccount, touchesFolderRecords, focusOrder, stepFocus, isArrowScroll, settingsValues, menuValues, leftFrom, pickNote, manifestVersion } from './logic'
+import { detectNode, reminderFor, formatBand, rulesSection, parseIssueStatus, parseIssueList, todoJql, nextRange, parseIssuePage, TODO_FIELDS, ISSUE_FIELDS, displayWidth, bandText, TODO_HELP, groupTodos, issueUrl, todoRow, langOf, STRINGS, statusTone, nextLangPref, resolveLang, recordFileName, ancestorDirs, parseRecord, projectOf, isOtherProject, applyScope, effectiveScope, foldersFor, suggestedFolder, typeIcon, focusedTicket, isOrgAccount, touchesFolderRecords, focusOrder, stepFocus, isArrowScroll, settingsValues, menuValues, leftFrom, pickNote, manifestVersion, isNewer } from './logic'
 
 const T = { key: 'HS-1', summary: '修正請假審核通知', status: '待辦事項', cloudId: 'c' }
 
@@ -586,4 +586,31 @@ test('the version shown in the pane comes from plugin.json', () => {
   expect(manifestVersion('{"name":"branch8-jira-mod","version":"0.13.0"}')).toBe('0.13.0')
   expect(manifestVersion('{"name":"x"}')).toBeNull()
   expect(manifestVersion('not json')).toBeNull()
+})
+
+test('a published version is newer only when its numbers are higher', () => {
+  expect(isNewer('0.14.0', '0.13.0')).toBe(true)
+  expect(isNewer('0.13.1', '0.13.0')).toBe(true)
+  expect(isNewer('1.0.0', '0.99.9')).toBe(true)
+  expect(isNewer('0.10.0', '0.9.0')).toBe(true)
+  expect(isNewer('0.13.0', '0.13.0')).toBe(false)
+  expect(isNewer('0.12.0', '0.13.0')).toBe(false)
+  expect(isNewer(null, '0.13.0')).toBe(false)
+  expect(isNewer('0.14.0', null)).toBe(false)
+})
+
+test('update strings in every language', () => {
+  for (const lang of ['zh-TW', 'zh-CN', 'en'] as const) {
+    const s = STRINGS[lang]
+    expect(s.updateTo('0.14.0').includes('0.14.0')).toBe(true)
+    expect(s.updateFailed.includes('/plugin update branch8-jira-mod@branch8')).toBe(true)
+    expect(s.updated('0.14.0').includes('0.14.0')).toBe(true)
+    expect(s.updating.length > 0).toBe(true)
+  }
+})
+
+test('the update button sits after the toolbar when there is one', () => {
+  expect(focusOrder({ groups: [], folded: [], statusFolded: [], update: true }).slice(0, 3)).toEqual([
+    'settings', 'hotkey-o', 'update',
+  ])
 })

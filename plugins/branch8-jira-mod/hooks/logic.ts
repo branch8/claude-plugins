@@ -353,6 +353,10 @@ export type Strings = {
   settingsBack: string
   rangeLabel: (days: number) => string
   loadMore: (n: number) => string
+  updateTo: (v: string) => string
+  updating: string
+  updated: (v: string) => string
+  updateFailed: string
 }
 
 const LANG_NAMES = { 'zh-TW': '繁中', 'zh-CN': '简中', en: 'English' }
@@ -365,6 +369,10 @@ export const STRINGS: Record<Lang, Strings> = {
     settingsBack: '↩ 返回',
     rangeLabel: days => `時間：${days ? `近 ${days / 30} 個月` : '不限'}`,
     loadMore: n => `⋯ 再載入 ${n} 張`,
+    updateTo: v => `⬆ 更新到 v${v}`,
+    updating: '更新中…',
+    updated: v => `已更新到 v${v}，重新載入中；若沒生效請開新 session`,
+    updateFailed: '更新失敗，請手動執行 /plugin update branch8-jira-mod@branch8',
     language: '語言：',
     langNames: { ...LANG_NAMES, auto: '自動' },
     open: '開啟',
@@ -415,6 +423,10 @@ export const STRINGS: Record<Lang, Strings> = {
     settingsBack: '↩ 返回',
     rangeLabel: days => `时间：${days ? `近 ${days / 30} 个月` : '不限'}`,
     loadMore: n => `⋯ 再加载 ${n} 张`,
+    updateTo: v => `⬆ 更新到 v${v}`,
+    updating: '更新中…',
+    updated: v => `已更新到 v${v}，重新加载中；若没生效请开新 session`,
+    updateFailed: '更新失败，请手动执行 /plugin update branch8-jira-mod@branch8',
     language: '语言：',
     langNames: { ...LANG_NAMES, auto: '自动' },
     open: '打开',
@@ -465,6 +477,10 @@ export const STRINGS: Record<Lang, Strings> = {
     settingsBack: '↩ Back',
     rangeLabel: days => `Updated: ${days ? `last ${days / 30} month${days > 30 ? 's' : ''}` : 'any time'}`,
     loadMore: n => `⋯ Load ${n} more`,
+    updateTo: v => `⬆ Update to v${v}`,
+    updating: 'Updating…',
+    updated: v => `Updated to v${v}, reloading; open a new session if it does not take`,
+    updateFailed: 'Update failed: run /plugin update branch8-jira-mod@branch8',
     language: 'Language: ',
     langNames: { ...LANG_NAMES, auto: 'Auto' },
     open: 'Open',
@@ -668,8 +684,10 @@ export function focusOrder(o: {
   current?: string | null
   menu?: { key: string; values: readonly string[] } | null
   more?: boolean
+  update?: boolean
 }): string[] {
   const keys = ['settings', 'hotkey-o']
+  if (o.update) keys.push('update')
   for (const v of o.settings ?? []) keys.push(`settings-${v}`)
   if (o.current) keys.push('clear-top')
   for (const g of o.groups) {
@@ -743,4 +761,18 @@ export function manifestVersion(text: string): string | null {
   } catch {
     return null
   }
+}
+
+// Whether `latest` is a higher version than `current`, number by number.
+export function isNewer(latest: string | null, current: string | null): boolean {
+  if (!latest || !current) return false
+  const a = latest.split('.').map(Number)
+  const b = current.split('.').map(Number)
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    const x = a[i] ?? 0
+    const y = b[i] ?? 0
+    if (Number.isNaN(x) || Number.isNaN(y)) return false
+    if (x !== y) return x > y
+  }
+  return false
 }
