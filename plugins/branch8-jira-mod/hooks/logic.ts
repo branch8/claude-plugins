@@ -733,3 +733,14 @@ export function pickNote(ticket: Ticket | null): string {
     'It is already recorded: no need to call set_ticket again.'
   )
 }
+
+// The version in the plugin's own plugin.json, as the pane shows it; null
+// when unreadable.
+export function manifestVersion(text: string): string | null {
+  try {
+    const v = (JSON.parse(text) as { version?: unknown }).version
+    return typeof v === 'string' && v ? v : null
+  } catch {
+    return null
+  }
+}

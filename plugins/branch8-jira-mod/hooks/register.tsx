@@ -25,6 +25,7 @@ import {
   stepFocus,
   isArrowScroll,
   pickNote,
+  manifestVersion,
   leftFrom,
   settingsValues,
   menuValues,
@@ -89,6 +90,8 @@ const settingsAtom = atom({ plugin: 'branch8-jira-mod', key: 'settings' } as con
 const focusedAtom = atom({ plugin: 'branch8-jira-mod', key: 'focusedKey' } as const, null)
 // The pane element the ring is on, of any kind: where the arrows step from.
 const ringAtom = atom({ plugin: 'branch8-jira-mod', key: 'ring' } as const, null)
+// This mod's version, from its plugin.json, so a person can tell which one runs.
+const versionAtom = atom({ plugin: 'branch8-jira-mod', key: 'version' } as const, null)
 
 // The company Jira site, used when no ticket has given a cloudId yet.
 const SITE = 'https://branch8.atlassian.net'
@@ -339,6 +342,12 @@ export const register: Register = on => {
       // Stays on auto.
     }
     try {
+      const manifest = await $.fs.read(`${$.plugin.root}/.claude-plugin/plugin.json`)
+      await update($, versionAtom, () => manifestVersion(manifest))
+    } catch {
+      // The pane shows no version.
+    }
+    try {
       const range = await $.store.get('range')
       if (typeof range === 'number' && range >= 0) await update($, rangeAtom, () => range)
     } catch {
@@ -465,6 +474,7 @@ export const register: Register = on => {
     const autoOpen = await read($, autoOpenAtom)
     const settings = await read($, settingsAtom)
     const range = await read($, rangeAtom)
+    const version = await read($, versionAtom)
     const ticket = await read($, ticketAtom)
     const current = ticket?.key
     const cloudId = ticket?.cloudId || SITE
@@ -507,7 +517,7 @@ export const register: Register = on => {
         )}
         <Text dimColor>{folder.project ? str.changeMapping : str.setMapping}</Text>
         <Box flexDirection="column" borderStyle="round" borderDimColor paddingX={1} marginTop={1}>
-          <Text dimColor bold>{str.helpTitle}</Text>
+          <Text dimColor bold>{str.helpTitle + (version ? ` · v${version}` : '')}</Text>
           {str.help.map(line => (
             <Text key={line} dimColor>
               {line}
