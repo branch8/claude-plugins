@@ -34,6 +34,10 @@ declare module 'claude-code' {
       // Only tickets updated within this many days; 0 for any age.
       range: number
       isOrg: boolean
+      // This mod's version, from its plugin.json, shown in the pane.
+      version: string | null
+      // The version on the marketplace's main branch, and whether an update runs.
+      latest: { version: string | null; isUpdating: boolean }
     }
   }
 }
