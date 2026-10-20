@@ -340,48 +340,52 @@ async function onOrgAccount($: EngineInterface): Promise<boolean> {
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
-    await $.tool.register({
-      name: 'set_ticket',
-      description:
-        'Record the Jira ticket the current task belongs to: it shows above the prompt and the mod reminds you at the start / PR / merge points. Call after the jira-workflow skill resolves or creates a ticket.',
-      inputSchema: {
-        type: 'object',
-        required: ['key', 'cloudId'],
-        properties: {
-          key: { type: 'string', description: 'Issue key, e.g. HS-123' },
-          summary: { type: 'string' },
-          status: { type: 'string', description: 'Current status name' },
-          cloudId: { type: 'string', description: 'Atlassian cloudId or site URL' },
-          confirmedOtherProject: {
-            type: 'boolean',
-            description: 'True only after the user agreed to work here on a ticket from a project other than this folder\'s',
+    // Side by side: one after another took up to 15 s at start (2026-10-20),
+    // and the first session.start holds the first prompt until it passes.
+    await Promise.all([
+      $.tool.register({
+        name: 'set_ticket',
+        description:
+          'Record the Jira ticket the current task belongs to: it shows above the prompt and the mod reminds you at the start / PR / merge points. Call after the jira-workflow skill resolves or creates a ticket.',
+        inputSchema: {
+          type: 'object',
+          required: ['key', 'cloudId'],
+          properties: {
+            key: { type: 'string', description: 'Issue key, e.g. HS-123' },
+            summary: { type: 'string' },
+            status: { type: 'string', description: 'Current status name' },
+            cloudId: { type: 'string', description: 'Atlassian cloudId or site URL' },
+            confirmedOtherProject: {
+              type: 'boolean',
+              description: 'True only after the user agreed to work here on a ticket from a project other than this folder\'s',
+            },
           },
         },
-      },
-      isDeferred: false,
-    })
-    await $.tool.register({
-      name: 'get_ticket',
-      description: 'The current Jira ticket of this session and the workflow points already asked about.',
-      isDeferred: false,
-    })
-    await $.tool.register({
-      name: 'clear_ticket',
-      description:
-        'Unselect the current Jira ticket, so this session is tied to none (the user asked to stop tracking a ticket, or the work is not ticket work).',
-      isDeferred: false,
-    })
-    await $.tool.register({
-      name: 'mark_asked',
-      description:
-        'Record that the user was asked about a status transition at a point, as "<KEY>:<start|pr|merge>", so it is not asked again.',
-      inputSchema: { type: 'object', required: ['mark'], properties: { mark: { type: 'string' } } },
-      isDeferred: false,
-    })
-    await $.command.register({
-      name: 'jira-todo',
-      description: 'Jira 待辦 / open tickets: pick one as the current ticket',
-    })
+        isDeferred: false,
+      }),
+      $.tool.register({
+        name: 'get_ticket',
+        description: 'The current Jira ticket of this session and the workflow points already asked about.',
+        isDeferred: false,
+      }),
+      $.tool.register({
+        name: 'clear_ticket',
+        description:
+          'Unselect the current Jira ticket, so this session is tied to none (the user asked to stop tracking a ticket, or the work is not ticket work).',
+        isDeferred: false,
+      }),
+      $.tool.register({
+        name: 'mark_asked',
+        description:
+          'Record that the user was asked about a status transition at a point, as "<KEY>:<start|pr|merge>", so it is not asked again.',
+        inputSchema: { type: 'object', required: ['mark'], properties: { mark: { type: 'string' } } },
+        isDeferred: false,
+      }),
+      $.command.register({
+        name: 'jira-todo',
+        description: 'Jira 待辦 / open tickets: pick one as the current ticket',
+      }),
+    ])
     // Last, and guarded: a language that fails to load must not cost the
     // tools and the command registered above.
     try {
@@ -428,8 +432,11 @@ export const register: Register = on => {
         const str = STRINGS[(await read($, langAtom)) as Lang]
         // Opened unasked, a narrow terminal keeps it undrawn: say how to get it.
         if (!opened.isPlaced) $.ui.toast(str.narrowHint)
-        const first = await loadTodos($, str)
-        if (!first.ok) {
+        // In the background: the Atlassian MCP is still connecting at start, and
+        // waiting on it here held session.start for 17 s (2026-10-20).
+        void (async () => {
+          const first = await loadTodos($, str)
+          if (first.ok) return
           for (const ms of AUTO_RETRY_MS) {
             $.clock.after(ms, () => {
               void (async () => {
@@ -439,7 +446,7 @@ export const register: Register = on => {
               })()
             })
           }
-        }
+        })()
       }
     } catch {
       // No auto-open; /jira-todo still works.
