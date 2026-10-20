@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { detectNode, reminderFor, formatBand, rulesSection, parseIssueStatus, parseIssueList, todoJql, nextRange, parseIssuePage, TODO_FIELDS, ISSUE_FIELDS, displayWidth, bandText, TODO_HELP, groupTodos, issueUrl, todoRow, langOf, STRINGS, statusTone, nextLangPref, resolveLang, recordFileName, ancestorDirs, parseRecord, projectOf, isOtherProject, applyScope, effectiveScope, foldersFor, suggestedFolder, typeIcon, focusedTicket, isOrgAccount, touchesFolderRecords, focusOrder, stepFocus, isArrowScroll, settingsValues, menuValues, leftFrom } from './logic'
+import { detectNode, reminderFor, formatBand, rulesSection, parseIssueStatus, parseIssueList, todoJql, nextRange, parseIssuePage, TODO_FIELDS, ISSUE_FIELDS, displayWidth, bandText, TODO_HELP, groupTodos, issueUrl, todoRow, langOf, STRINGS, statusTone, nextLangPref, resolveLang, recordFileName, ancestorDirs, parseRecord, projectOf, isOtherProject, applyScope, effectiveScope, foldersFor, suggestedFolder, typeIcon, focusedTicket, isOrgAccount, touchesFolderRecords, focusOrder, stepFocus, isArrowScroll, settingsValues, menuValues, leftFrom, pickNote } from './logic'
 
 const T = { key: 'HS-1', summary: '修正請假審核通知', status: '待辦事項', cloudId: 'c' }
 
@@ -571,4 +571,13 @@ test('a nodes page carries its cursor in pageInfo', () => {
   const text = (o: object) => [{ type: 'text', text: JSON.stringify(o) }]
   expect(parseIssuePage(text({ issues: { nodes, pageInfo: { hasNextPage: true, endCursor: 'C' } } }))?.next).toBe('C')
   expect(parseIssuePage(text({ issues: { nodes, pageInfo: { hasNextPage: false, endCursor: 'C' } } }))?.next).toBeNull()
+})
+
+test('the note Claude reads when the person picks or unselects a ticket in the pane', () => {
+  const note = pickNote({ key: 'HS-96', summary: '員工多重身分', status: 'Need to fix', cloudId: 'c' })
+  expect(note.includes('HS-96')).toBe(true)
+  expect(note.includes('員工多重身分')).toBe(true)
+  expect(note.includes('Need to fix')).toBe(true)
+  expect(note.includes('/jira-todo')).toBe(true)
+  expect(pickNote(null).includes('no current Jira ticket')).toBe(true)
 })

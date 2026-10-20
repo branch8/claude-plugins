@@ -716,3 +716,20 @@ export function stepFocus(order: readonly string[], current: string | null, by: 
 export function isArrowScroll(e: { by: number; origin: { kind: string }; pointer?: unknown }): boolean {
   return e.origin.kind === 'person' && !e.pointer && Math.abs(e.by) === 1
 }
+
+// What Claude reads when the person picks or unselects a ticket in the pane.
+// The system prompt's rules section says it too, but another plugin's
+// prompt.compose hook can answer without passing the event on (2026-10-20:
+// cc-plugin-sec-default), and Claude then never learns of the pick.
+export function pickNote(ticket: Ticket | null): string {
+  if (!ticket) {
+    return '[branch8-jira-mod] In the /jira-todo pane the user unselected the ticket: this session has no current Jira ticket now.'
+  }
+  const what = ticket.summary ? ` "${ticket.summary}"` : ''
+  const status = ticket.status ? ` (status: ${ticket.status})` : ''
+  return (
+    `[branch8-jira-mod] In the /jira-todo pane the user picked ${ticket.key}${what}${status} as the current Jira ticket. ` +
+    'Work on this ticket from now on; when the user says "this one" or "this ticket", they mean it. ' +
+    'It is already recorded: no need to call set_ticket again.'
+  )
+}
