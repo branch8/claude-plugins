@@ -196,6 +196,9 @@ plugins/branch8-jira-mod/         可選的 mod 擴充（TypeScript function hoo
                                   預設欄位含描述，同事 20 張單就超過 MCP 上限被轉存成檔案（2026-10-16，約 12 萬字元）。
                                   指定 fields 後回應是 {issues:{nodes,pageInfo:{hasNextPage,endCursor}}}，不是陣列＋
                                   nextPageToken——兩種都要解析（parseIssuePage）
+                                  Team 組織會自動把內建的 cc-plugin-sec-default@builtin 排在最外層，它不把 prompt.compose
+                                  往下傳：mod 的 system prompt 規則段落實際上到不了 Claude（2026-10-20 實測）。所以面板
+                                  選單／取消選定改用 $.session.append 直接告訴 Claude（pickNote）；別把必要資訊只放 prompt.compose
                                   hooks/logic.ts 是純函式（可單測），register.tsx 是引擎接線；
                                   `claude plugin test plugins/branch8-jira-mod` 跑測試
 template/plugin-template/         開發新 plugin 的起點。刻意不列入 marketplace.json，

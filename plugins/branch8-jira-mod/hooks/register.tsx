@@ -24,6 +24,7 @@ import {
   focusOrder,
   stepFocus,
   isArrowScroll,
+  pickNote,
   leftFrom,
   settingsValues,
   menuValues,
@@ -204,6 +205,17 @@ async function focusOn($: EngineInterface, key: string): Promise<void> {
 // Fills the pane's list: the first page afresh, or with `more` the next page
 // after what is loaded. The search names its range and, scoped to this
 // folder, its project, so Jira sends only what the pane shows.
+// Tells Claude, in a row it reads but the person does not see as typed, what
+// the person just picked in the pane; see pickNote for why the system prompt
+// alone is not enough. A refusal or failure only loses the note.
+async function tellClaude($: EngineInterface, ticket: Ticket | null): Promise<void> {
+  try {
+    await $.session.append({ message: { type: 'user', content: [{ type: 'text', text: pickNote(ticket) }] } })
+  } catch {
+    // The band and the rules section still show the ticket.
+  }
+}
+
 async function loadTodos(
   $: EngineInterface,
   str: (typeof STRINGS)[Lang],
@@ -473,11 +485,13 @@ export const register: Register = on => {
       // The list was just read from Jira; no need to refresh at once.
       await update($, refreshedAtom, () => now)
       $.ui.toast(str.current(item.key))
+      await tellClaude($, { ...item, cloudId })
     }
     const clearTicket = async () => {
       await update($, menuAtom, () => null)
       await update($, ticketAtom, () => null)
       $.ui.toast(str.cleared)
+      await tellClaude($, null)
     }
     const openIssue = async (key: string) => {
       const url = issueUrl(SITE, key)
