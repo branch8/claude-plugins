@@ -357,6 +357,7 @@ export type Strings = {
   updating: string
   updated: (v: string) => string
   updateFailed: string
+  alreadyLatest: (v: string) => string
 }
 
 const LANG_NAMES = { 'zh-TW': '繁中', 'zh-CN': '简中', en: 'English' }
@@ -373,6 +374,7 @@ export const STRINGS: Record<Lang, Strings> = {
     updating: '更新中…',
     updated: v => `已更新到 v${v}，重新載入中；若沒生效請開新 session`,
     updateFailed: '更新失敗，請手動執行 /plugin update branch8-jira-mod@branch8',
+    alreadyLatest: v => `marketplace 目前最新仍是 v${v}，新版可能還沒同步，稍後再試`,
     language: '語言：',
     langNames: { ...LANG_NAMES, auto: '自動' },
     open: '開啟',
@@ -427,6 +429,7 @@ export const STRINGS: Record<Lang, Strings> = {
     updating: '更新中…',
     updated: v => `已更新到 v${v}，重新加载中；若没生效请开新 session`,
     updateFailed: '更新失败，请手动执行 /plugin update branch8-jira-mod@branch8',
+    alreadyLatest: v => `marketplace 目前最新仍是 v${v}，新版可能还没同步，稍后再试`,
     language: '语言：',
     langNames: { ...LANG_NAMES, auto: '自动' },
     open: '打开',
@@ -481,6 +484,7 @@ export const STRINGS: Record<Lang, Strings> = {
     updating: 'Updating…',
     updated: v => `Updated to v${v}, reloading; open a new session if it does not take`,
     updateFailed: 'Update failed: run /plugin update branch8-jira-mod@branch8',
+    alreadyLatest: v => `The marketplace still has v${v}; the new one may not have synced yet, try again later`,
     language: 'Language: ',
     langNames: { ...LANG_NAMES, auto: 'Auto' },
     open: 'Open',
@@ -775,4 +779,13 @@ export function isNewer(latest: string | null, current: string | null): boolean 
     if (x !== y) return x > y
   }
   return false
+}
+
+// What `claude plugin update` said; it exits 0 whether or not it updated.
+export function updateOutcome(stdout: string): { kind: 'updated' | 'latest'; version: string } | null {
+  const up = /updated from \S+ to (\d[\w.-]*)/.exec(stdout)
+  if (up?.[1]) return { kind: 'updated', version: up[1] }
+  const same = /already at the latest version \((\d[\w.-]*)\)/.exec(stdout)
+  if (same?.[1]) return { kind: 'latest', version: same[1] }
+  return null
 }

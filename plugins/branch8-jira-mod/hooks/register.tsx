@@ -27,6 +27,7 @@ import {
   pickNote,
   manifestVersion,
   isNewer,
+  updateOutcome,
   leftFrom,
   settingsValues,
   menuValues,
@@ -239,7 +240,7 @@ async function checkLatest($: EngineInterface): Promise<void> {
 // Updates the marketplace, then this plugin, as the person would with
 // /plugin; then reloads plugins so the new version runs. The CLI only: on
 // other surfaces the process call fails and the toast gives the command.
-async function runUpdate($: EngineInterface, str: (typeof STRINGS)[Lang], to: string): Promise<void> {
+async function runUpdate($: EngineInterface, str: (typeof STRINGS)[Lang]): Promise<void> {
   await update($, latestAtom, l => ({ ...l, isUpdating: true }))
   $.ui.toast(str.updating)
   try {
@@ -247,11 +248,19 @@ async function runUpdate($: EngineInterface, str: (typeof STRINGS)[Lang], to: st
       ['claude', 'plugin', 'marketplace', 'update', 'branch8'],
       ['claude', 'plugin', 'update', PLUGIN_ID],
     ]
+    let said = ''
     for (const argv of steps) {
       const r = await $.process.run(argv, { timeoutMs: 120_000 })
       if (r.exitCode !== 0) throw new Error(r.stderr || r.stdout)
+      said = r.stdout
     }
-    $.ui.toast(str.updated(to))
+    const outcome = updateOutcome(said)
+    if (!outcome) throw new Error(said)
+    if (outcome.kind === 'latest') {
+      $.ui.toast(str.alreadyLatest(outcome.version))
+      return
+    }
+    $.ui.toast(str.updated(outcome.version))
     try {
       await $.command.run({ command: 'reload-plugins' })
     } catch {
@@ -591,7 +600,7 @@ export const register: Register = on => {
               label={latest.isUpdating ? str.updating : str.updateTo(latest.version)}
               onPress={async () => {
                 if (latest.isUpdating || !latest.version) return
-                await runUpdate($, str, latest.version)
+                await runUpdate($, str)
               }}
             />
           )}
