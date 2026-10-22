@@ -144,6 +144,8 @@ MIT 授權的 vendored 程式碼、維護腳本、文件。已掃描確認無硬
 .claude-plugin/marketplace.json   發送清單，只放「官方沒上架」的 plugin
 managed-settings.json             Claude Code 那一側的清單（官方 6 個 + vendored 1 個 + 自家 2 個 + 內建 1 個）
                                   這兩份是不同的東西，別互相複製
+                                  env.CLAUDE_CODE_PLUGIN_GIT_TIMEOUT_MS=600000：預設 120 秒，網路慢的同事（實測 30 KiB/s）
+                                  clone 不完就放棄，殘留的 git 還會擋住之後每次更新（2026-10-21）。排查見 README「排查」
 plugins/                          自己寫的 plugin。目前只有 branch8-jira-check：
                                   SessionStart hook 只負責注入指示，實際檢查由 Claude 在第一輪做
                                   （hook 執行時 MCP 還沒連上，hook 本身無從判斷）。
