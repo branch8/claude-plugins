@@ -1,6 +1,7 @@
 export type Node = 'start' | 'pr' | 'merge'
 export type Ticket = { key: string; summary: string; status: string; cloudId: string }
 export type TodoItem = { key: string; summary: string; status: string; type?: string }
+export type Transition = { id: string; to: string; isDone: boolean; hasScreen: boolean }
 export type Todos = {
   items: TodoItem[]
   error: string | null
@@ -24,7 +25,14 @@ declare module 'claude-code' {
       statusFolded: string[]
       scopePref: 'auto' | 'folder' | 'all'
       folder: { dir: string; project: string | null; name: string }
-      menu: { item: TodoItem; other: boolean; dir: string } | null
+      // The row menu under one ticket; status while its status popup is open:
+      // the moves Jira offers (loading until they come), and the one picked to confirm.
+      menu: {
+        item: TodoItem
+        other: boolean
+        dir: string
+        status?: { isLoading: boolean; list: Transition[]; pick: Transition | null } | null
+      } | null
       focusedKey: string | null
       // The pane element the focus ring is on, any kind (the arrows step from it).
       ring: string | null

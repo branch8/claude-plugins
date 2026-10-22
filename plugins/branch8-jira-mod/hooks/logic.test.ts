@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { detectNode, reminderFor, formatBand, rulesSection, parseIssueStatus, parseIssueList, todoJql, nextRange, parseIssuePage, TODO_FIELDS, ISSUE_FIELDS, displayWidth, bandText, TODO_HELP, groupTodos, issueUrl, todoRow, langOf, STRINGS, statusTone, nextLangPref, resolveLang, recordFileName, ancestorDirs, parseRecord, projectOf, isOtherProject, applyScope, effectiveScope, foldersFor, suggestedFolder, typeIcon, focusedTicket, isOrgAccount, touchesFolderRecords, focusOrder, stepFocus, isArrowScroll, settingsValues, menuValues, leftFrom, pickNote, manifestVersion, isNewer, updateOutcome } from './logic'
+import { detectNode, reminderFor, formatBand, rulesSection, parseIssueStatus, parseIssueList, todoJql, nextRange, parseIssuePage, TODO_FIELDS, ISSUE_FIELDS, displayWidth, bandText, TODO_HELP, groupTodos, issueUrl, todoRow, langOf, STRINGS, statusTone, nextLangPref, resolveLang, recordFileName, ancestorDirs, parseRecord, projectOf, isOtherProject, applyScope, effectiveScope, foldersFor, suggestedFolder, typeIcon, focusedTicket, isOrgAccount, touchesFolderRecords, focusOrder, stepFocus, isArrowScroll, settingsValues, menuValues, leftFrom, pickNote, manifestVersion, isNewer, updateOutcome, parseTransitions, moveNote } from './logic'
 
 const T = { key: 'HS-1', summary: '修正請假審核通知', status: '待辦事項', cloudId: 'c' }
 
@@ -488,9 +488,9 @@ test('focus order skips folded branches and adds open menus and the unselect but
 test('popup options in order', () => {
   expect(settingsValues(true)).toEqual(['lang', 'auto', 'scope', 'range', 'close', 'back'])
   expect(settingsValues(false)).toEqual(['lang', 'auto', 'range', 'close', 'back'])
-  expect(menuValues(false, false)).toEqual(['work', 'open', 'cancel'])
-  expect(menuValues(true, false)).toEqual(['move', 'work', 'open', 'cancel'])
-  expect(menuValues(false, true)).toEqual(['clear', 'open', 'cancel'])
+  expect(menuValues(false, false)).toEqual(['work', 'status', 'open', 'cancel'])
+  expect(menuValues(true, false)).toEqual(['move', 'work', 'status', 'open', 'cancel'])
+  expect(menuValues(false, true)).toEqual(['clear', 'status', 'open', 'cancel'])
 })
 
 test('stepping the ring clamps at the ends and starts from an end when on nothing', () => {
@@ -623,4 +623,61 @@ test('what claude plugin update said: updated, already latest, or unknown', () =
 
 test('already-latest string in every language', () => {
   for (const lang of ['zh-TW', 'zh-CN', 'en'] as const) expect(STRINGS[lang].alreadyLatest('0.12.0').includes('0.12.0')).toBe(true)
+})
+
+const TRANSITIONS = {
+  transitions: [
+    { id: '4', name: 'Pending for discussion', to: { name: 'Pending for discussion', statusCategory: { key: 'indeterminate' } }, hasScreen: false, isAvailable: true },
+    { id: '21', name: 'In Progress', to: { name: '進行中', statusCategory: { key: 'indeterminate' } }, hasScreen: false, isAvailable: true },
+    { id: '41', name: 'Completed', to: { name: '已完成', statusCategory: { key: 'done' } }, hasScreen: true, isAvailable: true },
+    { id: '9', name: 'Blocked', to: { name: 'Blocked' }, isAvailable: false },
+  ],
+}
+
+test('transitions the ticket can take now, without its own status or unavailable ones', () => {
+  const plugin = [{ type: 'text', text: JSON.stringify({ data: TRANSITIONS }) }]
+  const rovo = [{ type: 'text', text: JSON.stringify(TRANSITIONS) }]
+  const want = [
+    { id: '21', to: '進行中', isDone: false, hasScreen: false },
+    { id: '41', to: '已完成', isDone: true, hasScreen: true },
+  ]
+  expect(parseTransitions(plugin, 'Pending for discussion')).toEqual(want)
+  expect(parseTransitions(rovo, 'Pending for discussion')).toEqual(want)
+  expect(parseTransitions([{ type: 'text', text: 'nope' }], 'x')).toBeNull()
+})
+
+test('the transition popups join the focus order after the row menu', () => {
+  const order = focusOrder({
+    groups: ORDER_GROUPS,
+    folded: ['HTGO2'],
+    statusFolded: [],
+    menu: { key: 'HS-1', values: ['work', 'status'], transitions: ['21', '41'], confirm: true },
+  })
+  const i = order.indexOf('menu-HS-1-status')
+  expect(order.slice(i, i + 6)).toEqual([
+    'menu-HS-1-status', 'menu-HS-1-t-21', 'menu-HS-1-t-41', 'menu-HS-1-tback', 'menu-HS-1-yes', 'menu-HS-1-no',
+  ])
+})
+
+test('the note Claude reads when the person moves a ticket in the pane', () => {
+  const note = moveNote('HS-8', 'Backlog', '進行中')
+  expect(note.includes('HS-8')).toBe(true)
+  expect(note.includes('Backlog')).toBe(true)
+  expect(note.includes('進行中')).toBe(true)
+})
+
+test('status-change strings in every language', () => {
+  for (const lang of ['zh-TW', 'zh-CN', 'en'] as const) {
+    const s = STRINGS[lang]
+    for (const v of [s.menuStatus, s.loadingTransitions, s.noTransitions, s.confirmYes, s.confirmNo, s.back]) {
+      expect(v.length > 0).toBe(true)
+    }
+    expect(s.statusTitle('HS-8').includes('HS-8')).toBe(true)
+    expect(s.statusNow('Backlog').includes('Backlog')).toBe(true)
+    expect(s.confirmMove('HS-8').includes('HS-8')).toBe(true)
+    expect(s.moved('HS-8', '進行中').includes('HS-8')).toBe(true)
+    expect(s.moveFailed('https://x/browse/HS-8').includes('https://x/browse/HS-8')).toBe(true)
+    expect(s.needsFields.length > 0).toBe(true)
+  }
+  expect(STRINGS['zh-TW'].menuStatus).toBe('↻ 切換狀態')
 })

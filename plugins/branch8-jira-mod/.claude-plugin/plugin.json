@@ -1,6 +1,6 @@
 {
   "name": "branch8-jira-mod",
-  "version": "0.13.1",
+  "version": "0.14.0",
   "description": "Branch8 Jira workflow extension: shows the current ticket above the prompt, lists your open tickets in /jira-todo, reminds Claude at start / PR / merge points and keeps the rules in the system prompt. Optional; needs Claude Code v2.1.287+.",
   "author": { "name": "Branch8" },
   "types": "./types/index.d.ts"
