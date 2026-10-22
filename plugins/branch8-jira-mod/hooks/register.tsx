@@ -804,13 +804,13 @@ export const register: Register = on => {
           key="refresh"
           plain
           dimColor
-          label={todos.isLoading ? str.refreshing : str.refresh}
+          // The one loading line: first load or refresh.
+          label={todos.isLoading ? (todos.items.length ? str.refreshing : str.loading + '…') : str.refresh}
           onPress={async () => {
             if (todos.isLoading) return
             await loadTodos($, str)
           }}
         />
-        {todos.isLoading && <Text dimColor>{todos.items.length ? str.refreshing : str.loading + '…'}</Text>}
         {todos.error && <Text color="error">{todos.error}</Text>}
         {todos.isLoaded && !todos.isLoading && !todos.error && todos.items.length === 0 && (
           <Text dimColor>{str.empty}</Text>
@@ -1064,7 +1064,8 @@ export const register: Register = on => {
             key="more"
             plain
             dimColor
-            label={todos.isLoading ? str.refreshing : str.loadMore(TODO_LIMIT)}
+            // Stays as it is while loading: the refresh button is the one loading line.
+            label={str.loadMore(TODO_LIMIT)}
             onPress={async () => {
               if (todos.isLoading) return
               const had = new Set(todos.items.map(i => i.key))
