@@ -324,8 +324,6 @@ export type Strings = {
   current: (key: string) => string
   bandNoTicket: (n: number) => string
   bandTail: (n: number) => string
-  folderLine: (dir: string, key: string, name: string) => string
-  folderUnmapped: (dir: string) => string
   changeMapping: string
   setMapping: string
   thisFolderTag: string
@@ -370,6 +368,15 @@ export type Strings = {
   moved: (key: string, to: string) => string
   moveFailed: (url: string) => string
   needsFields: string
+  refresh: string
+  labelClaude: string
+  labelJira: string
+  labelFolder: string
+  jiraPending: string
+  jiraDomain: string
+  jiraDiffers: string
+  noJiraFolder: string
+  unmappedFolder: string
 }
 
 const LANG_NAMES = { 'zh-TW': '繁中', 'zh-CN': '简中', en: 'English' }
@@ -399,6 +406,15 @@ export const STRINGS: Record<Lang, Strings> = {
     moved: (key, to) => `${key} 已移到「${to}」`,
     moveFailed: url => `Jira 沒有接受這次切換（可能要填欄位或沒有權限），請到網頁處理：${url}`,
     needsFields: '⚠ Jira 在這一步可能要求填欄位',
+    refresh: '⟳ 重新整理',
+    labelClaude: 'Claude',
+    labelJira: 'Jira  ',
+    labelFolder: '資料夾',
+    jiraPending: '連線中…',
+    jiraDomain: '⚠ 不是公司網域的帳號',
+    jiraDiffers: '⚠ 和 Claude 帳號不同',
+    noJiraFolder: '不使用 Jira',
+    unmappedFolder: '尚未對應 Jira 專案',
     language: '語言：',
     langNames: { ...LANG_NAMES, auto: '自動' },
     open: '開啟',
@@ -416,8 +432,6 @@ export const STRINGS: Record<Lang, Strings> = {
     current: key => `目前的單：${key}`,
     bandNoTicket: n => `📋 Jira 待辦 ${n} 張 · /jira-todo`,
     bandTail: n => ` · 待辦 ${n}`,
-    folderLine: (dir, key, name) => `📁 ${dir} ↔ Jira ${key}${name ? `（${name}）` : ''}`,
-    folderUnmapped: dir => `📁 ${dir} ↔ （未對應 Jira 專案）`,
     changeMapping: '   改對應：/jira-board',
     setMapping: '   設定：/jira-board',
     thisFolderTag: '← 本資料夾的專案',
@@ -466,6 +480,15 @@ export const STRINGS: Record<Lang, Strings> = {
     moved: (key, to) => `${key} 已移到「${to}」`,
     moveFailed: url => `Jira 没有接受这次切换（可能要填字段或没有权限），请到网页处理：${url}`,
     needsFields: '⚠ Jira 在这一步可能要求填字段',
+    refresh: '⟳ 刷新',
+    labelClaude: 'Claude',
+    labelJira: 'Jira  ',
+    labelFolder: '文件夹',
+    jiraPending: '连接中…',
+    jiraDomain: '⚠ 不是公司域名的账号',
+    jiraDiffers: '⚠ 和 Claude 账号不同',
+    noJiraFolder: '不使用 Jira',
+    unmappedFolder: '尚未对应 Jira 项目',
     language: '语言：',
     langNames: { ...LANG_NAMES, auto: '自动' },
     open: '打开',
@@ -483,8 +506,6 @@ export const STRINGS: Record<Lang, Strings> = {
     current: key => `当前的单：${key}`,
     bandNoTicket: n => `📋 Jira 待办 ${n} 张 · /jira-todo`,
     bandTail: n => ` · 待办 ${n}`,
-    folderLine: (dir, key, name) => `📁 ${dir} ↔ Jira ${key}${name ? `（${name}）` : ''}`,
-    folderUnmapped: dir => `📁 ${dir} ↔ （未对应 Jira 项目）`,
     changeMapping: '   改对应：/jira-board',
     setMapping: '   设置：/jira-board',
     thisFolderTag: '← 本文件夹的项目',
@@ -533,6 +554,15 @@ export const STRINGS: Record<Lang, Strings> = {
     moved: (key, to) => `${key} moved to "${to}"`,
     moveFailed: url => `Jira did not take the move (fields to fill, or no permission); do it on the web: ${url}`,
     needsFields: '⚠ Jira may ask for fields on this step',
+    refresh: '⟳ Refresh',
+    labelClaude: 'Claude',
+    labelJira: 'Jira  ',
+    labelFolder: 'Folder',
+    jiraPending: 'connecting…',
+    jiraDomain: '⚠ not a company account',
+    jiraDiffers: '⚠ not the Claude account',
+    noJiraFolder: 'no Jira',
+    unmappedFolder: 'no Jira project recorded yet',
     language: 'Language: ',
     langNames: { ...LANG_NAMES, auto: 'Auto' },
     open: 'Open',
@@ -550,8 +580,6 @@ export const STRINGS: Record<Lang, Strings> = {
     current: key => `Current ticket: ${key}`,
     bandNoTicket: n => `📋 Jira: ${n} open · /jira-todo`,
     bandTail: n => ` · ${n} open`,
-    folderLine: (dir, key, name) => `📁 ${dir} ↔ Jira ${key}${name ? ` (${name})` : ''}`,
-    folderUnmapped: dir => `📁 ${dir} ↔ (no Jira project)`,
     changeMapping: '   change: /jira-board',
     setMapping: '   set: /jira-board',
     thisFolderTag: "← this folder's project",
@@ -744,6 +772,7 @@ export function focusOrder(o: {
   if (o.update) keys.push('update')
   for (const v of o.settings ?? []) keys.push(`settings-${v}`)
   if (o.current) keys.push('clear-top')
+  keys.push('refresh')
   for (const g of o.groups) {
     keys.push(`p-${g.project}`)
     if (o.folded.includes(g.project)) continue
@@ -878,4 +907,41 @@ export function parseTransitions(content: Content, current: string): Transition[
 // for why it is a row rather than the system prompt).
 export function moveNote(key: string, from: string, to: string): string {
   return `[branch8-jira-mod] In the /jira-todo pane the user moved ${key} in Jira from "${from}" to "${to}". It is done: do not move it again or ask about it.`
+}
+
+// The Claude login as the pane's account block shows it, from the config
+// dir's .claude.json (as branch8-jira-check's banner); null when signed out.
+export function claudeAccount(claudeJson: string): { email: string; org: string; plan: string } | null {
+  try {
+    const a = (JSON.parse(claudeJson) as { oauthAccount?: Record<string, unknown> }).oauthAccount
+    if (!a || typeof a.emailAddress !== 'string') return null
+    const str = (v: unknown) => (typeof v === 'string' ? v : '')
+    return { email: a.emailAddress, org: str(a.organizationName), plan: str(a.organizationType).replace(/^claude_/, '') }
+  } catch {
+    return null
+  }
+}
+
+// The Jira user signed in: getJiraCurrentUser (the plugin server, wrapped in
+// data) or atlassianUserInfo (claude.ai); null without a name and an email.
+export function parseJiraUser(content: Content): { name: string; email: string } | null {
+  const json = firstJson(content) as { data?: unknown } | null
+  if (!json) return null
+  const u = (json.data ?? json) as { displayName?: unknown; emailAddress?: unknown; name?: unknown; email?: unknown }
+  const name = typeof u.displayName === 'string' ? u.displayName : typeof u.name === 'string' ? u.name : ''
+  const email = typeof u.emailAddress === 'string' ? u.emailAddress : typeof u.email === 'string' ? u.email : ''
+  return name && email ? { name, email } : null
+}
+
+// Why the Jira account looks wrong, as branch8-jira-check's accounts check:
+// outside the company domain, or another person than the Claude login.
+export function jiraWarning(
+  jiraEmail: string,
+  claudeEmail: string | null,
+  domain = 'branch8.com',
+): 'domain' | 'differs' | null {
+  const j = jiraEmail.toLowerCase()
+  if (!j.endsWith(`@${domain}`)) return 'domain'
+  if (claudeEmail && j !== claudeEmail.toLowerCase()) return 'differs'
+  return null
 }

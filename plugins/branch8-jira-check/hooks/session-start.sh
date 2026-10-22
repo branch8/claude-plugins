@@ -199,7 +199,10 @@ else
 fi
 
 if [ "$icon" = "⚠️" ]; then head="━━ ⚠️ Branch8 ━━━━━━━━━━━━━━━━"; else head="━━ 🔷 Branch8 ━━━━━━━━━━━━━━━━"; fi
-banner="$head
+# Leading newline: the UI prints the message after "SessionStart:startup says:",
+# so without it the head sits on that line and the rest starts at the margin.
+banner="
+$head
 $icon $L_claude  $acct"
 [ -n "$remind" ] && banner="$banner
    $remind"
