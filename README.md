@@ -569,6 +569,21 @@ plugin 釘在特定 commit，pin 只在重新審查後才移動——這正是 v
 八成是忘了 bump 版本號。直接 push 到預設分支也不會觸發，一定要走 PR。
 同步最長可能跑 30 分鐘。
 
+**同事一直停在舊版，`/plugin` 顯示 `1 marketplace could not be refreshed: branch8`**
+先在終端機跑 `claude plugin marketplace update branch8` 看錯誤。2026-10-21 實際碰到的是
+**網路慢**：同事連 GitHub 只有 30 KiB/s，clone 超過 Claude Code 預設的 120 秒逾時就放棄，
+而且殘留的 `git clone` 會繼續空轉、占住暫存資料夾 `marketplaces/branch8..clone`，之後每次更新都撞在一起失敗
+（錯誤變成 `.git/: No such file or directory`）。處理：
+
+```bash
+ps aux | grep -i "[g]it.*claude-plugins"      # 有殘留就 kill
+rm -rf ~/.claude/plugins/marketplaces/branch8..clone
+CLAUDE_CODE_PLUGIN_GIT_TIMEOUT_MS=600000 claude plugin marketplace update branch8
+```
+
+`managed-settings.json` 已把這個逾時設成 10 分鐘（`env`），套用到後台後同事不用再手動設。
+用 ccs 的人，`~/.ccs/instances/<名稱>/plugins` 會同步到 `~/.claude/plugins`，錯誤裡兩種路徑都會出現，這是正常的。
+
 **同步失敗，plugin 從大家帳號上消失**
 修好問題重新同步。**修好之後回去確認安裝偏好還在**——失敗可能把偏好重設掉。
 

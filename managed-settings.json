@@ -1,4 +1,7 @@
 {
+  "env": {
+    "CLAUDE_CODE_PLUGIN_GIT_TIMEOUT_MS": "600000"
+  },
   "extraKnownMarketplaces": {
     "branch8": {
       "source": {
