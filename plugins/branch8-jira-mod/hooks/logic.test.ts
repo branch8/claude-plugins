@@ -718,3 +718,10 @@ test('account block strings in every language', () => {
     }
   }
 })
+
+test('a single issue read with named fields answers as issues.nodes', () => {
+  const text = JSON.stringify({
+    issues: { nodes: [{ key: 'HS-134', fields: { summary: 'S', status: { name: 'Dev done, QA to to' } } }] },
+  })
+  expect(parseIssueStatus([{ type: 'text', text }])).toEqual({ summary: 'S', status: 'Dev done, QA to to' })
+})

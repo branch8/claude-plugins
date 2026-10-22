@@ -164,10 +164,14 @@ function firstJson(content: Content): unknown {
 export function parseIssueStatus(content: Content): { summary?: string; status?: string } | null {
   const json = firstJson(content) as { data?: unknown } | null
   if (!json) return null
-  const issue = (json.data ?? json) as { fields?: { summary?: unknown; status?: { name?: unknown } } }
+  type Issue = { fields?: { summary?: unknown; status?: { name?: unknown } } }
+  const body = (json.data ?? json) as Issue & { issues?: { nodes?: unknown } | unknown[] }
+  // Named fields answer as a one-issue search, { issues: { nodes: [...] } }.
+  const list = Array.isArray(body.issues) ? body.issues : (body.issues as { nodes?: unknown } | undefined)?.nodes
+  const issue = (Array.isArray(list) ? list[0] : body) as Issue | undefined
   const status = issue?.fields?.status?.name
   if (typeof status !== 'string') return null
-  const summary = issue.fields?.summary
+  const summary = issue?.fields?.summary
   return typeof summary === 'string' ? { summary, status } : { status }
 }
 

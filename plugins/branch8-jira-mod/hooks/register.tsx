@@ -681,7 +681,8 @@ export const register: Register = on => {
             plus the Jira user the banner cannot know (MCP is not up yet then). */}
         {account.claude && (
           <Text>
-            <Text>{`✅ ${str.labelClaude}  `}</Text>
+            <Text>{'✅ '}</Text>
+            <Text color="claude" bold>{`${str.labelClaude}  `}</Text>
             <Text bold>{account.claude.email}</Text>
             <Text dimColor>
               {account.claude.org ? `（${account.claude.org}${account.claude.plan ? ` · ${account.claude.plan}` : ''}）` : ''}
@@ -690,20 +691,26 @@ export const register: Register = on => {
         )}
         {account.jira ? (
           <Text>
-            <Text>{`${jiraWarn ? '⚠️' : '🔗'} ${str.labelJira}  `}</Text>
+            <Text>{`${jiraWarn ? '⚠️' : '🔗'} `}</Text>
+            <Text color="claude" bold>{`${str.labelJira}  `}</Text>
             <Text bold>{account.jira.name}</Text>
             <Text dimColor>{`（${account.jira.email}）`}</Text>
           </Text>
         ) : (
-          <Text dimColor>{`🔗 ${str.labelJira}  ${str.jiraPending}`}</Text>
+          <Text>
+            <Text>{'🔗 '}</Text>
+            <Text color="claude" bold>{`${str.labelJira}  `}</Text>
+            <Text dimColor>{str.jiraPending}</Text>
+          </Text>
         )}
         {jiraWarn && (
           <Text color="warning">{`   ${jiraWarn === 'domain' ? str.jiraDomain : str.jiraDiffers}`}</Text>
         )}
         <Text>
-          <Text>{`📁 ${str.labelFolder}  `}</Text>
+          <Text>{'📁 '}</Text>
+          <Text color="claude" bold>{`${str.labelFolder}  `}</Text>
           <Text bold>{folder.dir || '?'}</Text>
-          <Text>
+          <Text color={folder.project ? 'success' : undefined} dimColor={!folder.project}>
             {folder.project
               ? ` → Jira ${folder.project}${folder.name ? `（${folder.name}）` : ''}`
               : ` → ${folder.noJira ? str.noJiraFolder : str.unmappedFolder}`}
@@ -851,7 +858,7 @@ export const register: Register = on => {
                               <Button
                                 key={item.key}
                                 plain
-                                label={(item.key === current ? '▶ ' : '') + `${typeIcon(item.type)} ${todoRow(item, ROW_WIDTH - 3)}`}
+                                {...(item.key === current ? {} : { label: `${typeIcon(item.type)} ${todoRow(item, ROW_WIDTH - 3)}` })}
                                 onPress={async () => {
                                   if (menu?.item.key === item.key) return update($, menuAtom, () => null)
                                   const other = isOtherProject(item.key, folder.project)
@@ -860,7 +867,12 @@ export const register: Register = on => {
                                   const first = menuValues(other, item.key === current)[0]
                                   await focusOn($, `menu-${item.key}-${first}`)
                                 }}
-                              />
+                              >
+                                {/* The current ticket stands out: the rest are plain labels. */}
+                                {item.key === current && (
+                                  <Text bold color="success">{`▶ ${typeIcon(item.type)} ${todoRow(item, ROW_WIDTH - 3)}`}</Text>
+                                )}
+                              </Button>
                               <Text color="suggestion">{' 🔗'}</Text>
                             </Box>
                             {menu?.item.key === item.key && (
