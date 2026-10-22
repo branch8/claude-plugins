@@ -24,6 +24,7 @@ import {
   focusOrder,
   stepFocus,
   isArrowScroll,
+  syncTicket,
   pickNote,
   manifestVersion,
   isNewer,
@@ -60,7 +61,8 @@ import {
 const P = 'branch8-jira-mod'
 const ticketAtom = atom({ plugin: 'branch8-jira-mod', key: 'ticket' } as const, null)
 const askedAtom = atom({ plugin: 'branch8-jira-mod', key: 'asked' } as const, [])
-const refreshedAtom = atom({ plugin: 'branch8-jira-mod', key: 'refreshedAt' } as const, 0)
+// The ticket whose unknown status was asked of Jira once; the band never polls.
+const statusAskedAtom = atom({ plugin: 'branch8-jira-mod', key: 'statusAskedFor' } as const, null)
 const todosAtom = atom({ plugin: 'branch8-jira-mod', key: 'todos' } as const, {
   items: [],
   error: null,
@@ -126,7 +128,6 @@ const ROW_WIDTH = PANE_WIDTH - 10
 
 // The Atlassian MCP under either name it is installed as.
 const ATLASSIAN = ['plugin:atlassian:atlassian', 'claude.ai Atlassian Rovo']
-const REFRESH_MS = 60_000
 
 const str = (v: unknown) => (typeof v === 'string' ? v : '')
 
@@ -358,6 +359,10 @@ async function loadTodos(
         const seen = new Set(more ? before.items.map(i => i.key) : [])
         const items = more ? [...before.items, ...page.items.filter(i => !seen.has(i.key))] : page.items
         await update($, todosAtom, () => ({ items, error: null, isLoading: false, isLoaded: true, next: page.next }))
+        // The band follows the list: a status moved in Jira shows on the next
+        // load or refresh, with no request of its own.
+        const synced = syncTicket(await read($, ticketAtom), items)
+        if (synced) await update($, ticketAtom, () => synced)
         // Jira answers now: the account block can name its user.
         void loadJiraUser($)
         return { ok: true, text: str.todoCount(items.length) }
@@ -656,11 +661,8 @@ export const register: Register = on => {
       }
     }
     const pick = async (item: (typeof todos.items)[number]) => {
-      const now = await $.clock.now()
       await update($, menuAtom, () => null)
       await update($, ticketAtom, () => ({ ...item, cloudId }))
-      // The list was just read from Jira; no need to refresh at once.
-      await update($, refreshedAtom, () => now)
       $.ui.toast(str.current(item.key))
       await tellClaude($, { ...item, cloudId })
     }
@@ -1098,7 +1100,6 @@ export const register: Register = on => {
       }
     }
     await update($, ticketAtom, () => t)
-    await update($, refreshedAtom, () => 0)
     return { result: `Current ticket set to ${t.key}.` as never }
   }).catch(($, e, next) => next(e))
 
@@ -1162,7 +1163,9 @@ export const register: Register = on => {
     return <Text>{line}</Text>
   })
 
-  // Pick up status changes made in Jira, at most once a minute.
+  // The band's status comes with the ticket (the pane, set_ticket) and follows
+  // the pane's loads and moves; Jira is asked only for a status still unknown,
+  // once per ticket. No polling.
   on('turn.complete', async ($, e, next) => {
     const out = await next(e)
     // Records can change outside this session, or /cd can move it.
@@ -1172,10 +1175,8 @@ export const register: Register = on => {
       // Keep the previous answer.
     }
     const t = await read($, ticketAtom)
-    if (!t) return out
-    const now = await $.clock.now()
-    if (now - (await read($, refreshedAtom)) < REFRESH_MS) return out
-    await update($, refreshedAtom, () => now)
+    if (!t || t.status || (await read($, statusAskedAtom)) === t.key) return out
+    await update($, statusAskedAtom, () => t.key)
 
     let fresh: { summary?: string; status?: string } | null = null
     for (const server of ATLASSIAN) {
@@ -1193,10 +1194,7 @@ export const register: Register = on => {
         // Not connected under this name; try the next one.
       }
     }
-    const lang = (await read($, langAtom)) as Lang
-    await update($, ticketAtom, cur =>
-      cur && cur.key === t.key ? { ...cur, ...(fresh ?? { status: STRINGS[lang].statusUnknown }) } : cur,
-    )
+    if (fresh) await update($, ticketAtom, cur => (cur && cur.key === t.key ? { ...cur, ...fresh } : cur))
     return out
   })
 }

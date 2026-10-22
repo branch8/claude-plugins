@@ -99,9 +99,10 @@ const BAND_WIDTH = 78
 
 // One line above the prompt. `width` is the column budget for the whole line.
 export function formatBand(ticket: Ticket, width = BAND_WIDTH, str: Strings = STRINGS['zh-TW']): string {
-  const status = ticket.status || str.loading
+  // An unknown status is left out: the band asks Jira once, never polls, so a
+  // "loading" there could stay forever.
   const head = `🎫 ${ticket.key}`
-  const tail = ` · ${fitWidth(status, 24)}`
+  const tail = ticket.status ? ` · ${fitWidth(ticket.status, 24)}` : ''
   const room = width - displayWidth(head) - displayWidth(tail) - 1
   const summary = ticket.summary && room > 3 ? ` ${fitWidth(ticket.summary, room)}` : ''
   return `${head}${summary}${tail}`
@@ -317,7 +318,6 @@ export type Strings = {
   openFailed: (url: string) => string
   loading: string
   refreshing: string
-  statusUnknown: string
   empty: string
   noStatus: string
   noJira: string
@@ -425,7 +425,6 @@ export const STRINGS: Record<Lang, Strings> = {
     openFailed: url => `無法開啟瀏覽器：${url}`,
     loading: '查詢中',
     refreshing: '更新中…',
-    statusUnknown: '狀態無法取得',
     empty: '沒有指派給你、還沒完成的單。',
     noStatus: '（無狀態）',
     noJira: 'Jira 沒有連線（找不到 Atlassian MCP），請先跑 /jira-check',
@@ -499,7 +498,6 @@ export const STRINGS: Record<Lang, Strings> = {
     openFailed: url => `无法打开浏览器：${url}`,
     loading: '查询中',
     refreshing: '更新中…',
-    statusUnknown: '无法取得状态',
     empty: '没有指派给你、尚未完成的单。',
     noStatus: '（无状态）',
     noJira: 'Jira 未连接（找不到 Atlassian MCP），请先运行 /jira-check',
@@ -573,7 +571,6 @@ export const STRINGS: Record<Lang, Strings> = {
     openFailed: url => `Could not open a browser: ${url}`,
     loading: 'loading',
     refreshing: 'Refreshing…',
-    statusUnknown: 'status unavailable',
     empty: 'No open tickets assigned to you.',
     noStatus: '(no status)',
     noJira: 'Jira is not connected (no Atlassian MCP). Run /jira-check',
@@ -948,4 +945,14 @@ export function jiraWarning(
   if (!j.endsWith(`@${domain}`)) return 'domain'
   if (claudeEmail && j !== claudeEmail.toLowerCase()) return 'differs'
   return null
+}
+
+// The current ticket as the pane's freshly read list has it, so the band
+// follows a status change without asking Jira on its own; null when the
+// ticket is not in the list or nothing changed.
+export function syncTicket(ticket: Ticket | null, items: readonly TodoItem[]): Ticket | null {
+  if (!ticket) return null
+  const item = items.find(i => i.key === ticket.key)
+  if (!item || (item.status === ticket.status && item.summary === ticket.summary)) return null
+  return { ...ticket, summary: item.summary || ticket.summary, status: item.status || ticket.status }
 }

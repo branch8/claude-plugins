@@ -16,7 +16,8 @@ declare module 'claude-code' {
     'branch8-jira-mod': {
       ticket: Ticket | null
       asked: string[]
-      refreshedAt: number
+      // The ticket whose unknown status was asked of Jira once (never polled).
+      statusAskedFor: string | null
       todos: Todos
       todoOpen: boolean
       todoFolded: string[]

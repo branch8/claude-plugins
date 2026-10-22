@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { detectNode, reminderFor, formatBand, rulesSection, parseIssueStatus, parseIssueList, todoJql, nextRange, parseIssuePage, TODO_FIELDS, ISSUE_FIELDS, displayWidth, bandText, TODO_HELP, groupTodos, issueUrl, todoRow, langOf, STRINGS, statusTone, nextLangPref, resolveLang, recordFileName, ancestorDirs, parseRecord, projectOf, isOtherProject, applyScope, effectiveScope, foldersFor, suggestedFolder, typeIcon, focusedTicket, isOrgAccount, touchesFolderRecords, focusOrder, stepFocus, isArrowScroll, settingsValues, menuValues, leftFrom, pickNote, manifestVersion, isNewer, updateOutcome, parseTransitions, moveNote, claudeAccount, parseJiraUser, jiraWarning } from './logic'
+import { detectNode, reminderFor, formatBand, rulesSection, parseIssueStatus, parseIssueList, todoJql, nextRange, parseIssuePage, TODO_FIELDS, ISSUE_FIELDS, displayWidth, bandText, TODO_HELP, groupTodos, issueUrl, todoRow, langOf, STRINGS, statusTone, nextLangPref, resolveLang, recordFileName, ancestorDirs, parseRecord, projectOf, isOtherProject, applyScope, effectiveScope, foldersFor, suggestedFolder, typeIcon, focusedTicket, isOrgAccount, touchesFolderRecords, focusOrder, stepFocus, isArrowScroll, settingsValues, menuValues, leftFrom, pickNote, manifestVersion, isNewer, updateOutcome, parseTransitions, moveNote, claudeAccount, parseJiraUser, jiraWarning, syncTicket } from './logic'
 
 const T = { key: 'HS-1', summary: '修正請假審核通知', status: '待辦事項', cloudId: 'c' }
 
@@ -51,7 +51,7 @@ test('band text', () => {
 })
 
 test('band before Jira answers: no blank summary or status', () => {
-  expect(formatBand({ ...T, summary: '', status: '' })).toBe('🎫 HS-1 · 查詢中')
+  expect(formatBand({ ...T, summary: '', status: '' })).toBe('🎫 HS-1')
 })
 
 test('band takes a narrower width for the pane', () => {
@@ -220,7 +220,7 @@ test('every language has every string, and the help fits the pane', () => {
 test('band speaks the user language', () => {
   expect(bandText(null, 17, 78, STRINGS.en)).toBe('📋 Jira: 17 open · /jira-todo')
   expect(bandText(T, 3, 78, STRINGS.en)?.endsWith(' · 3 open')).toBe(true)
-  expect(formatBand({ ...T, status: '' }, 78, STRINGS.en)).toBe('🎫 HS-1 修正請假審核通知 · loading')
+  expect(formatBand({ ...T, status: '' }, 78, STRINGS.en)).toBe('🎫 HS-1 修正請假審核通知')
 })
 
 test('status colours by meaning, not by Jira category', () => {
@@ -724,4 +724,13 @@ test('a single issue read with named fields answers as issues.nodes', () => {
     issues: { nodes: [{ key: 'HS-134', fields: { summary: 'S', status: { name: 'Dev done, QA to to' } } }] },
   })
   expect(parseIssueStatus([{ type: 'text', text }])).toEqual({ summary: 'S', status: 'Dev done, QA to to' })
+})
+
+test('the band takes the current ticket status from the pane list, without asking Jira', () => {
+  const t = { key: 'HS-8', summary: 'S', status: 'Backlog', cloudId: 'c' }
+  const items = [{ key: 'HS-8', summary: 'S2', status: '進行中' }, { key: 'HS-9', summary: 'x', status: 'y' }]
+  expect(syncTicket(t, items)).toEqual({ ...t, summary: 'S2', status: '進行中' })
+  expect(syncTicket(t, [{ key: 'HS-9', summary: 'x', status: 'y' }])).toBeNull()
+  expect(syncTicket({ ...t, status: '進行中', summary: 'S2' }, items)).toBeNull()
+  expect(syncTicket(null, items)).toBeNull()
 })
