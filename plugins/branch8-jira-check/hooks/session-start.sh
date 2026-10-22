@@ -159,13 +159,13 @@ lang=$(b8_lang "$project_dir")
 case "$lang" in
   zh-TW) PO="（" PC="）" L_claude="Claude" L_folder="資料夾" L_personal="個人帳號" L_nonorg="非 Branch8 組織帳號"
          L_remind="提醒：這是公司專案，目前不是用 Branch8 組織帳號"
-         L_nomap="尚未對應 Jira 專案" L_nojira="不使用 Jira" ;;
+         L_nomap="尚未對應 Jira 專案" L_nojira="不使用 Jira" L_jiraacct="帳號見 /jira-todo" ;;
   zh-CN) PO="（" PC="）" L_claude="Claude" L_folder="文件夹" L_personal="个人账号" L_nonorg="非 Branch8 组织账号"
          L_remind="提醒：这是公司项目，当前没有使用 Branch8 组织账号"
-         L_nomap="尚未对应 Jira 项目" L_nojira="不使用 Jira" ;;
+         L_nomap="尚未对应 Jira 项目" L_nojira="不使用 Jira" L_jiraacct="账号见 /jira-todo" ;;
   *)     PO=" (" PC=")" L_claude="Claude" L_folder="Folder" L_personal="personal account" L_nonorg="not the Branch8 organisation account"
          L_remind="Note: this is company work, and this session is not on the Branch8 organisation account"
-         L_nomap="no Jira project recorded yet" L_nojira="no Jira" ;;
+         L_nomap="no Jira project recorded yet" L_nojira="no Jira" L_jiraacct="account: /jira-todo" ;;
 esac
 
 who="${email:-unknown account}"
@@ -198,13 +198,28 @@ else
   where=$L_nomap
 fi
 
-if [ "$icon" = "⚠️" ]; then head="━━ ⚠️ Branch8 ━━━━━━━━━━━━━━━━"; else head="━━ 🔷 Branch8 ━━━━━━━━━━━━━━━━"; fi
-banner="$head
-$icon $L_claude  $acct"
+# The same rule on both sides of the name; head and labels in bold cyan, a
+# warning in yellow (b8_jesc escapes the ESC for the JSON).
+E=$(printf '\033')
+C="${E}[1;36m" Y="${E}[33m" R="${E}[0m"
+rule="━━━━━━━━━━"
+if [ "$icon" = "⚠️" ]; then head="$Y$rule ⚠️ Branch8 $rule$R"; else head="$C$rule 🔷 Branch8 $rule$R"; fi
+# Labels padded to the same display width (Claude, 資料夾: 6; Jira: 4).
+site=${BRANCH8_JIRA_SITE#https://}
+site=${site%/}
+# Leading newline: the UI prints the message after "SessionStart:startup says:",
+# so without it the head sits on that line and the rest starts at the margin.
+banner="
+$head
+$icon $C$L_claude$R  $acct"
 [ -n "$remind" ] && banner="$banner
-   $remind"
+   $Y$remind$R"
+# The Jira account is unknown here (the MCP connects after this hook): the
+# pane names it once it answers.
+[ -n "$site" ] && banner="$banner
+🔗 ${C}Jira$R    $site · $L_jiraacct"
 banner="$banner
-📁 $L_folder  $(basename "$work_root") → $where"
+📁 $C$L_folder$R  $(basename "$work_root") → $where"
 
 # ---- Instructions for Claude ------------------------------------------------
 

@@ -16,7 +16,8 @@ declare module 'claude-code' {
     'branch8-jira-mod': {
       ticket: Ticket | null
       asked: string[]
-      refreshedAt: number
+      // The ticket whose unknown status was asked of Jira once (never polled).
+      statusAskedFor: string | null
       todos: Todos
       todoOpen: boolean
       todoFolded: string[]
@@ -24,7 +25,8 @@ declare module 'claude-code' {
       lang: 'zh-TW' | 'zh-CN' | 'en'
       statusFolded: string[]
       scopePref: 'auto' | 'folder' | 'all'
-      folder: { dir: string; project: string | null; name: string }
+      // noJira: the folder's record says it uses no Jira (not merely unmapped).
+      folder: { dir: string; project: string | null; name: string; noJira?: boolean }
       // The row menu under one ticket; status while its status popup is open:
       // the moves Jira offers (loading until they come), and the one picked to confirm.
       menu: {
@@ -39,6 +41,9 @@ declare module 'claude-code' {
       // The settings popup: null when closed.
       settings: string | null
       autoOpen: boolean
+      // The pane's account block: the Claude login, and the Jira user once the
+      // Atlassian MCP answers (checked: asked already, whatever came back).
+      account: { claude: { email: string; org: string; plan: string } | null; jira: { name: string; email: string } | null; isJiraChecked: boolean }
       // Only tickets updated within this many days; 0 for any age.
       range: number
       isOrg: boolean

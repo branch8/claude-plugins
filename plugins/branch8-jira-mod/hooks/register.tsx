@@ -24,12 +24,16 @@ import {
   focusOrder,
   stepFocus,
   isArrowScroll,
+  syncTicket,
   pickNote,
   manifestVersion,
   isNewer,
   updateOutcome,
   parseTransitions,
   moveNote,
+  claudeAccount,
+  parseJiraUser,
+  jiraWarning,
   leftFrom,
   settingsValues,
   menuValues,
@@ -57,7 +61,8 @@ import {
 const P = 'branch8-jira-mod'
 const ticketAtom = atom({ plugin: 'branch8-jira-mod', key: 'ticket' } as const, null)
 const askedAtom = atom({ plugin: 'branch8-jira-mod', key: 'asked' } as const, [])
-const refreshedAtom = atom({ plugin: 'branch8-jira-mod', key: 'refreshedAt' } as const, 0)
+// The ticket whose unknown status was asked of Jira once; the band never polls.
+const statusAskedAtom = atom({ plugin: 'branch8-jira-mod', key: 'statusAskedFor' } as const, null)
 const todosAtom = atom({ plugin: 'branch8-jira-mod', key: 'todos' } as const, {
   items: [],
   error: null,
@@ -89,6 +94,12 @@ const orgAtom = atom({ plugin: 'branch8-jira-mod', key: 'isOrg' } as const, fals
 // The row menu open under one ticket (Enter on a row), if any.
 const menuAtom = atom({ plugin: 'branch8-jira-mod', key: 'menu' } as const, null)
 // The settings popup under the toolbar's ⚙ button: null when closed.
+// The account block at the top of the pane.
+const accountAtom = atom({ plugin: 'branch8-jira-mod', key: 'account' } as const, {
+  claude: null,
+  jira: null,
+  isJiraChecked: false,
+})
 const settingsAtom = atom({ plugin: 'branch8-jira-mod', key: 'settings' } as const, null)
 // The ticket row the pane's focus ring is on, for the "o" hotkey.
 const focusedAtom = atom({ plugin: 'branch8-jira-mod', key: 'focusedKey' } as const, null)
@@ -117,7 +128,6 @@ const ROW_WIDTH = PANE_WIDTH - 10
 
 // The Atlassian MCP under either name it is installed as.
 const ATLASSIAN = ['plugin:atlassian:atlassian', 'claude.ai Atlassian Rovo']
-const REFRESH_MS = 60_000
 
 const str = (v: unknown) => (typeof v === 'string' ? v : '')
 
@@ -182,7 +192,9 @@ async function resolveFolder($: EngineInterface): Promise<void> {
   }
   const name = base.split(/[/\\]/).filter(Boolean).pop() || base
   await update($, folderAtom, () =>
-    rec?.kind === 'project' ? { dir: name, project: rec.key, name: rec.name } : { dir: name, project: null, name: '' },
+    rec?.kind === 'project'
+      ? { dir: name, project: rec.key, name: rec.name }
+      : { dir: name, project: null, name: '', noJira: rec?.kind === 'none' },
   )
 }
 
@@ -347,6 +359,12 @@ async function loadTodos(
         const seen = new Set(more ? before.items.map(i => i.key) : [])
         const items = more ? [...before.items, ...page.items.filter(i => !seen.has(i.key))] : page.items
         await update($, todosAtom, () => ({ items, error: null, isLoading: false, isLoaded: true, next: page.next }))
+        // The band follows the list: a status moved in Jira shows on the next
+        // load or refresh, with no request of its own.
+        const synced = syncTicket(await read($, ticketAtom), items)
+        if (synced) await update($, ticketAtom, () => synced)
+        // Jira answers now: the account block can name its user.
+        void loadJiraUser($)
         return { ok: true, text: str.todoCount(items.length) }
       }
       error = str.queryFailed
@@ -369,15 +387,45 @@ async function onOrgAccount($: EngineInterface): Promise<boolean> {
     await $.env.get('CLAUDE_CODE_USE_VERTEX'),
     await $.env.get('CLAUDE_CODE_USE_FOUNDRY'),
   ]
+  const text = await readClaudeJson($)
+  if (text === null) return false
+  const orgId = (await $.env.get('BRANCH8_ORG_ID')) || DEFAULT_ORG_ID
+  return isOrgAccount(text, orgId, overrides.some(Boolean))
+}
+
+// The config dir's .claude.json (it follows CLAUDE_CONFIG_DIR), else the one
+// in home; null when neither exists.
+async function readClaudeJson($: EngineInterface): Promise<string | null> {
   const home = await homeDir($)
-  const dirs = [(await $.env.get('CLAUDE_CONFIG_DIR')) || home, home]
-  for (const dir of dirs) {
+  for (const dir of [(await $.env.get('CLAUDE_CONFIG_DIR')) || home, home]) {
     const file = `${dir}/.claude.json`
-    if (!(await $.fs.exists(file))) continue
-    const orgId = (await $.env.get('BRANCH8_ORG_ID')) || DEFAULT_ORG_ID
-    return isOrgAccount(await $.fs.read(file), orgId, overrides.some(Boolean))
+    if (await $.fs.exists(file)) return $.fs.read(file)
   }
-  return false
+  return null
+}
+
+// Asks once which Jira user the Atlassian MCP is signed in as, for the
+// account block; the plugin server's atlassianUserInfo gives no email.
+async function loadJiraUser($: EngineInterface): Promise<void> {
+  if ((await read($, accountAtom)).isJiraChecked) return
+  const cloudId = (await read($, ticketAtom))?.cloudId || SITE
+  const calls: [string, string, Record<string, unknown>][] = [
+    [ATLASSIAN[0]!, 'executeRead', { name: 'getJiraCurrentUser', cloudId, inputs: {} }],
+    [ATLASSIAN[1]!, 'atlassianUserInfo', {}],
+  ]
+  for (const [server, tool, args] of calls) {
+    try {
+      const res = await $.mcp.call(server, tool, args)
+      if (res.isError) continue
+      const user = parseJiraUser(res.content as { type: string; text?: string }[])
+      if (user) {
+        await update($, accountAtom, a => ({ ...a, jira: user, isJiraChecked: true }))
+        return
+      }
+    } catch {
+      // Not connected under this name; try the next one.
+    }
+  }
 }
 
 export const register: Register = on => {
@@ -449,6 +497,13 @@ export const register: Register = on => {
     }
     // In the background: the pane offers the update once it answers.
     void checkLatest($)
+    try {
+      const text = await readClaudeJson($)
+      const claude = text === null ? null : claudeAccount(text)
+      await update($, accountAtom, a => ({ ...a, claude }))
+    } catch {
+      // The block leaves the Claude line out.
+    }
     try {
       const range = await $.store.get('range')
       if (typeof range === 'number' && range >= 0) await update($, rangeAtom, () => range)
@@ -588,6 +643,8 @@ export const register: Register = on => {
     const settings = await read($, settingsAtom)
     const range = await read($, rangeAtom)
     const version = await read($, versionAtom)
+    const account = await read($, accountAtom)
+    const jiraWarn = account.jira ? jiraWarning(account.jira.email, account.claude?.email ?? null) : null
     const latest = await read($, latestAtom)
     const canUpdate = isNewer(latest.version, version)
     const ticket = await read($, ticketAtom)
@@ -604,11 +661,8 @@ export const register: Register = on => {
       }
     }
     const pick = async (item: (typeof todos.items)[number]) => {
-      const now = await $.clock.now()
       await update($, menuAtom, () => null)
       await update($, ticketAtom, () => ({ ...item, cloudId }))
-      // The list was just read from Jira; no need to refresh at once.
-      await update($, refreshedAtom, () => now)
       $.ui.toast(str.current(item.key))
       await tellClaude($, { ...item, cloudId })
     }
@@ -625,11 +679,45 @@ export const register: Register = on => {
 
     return (
       <Box flexDirection="column">
-        {folder.project ? (
-          <Text bold>{str.folderLine(folder.dir, folder.project, folder.name)}</Text>
-        ) : (
-          <Text bold>{str.folderUnmapped(folder.dir || '?')}</Text>
+        {/* The session's accounts and folder, as branch8-jira-check's banner,
+            plus the Jira user the banner cannot know (MCP is not up yet then). */}
+        {account.claude && (
+          <Text>
+            <Text>{'✅ '}</Text>
+            <Text color="claude" bold>{`${str.labelClaude}  `}</Text>
+            <Text bold>{account.claude.email}</Text>
+            <Text dimColor>
+              {account.claude.org ? `（${account.claude.org}${account.claude.plan ? ` · ${account.claude.plan}` : ''}）` : ''}
+            </Text>
+          </Text>
         )}
+        {account.jira ? (
+          <Text>
+            <Text>{`${jiraWarn ? '⚠️' : '🔗'} `}</Text>
+            <Text color="claude" bold>{`${str.labelJira}  `}</Text>
+            <Text bold>{account.jira.name}</Text>
+            <Text dimColor>{`（${account.jira.email}）`}</Text>
+          </Text>
+        ) : (
+          <Text>
+            <Text>{'🔗 '}</Text>
+            <Text color="claude" bold>{`${str.labelJira}  `}</Text>
+            <Text dimColor>{str.jiraPending}</Text>
+          </Text>
+        )}
+        {jiraWarn && (
+          <Text color="warning">{`   ${jiraWarn === 'domain' ? str.jiraDomain : str.jiraDiffers}`}</Text>
+        )}
+        <Text>
+          <Text>{'📁 '}</Text>
+          <Text color="claude" bold>{`${str.labelFolder}  `}</Text>
+          <Text bold>{folder.dir || '?'}</Text>
+          <Text color={folder.project ? 'success' : undefined} dimColor={!folder.project}>
+            {folder.project
+              ? ` → Jira ${folder.project}${folder.name ? `（${folder.name}）` : ''}`
+              : ` → ${folder.noJira ? str.noJiraFolder : str.unmappedFolder}`}
+          </Text>
+        </Text>
         <Text dimColor>{folder.project ? str.changeMapping : str.setMapping}</Text>
         <Box flexDirection="column" borderStyle="round" borderDimColor paddingX={1} marginTop={1}>
           <Text dimColor bold>{str.helpTitle + (version ? ` · v${version}` : '')}</Text>
@@ -712,6 +800,16 @@ export const register: Register = on => {
           <Button key="clear-top" plain label={str.clearTicket(current)} onPress={clearTicket} />
         )}
         <Text dimColor>{'─'.repeat(PANE_WIDTH - 4)}</Text>
+        <Button
+          key="refresh"
+          plain
+          dimColor
+          label={todos.isLoading ? str.refreshing : str.refresh}
+          onPress={async () => {
+            if (todos.isLoading) return
+            await loadTodos($, str)
+          }}
+        />
         {todos.isLoading && <Text dimColor>{todos.items.length ? str.refreshing : str.loading + '…'}</Text>}
         {todos.error && <Text color="error">{todos.error}</Text>}
         {todos.isLoaded && !todos.isLoading && !todos.error && todos.items.length === 0 && (
@@ -762,7 +860,7 @@ export const register: Register = on => {
                               <Button
                                 key={item.key}
                                 plain
-                                label={(item.key === current ? '▶ ' : '') + `${typeIcon(item.type)} ${todoRow(item, ROW_WIDTH - 3)}`}
+                                {...(item.key === current ? {} : { label: `${typeIcon(item.type)} ${todoRow(item, ROW_WIDTH - 3)}` })}
                                 onPress={async () => {
                                   if (menu?.item.key === item.key) return update($, menuAtom, () => null)
                                   const other = isOtherProject(item.key, folder.project)
@@ -771,7 +869,12 @@ export const register: Register = on => {
                                   const first = menuValues(other, item.key === current)[0]
                                   await focusOn($, `menu-${item.key}-${first}`)
                                 }}
-                              />
+                              >
+                                {/* The current ticket stands out: the rest are plain labels. */}
+                                {item.key === current && (
+                                  <Text bold color="success">{`▶ ${typeIcon(item.type)} ${todoRow(item, ROW_WIDTH - 3)}`}</Text>
+                                )}
+                              </Button>
                               <Text color="suggestion">{' 🔗'}</Text>
                             </Box>
                             {menu?.item.key === item.key && (
@@ -997,7 +1100,6 @@ export const register: Register = on => {
       }
     }
     await update($, ticketAtom, () => t)
-    await update($, refreshedAtom, () => 0)
     return { result: `Current ticket set to ${t.key}.` as never }
   }).catch(($, e, next) => next(e))
 
@@ -1061,7 +1163,9 @@ export const register: Register = on => {
     return <Text>{line}</Text>
   })
 
-  // Pick up status changes made in Jira, at most once a minute.
+  // The band's status comes with the ticket (the pane, set_ticket) and follows
+  // the pane's loads and moves; Jira is asked only for a status still unknown,
+  // once per ticket. No polling.
   on('turn.complete', async ($, e, next) => {
     const out = await next(e)
     // Records can change outside this session, or /cd can move it.
@@ -1071,10 +1175,8 @@ export const register: Register = on => {
       // Keep the previous answer.
     }
     const t = await read($, ticketAtom)
-    if (!t) return out
-    const now = await $.clock.now()
-    if (now - (await read($, refreshedAtom)) < REFRESH_MS) return out
-    await update($, refreshedAtom, () => now)
+    if (!t || t.status || (await read($, statusAskedAtom)) === t.key) return out
+    await update($, statusAskedAtom, () => t.key)
 
     let fresh: { summary?: string; status?: string } | null = null
     for (const server of ATLASSIAN) {
@@ -1092,10 +1194,7 @@ export const register: Register = on => {
         // Not connected under this name; try the next one.
       }
     }
-    const lang = (await read($, langAtom)) as Lang
-    await update($, ticketAtom, cur =>
-      cur && cur.key === t.key ? { ...cur, ...(fresh ?? { status: STRINGS[lang].statusUnknown }) } : cur,
-    )
+    if (fresh) await update($, ticketAtom, cur => (cur && cur.key === t.key ? { ...cur, ...fresh } : cur))
     return out
   })
 }

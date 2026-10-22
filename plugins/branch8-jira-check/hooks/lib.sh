@@ -32,8 +32,12 @@ b8_jget() {
 }
 
 # JSON string escape (no jq on most machines).
+# ESC goes out as \u001b: the banner's colours, raw, would make the JSON
+# invalid and Claude Code drops the whole message. printf, not sed's \x1b,
+# which BSD sed on macOS does not read.
 b8_jesc() {
-  sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/\t/\\t/g' -e 's/\r//g' |
+  _b8_esc=$(printf '\033')
+  sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/\t/\\t/g' -e 's/\r//g' -e "s/$_b8_esc/\\\\u001b/g" |
     awk 'NR > 1 { printf "\\n" } { printf "%s", $0 }'
 }
 

@@ -168,6 +168,10 @@ plugins/                          自己寫的 plugin。目前只有 branch8-jir
                                   只給 Claude 2 KB 預覽（2026-09-30 實測 9 KB 內嵌、13.7 KB 被轉存），
                                   指示等於失效。所以 hooks/context/ 只放短版、依情況挑段落，
                                   詳細步驟放 docs/ 由 Claude 需要時才讀；tests/context-size.sh 在 CI 把關。
+                                  開頭橫幅（systemMessage）可用 ANSI 顏色，但 ESC 必須由 b8_jesc 跳脫成 \u001b——沒跳脫時
+                                  JSON 無效，Claude Code 整段丟掉、畫面上什麼都沒有（2026-10-23 實測）。開頭要加換行，否則
+                                  第一行黏在「SessionStart:startup says:」後面。驗證時要在開場當下擷取畫面：claude-mem 等
+                                  開場輸出很快把橫幅擠出全螢幕畫面，事後找不到不代表沒顯示。
                                   開頭橫幅是多行區塊（2026-10-08 實測介面會照行顯示），語言依 Claude Code
                                   的 `language` 設定（zh-TW / zh-CN / en，BRANCH8_LANG 可覆蓋）。
                                   非組織帳號處理公司專案時只「提醒」，不跳卡要求切換——由使用者自己決定。

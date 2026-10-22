@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { detectNode, reminderFor, formatBand, rulesSection, parseIssueStatus, parseIssueList, todoJql, nextRange, parseIssuePage, TODO_FIELDS, ISSUE_FIELDS, displayWidth, bandText, TODO_HELP, groupTodos, issueUrl, todoRow, langOf, STRINGS, statusTone, nextLangPref, resolveLang, recordFileName, ancestorDirs, parseRecord, projectOf, isOtherProject, applyScope, effectiveScope, foldersFor, suggestedFolder, typeIcon, focusedTicket, isOrgAccount, touchesFolderRecords, focusOrder, stepFocus, isArrowScroll, settingsValues, menuValues, leftFrom, pickNote, manifestVersion, isNewer, updateOutcome, parseTransitions, moveNote } from './logic'
+import { detectNode, reminderFor, formatBand, rulesSection, parseIssueStatus, parseIssueList, todoJql, nextRange, parseIssuePage, TODO_FIELDS, ISSUE_FIELDS, displayWidth, bandText, TODO_HELP, groupTodos, issueUrl, todoRow, langOf, STRINGS, statusTone, nextLangPref, resolveLang, recordFileName, ancestorDirs, parseRecord, projectOf, isOtherProject, applyScope, effectiveScope, foldersFor, suggestedFolder, typeIcon, focusedTicket, isOrgAccount, touchesFolderRecords, focusOrder, stepFocus, isArrowScroll, settingsValues, menuValues, leftFrom, pickNote, manifestVersion, isNewer, updateOutcome, parseTransitions, moveNote, claudeAccount, parseJiraUser, jiraWarning, syncTicket } from './logic'
 
 const T = { key: 'HS-1', summary: '修正請假審核通知', status: '待辦事項', cloudId: 'c' }
 
@@ -51,7 +51,7 @@ test('band text', () => {
 })
 
 test('band before Jira answers: no blank summary or status', () => {
-  expect(formatBand({ ...T, summary: '', status: '' })).toBe('🎫 HS-1 · 查詢中')
+  expect(formatBand({ ...T, summary: '', status: '' })).toBe('🎫 HS-1')
 })
 
 test('band takes a narrower width for the pane', () => {
@@ -220,7 +220,7 @@ test('every language has every string, and the help fits the pane', () => {
 test('band speaks the user language', () => {
   expect(bandText(null, 17, 78, STRINGS.en)).toBe('📋 Jira: 17 open · /jira-todo')
   expect(bandText(T, 3, 78, STRINGS.en)?.endsWith(' · 3 open')).toBe(true)
-  expect(formatBand({ ...T, status: '' }, 78, STRINGS.en)).toBe('🎫 HS-1 修正請假審核通知 · loading')
+  expect(formatBand({ ...T, status: '' }, 78, STRINGS.en)).toBe('🎫 HS-1 修正請假審核通知')
 })
 
 test('status colours by meaning, not by Jira category', () => {
@@ -293,8 +293,6 @@ test('scope defaults to this folder when it is mapped', () => {
 test('new strings exist in every language and fit the pane', () => {
   for (const lang of ['zh-TW', 'zh-CN', 'en'] as const) {
     const s = STRINGS[lang]
-    expect(displayWidth(s.folderLine('claude-plugins', 'HS', 'HR System')) > 0).toBe(true)
-    expect(s.folderLine('a', 'HS', 'HR').includes('↔')).toBe(true)
     expect(displayWidth(s.thisFolderTag) <= 24).toBe(true)
     expect(displayWidth(s.otherTag) <= 26).toBe(true)
     expect(s.confirmOther('HTGO2-1', 'HS').includes('HTGO2-1')).toBe(true)
@@ -463,7 +461,7 @@ const ORDER_GROUPS = groupTodos([
 
 test('focus order follows the drawn tree', () => {
   expect(focusOrder({ groups: ORDER_GROUPS, folded: [], statusFolded: [] })).toEqual([
-    'settings', 'hotkey-o',
+    'settings', 'hotkey-o', 'refresh',
     'p-HS', 's-HS/待辦', 'HS-1', 's-HS/進行中', 'HS-2',
     'p-HTGO2', 's-HTGO2/待辦', 'HTGO2-9',
   ])
@@ -480,7 +478,7 @@ test('focus order skips folded branches and adds open menus and the unselect but
       menu: { key: 'HS-1', values: ['clear', 'cancel'] },
     }),
   ).toEqual([
-    'settings', 'hotkey-o', 'settings-lang', 'settings-back', 'clear-top',
+    'settings', 'hotkey-o', 'settings-lang', 'settings-back', 'clear-top', 'refresh',
     'p-HS', 's-HS/待辦', 'HS-1', 'menu-HS-1-clear', 'menu-HS-1-cancel', 's-HS/進行中', 'p-HTGO2',
   ])
 })
@@ -680,4 +678,59 @@ test('status-change strings in every language', () => {
     expect(s.needsFields.length > 0).toBe(true)
   }
   expect(STRINGS['zh-TW'].menuStatus).toBe('↻ 切換狀態')
+})
+
+test('refresh strings in every language', () => {
+  for (const lang of ['zh-TW', 'zh-CN', 'en'] as const) expect(STRINGS[lang].refresh.startsWith('⟳')).toBe(true)
+  expect(STRINGS['zh-TW'].refresh).toBe('⟳ 重新整理')
+})
+
+test('the Claude account from .claude.json', () => {
+  const j = JSON.stringify({
+    oauthAccount: { emailAddress: 'g@branch8.com', organizationName: 'Branch8', organizationType: 'claude_team' },
+  })
+  expect(claudeAccount(j)).toEqual({ email: 'g@branch8.com', org: 'Branch8', plan: 'team' })
+  expect(claudeAccount('{}')).toBeNull()
+  expect(claudeAccount('nope')).toBeNull()
+})
+
+test('the Jira user from either Atlassian server', () => {
+  const plugin = [{ type: 'text', text: JSON.stringify({ data: { displayName: 'Glenn Cheng', emailAddress: 'glenn@branch8.com' } }) }]
+  const rovo = [{ type: 'text', text: JSON.stringify({ name: 'Glenn Cheng', email: 'glenn@branch8.com' }) }]
+  expect(parseJiraUser(plugin)).toEqual({ name: 'Glenn Cheng', email: 'glenn@branch8.com' })
+  expect(parseJiraUser(rovo)).toEqual({ name: 'Glenn Cheng', email: 'glenn@branch8.com' })
+  expect(parseJiraUser([{ type: 'text', text: '{"accountId":"x"}' }])).toBeNull()
+})
+
+test('a Jira account outside the company or unlike the Claude one is flagged', () => {
+  expect(jiraWarning('glenn@branch8.com', 'glenn@branch8.com')).toBeNull()
+  expect(jiraWarning('glenn@gmail.com', 'glenn@branch8.com')).toBe('domain')
+  expect(jiraWarning('karen@branch8.com', 'glenn@branch8.com')).toBe('differs')
+  expect(jiraWarning('GLENN@branch8.com', 'glenn@BRANCH8.com')).toBeNull()
+  expect(jiraWarning('glenn@branch8.com', null)).toBeNull()
+})
+
+test('account block strings in every language', () => {
+  for (const lang of ['zh-TW', 'zh-CN', 'en'] as const) {
+    const s = STRINGS[lang]
+    for (const v of [s.labelClaude, s.labelJira, s.labelFolder, s.jiraPending, s.jiraDomain, s.jiraDiffers, s.noJiraFolder, s.unmappedFolder]) {
+      expect(v.length > 0).toBe(true)
+    }
+  }
+})
+
+test('a single issue read with named fields answers as issues.nodes', () => {
+  const text = JSON.stringify({
+    issues: { nodes: [{ key: 'HS-134', fields: { summary: 'S', status: { name: 'Dev done, QA to to' } } }] },
+  })
+  expect(parseIssueStatus([{ type: 'text', text }])).toEqual({ summary: 'S', status: 'Dev done, QA to to' })
+})
+
+test('the band takes the current ticket status from the pane list, without asking Jira', () => {
+  const t = { key: 'HS-8', summary: 'S', status: 'Backlog', cloudId: 'c' }
+  const items = [{ key: 'HS-8', summary: 'S2', status: '進行中' }, { key: 'HS-9', summary: 'x', status: 'y' }]
+  expect(syncTicket(t, items)).toEqual({ ...t, summary: 'S2', status: '進行中' })
+  expect(syncTicket(t, [{ key: 'HS-9', summary: 'x', status: 'y' }])).toBeNull()
+  expect(syncTicket({ ...t, status: '進行中', summary: 'S2' }, items)).toBeNull()
+  expect(syncTicket(null, items)).toBeNull()
 })

@@ -99,9 +99,10 @@ const BAND_WIDTH = 78
 
 // One line above the prompt. `width` is the column budget for the whole line.
 export function formatBand(ticket: Ticket, width = BAND_WIDTH, str: Strings = STRINGS['zh-TW']): string {
-  const status = ticket.status || str.loading
+  // An unknown status is left out: the band asks Jira once, never polls, so a
+  // "loading" there could stay forever.
   const head = `🎫 ${ticket.key}`
-  const tail = ` · ${fitWidth(status, 24)}`
+  const tail = ticket.status ? ` · ${fitWidth(ticket.status, 24)}` : ''
   const room = width - displayWidth(head) - displayWidth(tail) - 1
   const summary = ticket.summary && room > 3 ? ` ${fitWidth(ticket.summary, room)}` : ''
   return `${head}${summary}${tail}`
@@ -164,10 +165,14 @@ function firstJson(content: Content): unknown {
 export function parseIssueStatus(content: Content): { summary?: string; status?: string } | null {
   const json = firstJson(content) as { data?: unknown } | null
   if (!json) return null
-  const issue = (json.data ?? json) as { fields?: { summary?: unknown; status?: { name?: unknown } } }
+  type Issue = { fields?: { summary?: unknown; status?: { name?: unknown } } }
+  const body = (json.data ?? json) as Issue & { issues?: { nodes?: unknown } | unknown[] }
+  // Named fields answer as a one-issue search, { issues: { nodes: [...] } }.
+  const list = Array.isArray(body.issues) ? body.issues : (body.issues as { nodes?: unknown } | undefined)?.nodes
+  const issue = (Array.isArray(list) ? list[0] : body) as Issue | undefined
   const status = issue?.fields?.status?.name
   if (typeof status !== 'string') return null
-  const summary = issue.fields?.summary
+  const summary = issue?.fields?.summary
   return typeof summary === 'string' ? { summary, status } : { status }
 }
 
@@ -313,7 +318,6 @@ export type Strings = {
   openFailed: (url: string) => string
   loading: string
   refreshing: string
-  statusUnknown: string
   empty: string
   noStatus: string
   noJira: string
@@ -324,8 +328,6 @@ export type Strings = {
   current: (key: string) => string
   bandNoTicket: (n: number) => string
   bandTail: (n: number) => string
-  folderLine: (dir: string, key: string, name: string) => string
-  folderUnmapped: (dir: string) => string
   changeMapping: string
   setMapping: string
   thisFolderTag: string
@@ -370,6 +372,15 @@ export type Strings = {
   moved: (key: string, to: string) => string
   moveFailed: (url: string) => string
   needsFields: string
+  refresh: string
+  labelClaude: string
+  labelJira: string
+  labelFolder: string
+  jiraPending: string
+  jiraDomain: string
+  jiraDiffers: string
+  noJiraFolder: string
+  unmappedFolder: string
 }
 
 const LANG_NAMES = { 'zh-TW': '繁中', 'zh-CN': '简中', en: 'English' }
@@ -399,13 +410,21 @@ export const STRINGS: Record<Lang, Strings> = {
     moved: (key, to) => `${key} 已移到「${to}」`,
     moveFailed: url => `Jira 沒有接受這次切換（可能要填欄位或沒有權限），請到網頁處理：${url}`,
     needsFields: '⚠ Jira 在這一步可能要求填欄位',
+    refresh: '⟳ 重新整理',
+    labelClaude: 'Claude',
+    labelJira: 'Jira  ',
+    labelFolder: '資料夾',
+    jiraPending: '連線中…',
+    jiraDomain: '⚠ 不是公司網域的帳號',
+    jiraDiffers: '⚠ 和 Claude 帳號不同',
+    noJiraFolder: '不使用 Jira',
+    unmappedFolder: '尚未對應 Jira 專案',
     language: '語言：',
     langNames: { ...LANG_NAMES, auto: '自動' },
     open: '開啟',
     openFailed: url => `無法開啟瀏覽器：${url}`,
     loading: '查詢中',
     refreshing: '更新中…',
-    statusUnknown: '狀態無法取得',
     empty: '沒有指派給你、還沒完成的單。',
     noStatus: '（無狀態）',
     noJira: 'Jira 沒有連線（找不到 Atlassian MCP），請先跑 /jira-check',
@@ -416,8 +435,6 @@ export const STRINGS: Record<Lang, Strings> = {
     current: key => `目前的單：${key}`,
     bandNoTicket: n => `📋 Jira 待辦 ${n} 張 · /jira-todo`,
     bandTail: n => ` · 待辦 ${n}`,
-    folderLine: (dir, key, name) => `📁 ${dir} ↔ Jira ${key}${name ? `（${name}）` : ''}`,
-    folderUnmapped: dir => `📁 ${dir} ↔ （未對應 Jira 專案）`,
     changeMapping: '   改對應：/jira-board',
     setMapping: '   設定：/jira-board',
     thisFolderTag: '← 本資料夾的專案',
@@ -466,13 +483,21 @@ export const STRINGS: Record<Lang, Strings> = {
     moved: (key, to) => `${key} 已移到「${to}」`,
     moveFailed: url => `Jira 没有接受这次切换（可能要填字段或没有权限），请到网页处理：${url}`,
     needsFields: '⚠ Jira 在这一步可能要求填字段',
+    refresh: '⟳ 刷新',
+    labelClaude: 'Claude',
+    labelJira: 'Jira  ',
+    labelFolder: '文件夹',
+    jiraPending: '连接中…',
+    jiraDomain: '⚠ 不是公司域名的账号',
+    jiraDiffers: '⚠ 和 Claude 账号不同',
+    noJiraFolder: '不使用 Jira',
+    unmappedFolder: '尚未对应 Jira 项目',
     language: '语言：',
     langNames: { ...LANG_NAMES, auto: '自动' },
     open: '打开',
     openFailed: url => `无法打开浏览器：${url}`,
     loading: '查询中',
     refreshing: '更新中…',
-    statusUnknown: '无法取得状态',
     empty: '没有指派给你、尚未完成的单。',
     noStatus: '（无状态）',
     noJira: 'Jira 未连接（找不到 Atlassian MCP），请先运行 /jira-check',
@@ -483,8 +508,6 @@ export const STRINGS: Record<Lang, Strings> = {
     current: key => `当前的单：${key}`,
     bandNoTicket: n => `📋 Jira 待办 ${n} 张 · /jira-todo`,
     bandTail: n => ` · 待办 ${n}`,
-    folderLine: (dir, key, name) => `📁 ${dir} ↔ Jira ${key}${name ? `（${name}）` : ''}`,
-    folderUnmapped: dir => `📁 ${dir} ↔ （未对应 Jira 项目）`,
     changeMapping: '   改对应：/jira-board',
     setMapping: '   设置：/jira-board',
     thisFolderTag: '← 本文件夹的项目',
@@ -533,13 +556,21 @@ export const STRINGS: Record<Lang, Strings> = {
     moved: (key, to) => `${key} moved to "${to}"`,
     moveFailed: url => `Jira did not take the move (fields to fill, or no permission); do it on the web: ${url}`,
     needsFields: '⚠ Jira may ask for fields on this step',
+    refresh: '⟳ Refresh',
+    labelClaude: 'Claude',
+    labelJira: 'Jira  ',
+    labelFolder: 'Folder',
+    jiraPending: 'connecting…',
+    jiraDomain: '⚠ not a company account',
+    jiraDiffers: '⚠ not the Claude account',
+    noJiraFolder: 'no Jira',
+    unmappedFolder: 'no Jira project recorded yet',
     language: 'Language: ',
     langNames: { ...LANG_NAMES, auto: 'Auto' },
     open: 'Open',
     openFailed: url => `Could not open a browser: ${url}`,
     loading: 'loading',
     refreshing: 'Refreshing…',
-    statusUnknown: 'status unavailable',
     empty: 'No open tickets assigned to you.',
     noStatus: '(no status)',
     noJira: 'Jira is not connected (no Atlassian MCP). Run /jira-check',
@@ -550,8 +581,6 @@ export const STRINGS: Record<Lang, Strings> = {
     current: key => `Current ticket: ${key}`,
     bandNoTicket: n => `📋 Jira: ${n} open · /jira-todo`,
     bandTail: n => ` · ${n} open`,
-    folderLine: (dir, key, name) => `📁 ${dir} ↔ Jira ${key}${name ? ` (${name})` : ''}`,
-    folderUnmapped: dir => `📁 ${dir} ↔ (no Jira project)`,
     changeMapping: '   change: /jira-board',
     setMapping: '   set: /jira-board',
     thisFolderTag: "← this folder's project",
@@ -744,6 +773,7 @@ export function focusOrder(o: {
   if (o.update) keys.push('update')
   for (const v of o.settings ?? []) keys.push(`settings-${v}`)
   if (o.current) keys.push('clear-top')
+  keys.push('refresh')
   for (const g of o.groups) {
     keys.push(`p-${g.project}`)
     if (o.folded.includes(g.project)) continue
@@ -878,4 +908,51 @@ export function parseTransitions(content: Content, current: string): Transition[
 // for why it is a row rather than the system prompt).
 export function moveNote(key: string, from: string, to: string): string {
   return `[branch8-jira-mod] In the /jira-todo pane the user moved ${key} in Jira from "${from}" to "${to}". It is done: do not move it again or ask about it.`
+}
+
+// The Claude login as the pane's account block shows it, from the config
+// dir's .claude.json (as branch8-jira-check's banner); null when signed out.
+export function claudeAccount(claudeJson: string): { email: string; org: string; plan: string } | null {
+  try {
+    const a = (JSON.parse(claudeJson) as { oauthAccount?: Record<string, unknown> }).oauthAccount
+    if (!a || typeof a.emailAddress !== 'string') return null
+    const str = (v: unknown) => (typeof v === 'string' ? v : '')
+    return { email: a.emailAddress, org: str(a.organizationName), plan: str(a.organizationType).replace(/^claude_/, '') }
+  } catch {
+    return null
+  }
+}
+
+// The Jira user signed in: getJiraCurrentUser (the plugin server, wrapped in
+// data) or atlassianUserInfo (claude.ai); null without a name and an email.
+export function parseJiraUser(content: Content): { name: string; email: string } | null {
+  const json = firstJson(content) as { data?: unknown } | null
+  if (!json) return null
+  const u = (json.data ?? json) as { displayName?: unknown; emailAddress?: unknown; name?: unknown; email?: unknown }
+  const name = typeof u.displayName === 'string' ? u.displayName : typeof u.name === 'string' ? u.name : ''
+  const email = typeof u.emailAddress === 'string' ? u.emailAddress : typeof u.email === 'string' ? u.email : ''
+  return name && email ? { name, email } : null
+}
+
+// Why the Jira account looks wrong, as branch8-jira-check's accounts check:
+// outside the company domain, or another person than the Claude login.
+export function jiraWarning(
+  jiraEmail: string,
+  claudeEmail: string | null,
+  domain = 'branch8.com',
+): 'domain' | 'differs' | null {
+  const j = jiraEmail.toLowerCase()
+  if (!j.endsWith(`@${domain}`)) return 'domain'
+  if (claudeEmail && j !== claudeEmail.toLowerCase()) return 'differs'
+  return null
+}
+
+// The current ticket as the pane's freshly read list has it, so the band
+// follows a status change without asking Jira on its own; null when the
+// ticket is not in the list or nothing changed.
+export function syncTicket(ticket: Ticket | null, items: readonly TodoItem[]): Ticket | null {
+  if (!ticket) return null
+  const item = items.find(i => i.key === ticket.key)
+  if (!item || (item.status === ticket.status && item.summary === ticket.summary)) return null
+  return { ...ticket, summary: item.summary || ticket.summary, status: item.status || ticket.status }
 }
