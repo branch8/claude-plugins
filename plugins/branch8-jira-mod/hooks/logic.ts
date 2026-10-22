@@ -358,6 +358,18 @@ export type Strings = {
   updated: (v: string) => string
   updateFailed: string
   alreadyLatest: (v: string) => string
+  menuStatus: string
+  statusTitle: (key: string) => string
+  statusNow: (status: string) => string
+  loadingTransitions: string
+  noTransitions: string
+  confirmMove: (key: string) => string
+  confirmYes: string
+  confirmNo: string
+  back: string
+  moved: (key: string, to: string) => string
+  moveFailed: (url: string) => string
+  needsFields: string
 }
 
 const LANG_NAMES = { 'zh-TW': '繁中', 'zh-CN': '简中', en: 'English' }
@@ -375,6 +387,18 @@ export const STRINGS: Record<Lang, Strings> = {
     updated: v => `已更新到 v${v}，重新載入中；若沒生效請開新 session`,
     updateFailed: '更新失敗，請手動執行 /plugin update branch8-jira-mod@branch8',
     alreadyLatest: v => `marketplace 目前最新仍是 v${v}，新版可能還沒同步，稍後再試`,
+    menuStatus: '↻ 切換狀態',
+    statusTitle: key => `${key} 切換到…`,
+    statusNow: status => `目前：${status || '未知'}`,
+    loadingTransitions: '向 Jira 查詢可切換的狀態…',
+    noTransitions: '這張單目前沒有可切換的狀態',
+    confirmMove: key => `確認切換 ${key}？`,
+    confirmYes: '✔ 確認',
+    confirmNo: '✕ 取消',
+    back: '↩ 返回',
+    moved: (key, to) => `${key} 已移到「${to}」`,
+    moveFailed: url => `Jira 沒有接受這次切換（可能要填欄位或沒有權限），請到網頁處理：${url}`,
+    needsFields: '⚠ Jira 在這一步可能要求填欄位',
     language: '語言：',
     langNames: { ...LANG_NAMES, auto: '自動' },
     open: '開啟',
@@ -430,6 +454,18 @@ export const STRINGS: Record<Lang, Strings> = {
     updated: v => `已更新到 v${v}，重新加载中；若没生效请开新 session`,
     updateFailed: '更新失败，请手动执行 /plugin update branch8-jira-mod@branch8',
     alreadyLatest: v => `marketplace 目前最新仍是 v${v}，新版可能还没同步，稍后再试`,
+    menuStatus: '↻ 切换状态',
+    statusTitle: key => `${key} 切换到…`,
+    statusNow: status => `目前：${status || '未知'}`,
+    loadingTransitions: '向 Jira 查询可切换的状态…',
+    noTransitions: '这张单目前没有可切换的状态',
+    confirmMove: key => `确认切换 ${key}？`,
+    confirmYes: '✔ 确认',
+    confirmNo: '✕ 取消',
+    back: '↩ 返回',
+    moved: (key, to) => `${key} 已移到「${to}」`,
+    moveFailed: url => `Jira 没有接受这次切换（可能要填字段或没有权限），请到网页处理：${url}`,
+    needsFields: '⚠ Jira 在这一步可能要求填字段',
     language: '语言：',
     langNames: { ...LANG_NAMES, auto: '自动' },
     open: '打开',
@@ -485,6 +521,18 @@ export const STRINGS: Record<Lang, Strings> = {
     updated: v => `Updated to v${v}, reloading; open a new session if it does not take`,
     updateFailed: 'Update failed: run /plugin update branch8-jira-mod@branch8',
     alreadyLatest: v => `The marketplace still has v${v}; the new one may not have synced yet, try again later`,
+    menuStatus: '↻ Change status',
+    statusTitle: key => `Move ${key} to…`,
+    statusNow: status => `Now: ${status || 'unknown'}`,
+    loadingTransitions: 'Asking Jira where it can move…',
+    noTransitions: 'This ticket has nowhere to move right now',
+    confirmMove: key => `Move ${key}?`,
+    confirmYes: '✔ Confirm',
+    confirmNo: '✕ Cancel',
+    back: '↩ Back',
+    moved: (key, to) => `${key} moved to "${to}"`,
+    moveFailed: url => `Jira did not take the move (fields to fill, or no permission); do it on the web: ${url}`,
+    needsFields: '⚠ Jira may ask for fields on this step',
     language: 'Language: ',
     langNames: { ...LANG_NAMES, auto: 'Auto' },
     open: 'Open',
@@ -675,7 +723,7 @@ export function settingsValues(hasProject: boolean): string[] {
 // What a row's menu offers, in order: another project's ticket first offers its
 // own folder; the current ticket offers unselecting instead of selecting.
 export function menuValues(other: boolean, isCurrent: boolean): string[] {
-  return [...(other ? ['move'] : []), isCurrent ? 'clear' : 'work', 'open', 'cancel']
+  return [...(other ? ['move'] : []), isCurrent ? 'clear' : 'work', 'status', 'open', 'cancel']
 }
 
 // The pane's focusable elements in the order the tree draws them: the arrows
@@ -686,7 +734,9 @@ export function focusOrder(o: {
   statusFolded: readonly string[]
   settings?: readonly string[] | null
   current?: string | null
-  menu?: { key: string; values: readonly string[] } | null
+  // An open row menu; transitions (their ids) when its status popup is open,
+  // confirm when the confirmation popup under it is.
+  menu?: { key: string; values: readonly string[]; transitions?: readonly string[] | null; confirm?: boolean } | null
   more?: boolean
   update?: boolean
 }): string[] {
@@ -703,7 +753,14 @@ export function focusOrder(o: {
       if (o.statusFolded.includes(fk)) continue
       for (const item of st.items) {
         keys.push(item.key)
-        if (o.menu?.key === item.key) for (const v of o.menu.values) keys.push(`menu-${item.key}-${v}`)
+        if (o.menu?.key === item.key) {
+          for (const v of o.menu.values) keys.push(`menu-${item.key}-${v}`)
+          if (o.menu.transitions) {
+            for (const id of o.menu.transitions) keys.push(`menu-${item.key}-t-${id}`)
+            keys.push(`menu-${item.key}-tback`)
+          }
+          if (o.menu.confirm) keys.push(`menu-${item.key}-yes`, `menu-${item.key}-no`)
+        }
       }
     }
   }
@@ -788,4 +845,37 @@ export function updateOutcome(stdout: string): { kind: 'updated' | 'latest'; ver
   const same = /already at the latest version \((\d[\w.-]*)\)/.exec(stdout)
   if (same?.[1]) return { kind: 'latest', version: same[1] }
   return null
+}
+
+// A move the ticket can make now, as the status popup lists it.
+export type Transition = { id: string; to: string; isDone: boolean; hasScreen: boolean }
+
+// The transitions a ticket can take now, from either Atlassian server's
+// answer (the plugin wraps it in data), less the one to its own status and
+// any Jira marks unavailable; null when unreadable. Never a fixed list: each
+// project's workflow differs (HS has 10 statuses, HTGO2 33).
+export function parseTransitions(content: Content, current: string): Transition[] | null {
+  const json = firstJson(content) as { data?: unknown } | null
+  if (!json) return null
+  const list = ((json.data ?? json) as { transitions?: unknown }).transitions
+  if (!Array.isArray(list)) return null
+  const out: Transition[] = []
+  for (const raw of list) {
+    const t = raw as {
+      id?: unknown
+      to?: { name?: unknown; statusCategory?: { key?: unknown } }
+      hasScreen?: unknown
+      isAvailable?: unknown
+    }
+    if (typeof t?.id !== 'string' || typeof t.to?.name !== 'string') continue
+    if (t.isAvailable === false || t.to.name === current) continue
+    out.push({ id: t.id, to: t.to.name, isDone: t.to.statusCategory?.key === 'done', hasScreen: t.hasScreen === true })
+  }
+  return out
+}
+
+// What Claude reads when the person moves a ticket in the pane (see pickNote
+// for why it is a row rather than the system prompt).
+export function moveNote(key: string, from: string, to: string): string {
+  return `[branch8-jira-mod] In the /jira-todo pane the user moved ${key} in Jira from "${from}" to "${to}". It is done: do not move it again or ask about it.`
 }

@@ -5,7 +5,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { Ticket } from '../types'
+import type { Ticket, Transition } from '../types'
 import type { FolderRecord, Lang, LangPref, Scope } from './logic'
 import {
   STRINGS,
@@ -28,6 +28,8 @@ import {
   manifestVersion,
   isNewer,
   updateOutcome,
+  parseTransitions,
+  moveNote,
   leftFrom,
   settingsValues,
   menuValues,
@@ -273,6 +275,46 @@ async function runUpdate($: EngineInterface, str: (typeof STRINGS)[Lang]): Promi
   }
 }
 
+// The moves a ticket can make now, from whichever Atlassian server answers;
+// null when neither does.
+async function loadTransitions($: EngineInterface, key: string, current: string): Promise<Transition[] | null> {
+  const cloudId = (await read($, ticketAtom))?.cloudId || SITE
+  const calls: [string, string, Record<string, unknown>][] = [
+    [ATLASSIAN[0]!, 'executeRead', { name: 'listJiraIssueTransitions', cloudId, inputs: { issueIdOrKey: key } }],
+    [ATLASSIAN[1]!, 'getTransitionsForJiraIssue', { cloudId, issueIdOrKey: key }],
+  ]
+  for (const [server, tool, args] of calls) {
+    try {
+      const res = await $.mcp.call(server, tool, args)
+      if (res.isError) continue
+      const list = parseTransitions(res.content as { type: string; text?: string }[], current)
+      if (list) return list
+    } catch {
+      // Not connected under this name; try the next one.
+    }
+  }
+  return null
+}
+
+// Moves a ticket in Jira; false when no server takes it (fields to fill, no
+// permission, or not connected). The person confirmed it in the pane.
+async function moveTicket($: EngineInterface, key: string, transitionId: string): Promise<boolean> {
+  const cloudId = (await read($, ticketAtom))?.cloudId || SITE
+  const calls: [string, Record<string, unknown>][] = [
+    [ATLASSIAN[0]!, { cloudId, issueIdOrKey: key, transitionId }],
+    [ATLASSIAN[1]!, { cloudId, issueIdOrKey: key, transition: { id: transitionId } }],
+  ]
+  for (const [server, args] of calls) {
+    try {
+      const res = await $.mcp.call(server, 'transitionJiraIssue', args)
+      if (!res.isError) return true
+    } catch {
+      // Not connected under this name; try the next one.
+    }
+  }
+  return false
+}
+
 async function loadTodos(
   $: EngineInterface,
   str: (typeof STRINGS)[Lang],
@@ -508,7 +550,14 @@ export const register: Register = on => {
       statusFolded: await read($, statusFoldedAtom),
       settings: settings ? settingsValues(Boolean(folder.project)) : null,
       current,
-      menu: menu ? { key: menu.item.key, values: menuValues(menu.other, menu.item.key === current) } : null,
+      menu: menu
+        ? {
+            key: menu.item.key,
+            values: menuValues(menu.other, menu.item.key === current),
+            transitions: menu.status ? menu.status.list.map(t => t.id) : null,
+            confirm: Boolean(menu.status?.pick),
+          }
+        : null,
       more: Boolean(todos.next),
       update: isNewer((await read($, latestAtom)).version, await read($, versionAtom)),
     })
@@ -743,10 +792,28 @@ export const register: Register = on => {
                                     move: `→ ${str.moveThere}`,
                                     work: menu.other ? `→ ${str.stayHere}` : str.menuWork,
                                     clear: str.menuClear,
+                                    status: str.menuStatus,
                                     open: str.menuOpen,
                                     cancel: str.menuCancel,
                                   }
                                   const choose = async (value: string) => {
+                                    if (value === 'status') {
+                                      // Opens the status popup under the menu; the menu stays.
+                                      await update($, menuAtom, m =>
+                                        m ? { ...m, status: { isLoading: true, list: [], pick: null } } : m,
+                                      )
+                                      await focusOn($, `menu-${item.key}-tback`)
+                                      const list = await loadTransitions($, item.key, item.status)
+                                      await update($, menuAtom, m =>
+                                        m && m.item.key === item.key
+                                          ? { ...m, status: { isLoading: false, list: list ?? [], pick: null } }
+                                          : m,
+                                      )
+                                      if (list === null) $.ui.toast(str.queryFailed)
+                                      const first = list?.[0]
+                                      if (first) await focusOn($, `menu-${item.key}-t-${first.id}`)
+                                      return
+                                    }
                                     if (value === 'work') await pick(item)
                                     else if (value === 'clear') await clearTicket()
                                     else if (value === 'open') await openIssue(item.key)
@@ -772,6 +839,115 @@ export const register: Register = on => {
                                 })()}
                               </Box>
                             )}
+                            {menu?.item.key === item.key && menu.status && (
+                              <Box
+                                flexDirection="column"
+                                borderStyle="round"
+                                borderColor="claude"
+                                paddingX={1}
+                                marginLeft={5}
+                              >
+                                <Text bold color="claude">{str.statusTitle(item.key)}</Text>
+                                <Text dimColor>{str.statusNow(item.status)}</Text>
+                                {menu.status.isLoading && <Text dimColor>{str.loadingTransitions}</Text>}
+                                {!menu.status.isLoading && menu.status.list.length === 0 && (
+                                  <Text dimColor>{str.noTransitions}</Text>
+                                )}
+                                {menu.status.list.map(t => (
+                                  <Button
+                                    key={`menu-${item.key}-t-${t.id}`}
+                                    plain
+                                    label={`→ ${t.to}`}
+                                    onPress={async () => {
+                                      await update($, menuAtom, m =>
+                                        m?.status ? { ...m, status: { ...m.status, pick: t } } : m,
+                                      )
+                                      await focusOn($, `menu-${item.key}-yes`)
+                                    }}
+                                  />
+                                ))}
+                                <Button
+                                  key={`menu-${item.key}-tback`}
+                                  plain
+                                  dimColor
+                                  label={str.back}
+                                  onPress={async () => {
+                                    await update($, menuAtom, m => (m ? { ...m, status: null } : m))
+                                    await focusOn($, `menu-${item.key}-status`)
+                                  }}
+                                />
+                              </Box>
+                            )}
+                            {menu?.item.key === item.key && menu.status?.pick && (() => {
+                              const t = menu.status.pick
+                              return (
+                                <Box
+                                  flexDirection="column"
+                                  borderStyle="round"
+                                  borderColor="warning"
+                                  paddingX={1}
+                                  marginLeft={7}
+                                >
+                                  <Text bold>{str.confirmMove(item.key)}</Text>
+                                  <Text dimColor>{item.status || '?'}</Text>
+                                  <Text color="claude">{`→ ${t.to}`}</Text>
+                                  {t.hasScreen && <Text color="warning">{str.needsFields}</Text>}
+                                  <Button
+                                    key={`menu-${item.key}-yes`}
+                                    plain
+                                    label={str.confirmYes}
+                                    onPress={async () => {
+                                      const from = item.status
+                                      if (!(await moveTicket($, item.key, t.id))) {
+                                        $.ui.toast(str.moveFailed(issueUrl(SITE, item.key)))
+                                        await update($, menuAtom, m =>
+                                          m?.status ? { ...m, status: { ...m.status, pick: null } } : m,
+                                        )
+                                        await focusOn($, `menu-${item.key}-t-${t.id}`)
+                                        return
+                                      }
+                                      // A done status leaves the open-tickets list; another moves the row.
+                                      await update($, todosAtom, ts => ({
+                                        ...ts,
+                                        items: t.isDone
+                                          ? ts.items.filter(i => i.key !== item.key)
+                                          : ts.items.map(i => (i.key === item.key ? { ...i, status: t.to } : i)),
+                                      }))
+                                      await update($, ticketAtom, cur =>
+                                        cur && cur.key === item.key ? { ...cur, status: t.to } : cur,
+                                      )
+                                      await update($, menuAtom, () => null)
+                                      $.ui.toast(str.moved(item.key, t.to))
+                                      try {
+                                        await $.session.append({
+                                          message: { type: 'user', content: [{ type: 'text', text: moveNote(item.key, from, t.to) }] },
+                                        })
+                                      } catch {
+                                        // The list and the band still show the new status.
+                                      }
+                                      // The row moved to another status group: point the ring at it now,
+                                      // and again once drawn (the popups' removal shifts the order).
+                                      if (!t.isDone) {
+                                        await backToRow(item.key)
+                                        $.clock.after(300, () => void backToRow(item.key))
+                                      }
+                                    }}
+                                  />
+                                  <Button
+                                    key={`menu-${item.key}-no`}
+                                    plain
+                                    dimColor
+                                    label={str.confirmNo}
+                                    onPress={async () => {
+                                      await update($, menuAtom, m =>
+                                        m?.status ? { ...m, status: { ...m.status, pick: null } } : m,
+                                      )
+                                      await focusOn($, `menu-${item.key}-t-${t.id}`)
+                                    }}
+                                  />
+                                </Box>
+                              )
+                            })()}
                           </Box>
                         ))}
                     </Box>

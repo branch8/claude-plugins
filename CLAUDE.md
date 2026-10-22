@@ -201,6 +201,9 @@ plugins/branch8-jira-mod/         可選的 mod 擴充（TypeScript function hoo
                                   Team 組織會自動把內建的 cc-plugin-sec-default@builtin 排在最外層，它不把 prompt.compose
                                   往下傳：mod 的 system prompt 規則段落實際上到不了 Claude（2026-10-20 實測）。所以面板
                                   選單／取消選定改用 $.session.append 直接告訴 Claude（pickNote）；別把必要資訊只放 prompt.compose
+                                  面板「↻ 切換狀態」：列選單 → 狀態 popup（即時查 listJiraIssueTransitions／
+                                  getTransitionsForJiraIssue，不寫死）→ 確認 popup，按確認才寫入。兩個 Atlassian 伺服器的
+                                  參數不同（plugin 版 transitionId、claude.ai 版 transition.id），都要支援
                                   hooks/logic.ts 是純函式（可單測），register.tsx 是引擎接線；
                                   `claude plugin test plugins/branch8-jira-mod` 跑測試
 template/plugin-template/         開發新 plugin 的起點。刻意不列入 marketplace.json，
