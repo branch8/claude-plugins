@@ -1,0 +1,16 @@
+{
+  "name": "branch8-deepwiki",
+  "displayName": "Branch8 DeepWiki",
+  "version": "0.1.0",
+  "description": "Adds DeepWiki (Cognition's free, no-auth MCP at mcp.deepwiki.com) as a knowledge source for public GitHub repositories, plus a skill that tells Claude when to consult it - how an open-source library or framework works internally, comparing libraries, debugging a third-party dependency - and how to query it without flooding the context. Public repos only; never sends company code.",
+  "author": {
+    "name": "Branch8"
+  },
+  "keywords": [
+    "deepwiki",
+    "mcp",
+    "knowledge-base",
+    "open-source",
+    "research"
+  ]
+}
