@@ -142,7 +142,7 @@ MIT 授權的 vendored 程式碼、維護腳本、文件。已掃描確認無硬
 
 ```
 .claude-plugin/marketplace.json   發送清單，只放「官方沒上架」的 plugin
-managed-settings.json             Claude Code 那一側的清單（官方 6 個 + vendored 1 個 + 自家 2 個 + 內建 1 個）
+managed-settings.json             Claude Code 那一側的清單（官方 6 個 + vendored 1 個 + 自家 3 個 + 內建 1 個）
                                   這兩份是不同的東西，別互相複製
                                   env.CLAUDE_CODE_PLUGIN_GIT_TIMEOUT_MS=600000：預設 120 秒，網路慢的同事（實測 30 KiB/s）
                                   clone 不完就放棄，殘留的 git 還會擋住之後每次更新（2026-10-21）。排查見 README「排查」
@@ -210,6 +210,12 @@ plugins/branch8-jira-mod/         可選的 mod 擴充（TypeScript function hoo
                                   參數不同（plugin 版 transitionId、claude.ai 版 transition.id），都要支援
                                   hooks/logic.ts 是純函式（可單測），register.tsx 是引擎接線；
                                   `claude plugin test plugins/branch8-jira-mod` 跑測試
+plugins/branch8-deepwiki/         DeepWiki MCP（http，https://mcp.deepwiki.com/mcp，免認證、只看公開 repo）＋ skills/deepwiki。
+                                  官方 marketplace 沒有（2026-10-23 查 315 個），所以自己包。實測（2026-10-23）：
+                                  工具名是 ask_wiki_question（官方文件寫 ask_question，過時）、repoName 可給最多 10 個；
+                                  read_wiki_contents 對大 repo 回 1.27 MB（anthropics/claude-code），一定被轉存成檔案，
+                                  所以 skill 要求先 ask／structure；未建索引的 repo 回 "Repository not found"，重試無用。
+                                  問題文字會送到第三方（Cognition），skill 禁止夾帶公司程式碼與資料
 template/plugin-template/         開發新 plugin 的起點。刻意不列入 marketplace.json，
                                   所以不會被發送、也不會被 validate 檢查
                                   validate.py 會擋住把 ./template/ 當 source 的 entry

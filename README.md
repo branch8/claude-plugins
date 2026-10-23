@@ -47,6 +47,7 @@
 | `frontend-design` | 官方 | 前端視覺設計方向 |
 | `github` | 官方 | GitHub MCP |
 | `ui-ux-pro-max` | **vendored** | UI/UX 設計資料庫。**官方沒有上架**，所以走 vendoring |
+| `branch8-deepwiki` | 自家 | DeepWiki MCP（公開 GitHub repo 的 AI wiki，免認證）＋何時查、怎麼查的 skill。**官方沒有上架**（2026-10-23 查 315 個） |
 
 判斷方式不是「信不信任作者」，而是**官方有沒有上架**。官方上架的 plugin，
 Anthropic 的 CI 已經幫它釘在特定 commit 上（外部 repo 的 source 都帶 `sha`），
