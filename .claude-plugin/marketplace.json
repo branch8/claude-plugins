@@ -29,6 +29,13 @@
       "description": "Optional extension to branch8-jira-check: shows the current Jira ticket above the prompt, /jira-todo lists your open tickets to pick from, reminds Claude at start / PR / merge points. Needs Claude Code v2.1.287+ (desktop v2.1.286+).",
       "category": "productivity",
       "keywords": ["jira", "atlassian", "mod"]
+    },
+    {
+      "name": "branch8-deepwiki",
+      "source": "./plugins/branch8-deepwiki",
+      "description": "DeepWiki as a knowledge source: Devin MCP (OAuth) for Branch8's own repos indexed in Devin, public DeepWiki MCP (no auth) for open-source repos, plus a skill telling Claude when and how to query them.",
+      "category": "productivity",
+      "keywords": ["deepwiki", "mcp", "knowledge-base", "research"]
     }
   ]
 }

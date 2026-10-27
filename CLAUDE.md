@@ -142,7 +142,7 @@ MIT 授權的 vendored 程式碼、維護腳本、文件。已掃描確認無硬
 
 ```
 .claude-plugin/marketplace.json   發送清單，只放「官方沒上架」的 plugin
-managed-settings.json             Claude Code 那一側的清單（官方 6 個 + vendored 1 個 + 自家 2 個 + 內建 1 個）
+managed-settings.json             Claude Code 那一側的清單（官方 6 個 + vendored 1 個 + 自家 3 個 + 內建 1 個）
                                   這兩份是不同的東西，別互相複製
                                   env.CLAUDE_CODE_PLUGIN_GIT_TIMEOUT_MS=600000：預設 120 秒，網路慢的同事（實測 30 KiB/s）
                                   clone 不完就放棄，殘留的 git 還會擋住之後每次更新（2026-10-21）。排查見 README「排查」
@@ -210,6 +210,23 @@ plugins/branch8-jira-mod/         可選的 mod 擴充（TypeScript function hoo
                                   參數不同（plugin 版 transitionId、claude.ai 版 transition.id），都要支援
                                   hooks/logic.ts 是純函式（可單測），register.tsx 是引擎接線；
                                   `claude plugin test plugins/branch8-jira-mod` 跑測試
+plugins/branch8-deepwiki/         兩個 http MCP ＋ skills/deepwiki。devin（https://mcp.devin.ai/mcp）查組織 repo，
+                                  用 OAuth、每人第一次 /mcp 登入——刻意不用 API key：repo 是 public 不能放 key，
+                                  共用 service key 又等於讓全公司都能開 Devin session（花錢）。2026-10-27 實測：
+                                  401 + protected-resource metadata → api.devin.ai，authorization code + PKCE，
+                                  無 DCR、改用 client_id_metadata_document。devin 另有 session/playbook/knowledge 等
+                                  會花錢或改設定的工具，skill 禁止主動呼叫。deepwiki（https://mcp.deepwiki.com/mcp）
+                                  免認證、只看公開 repo，給沒 Devin 帳號的人也能查開源專案。
+                                  目標是「專案知識來源」：AI 工作中也要主動查，不只使用者問才查。skill 只在請求吻合
+                                  描述時才載入，做不到主動，所以 hooks/session-start.sh 在開場注入約 1.1 KB 常駐規則
+                                  （偵測 origin 是否 branch8/* 並點名該 repo；compact 後重注入；BRANCH8_DEEPWIKI=off 關閉，
+                                  BRANCH8_DEEPWIKI_ORG 改組織名）。不用 mod 的 prompt.compose：會被 sec-default 擋（見 jira-mod）。
+                                  tests/session-start.sh 在 CI 把關大小與偵測
+                                  官方 marketplace 沒有（2026-10-23 查 315 個），所以自己包。實測（2026-10-23）：
+                                  工具名是 ask_wiki_question（官方文件寫 ask_question，過時）、repoName 可給最多 10 個；
+                                  read_wiki_contents 對大 repo 回 1.27 MB（anthropics/claude-code），一定被轉存成檔案，
+                                  所以 skill 要求先 ask／structure；未建索引的 repo 回 "Repository not found"，重試無用。
+                                  問題文字會送到第三方（Cognition），skill 禁止夾帶公司程式碼與資料
 template/plugin-template/         開發新 plugin 的起點。刻意不列入 marketplace.json，
                                   所以不會被發送、也不會被 validate 檢查
                                   validate.py 會擋住把 ./template/ 當 source 的 entry
