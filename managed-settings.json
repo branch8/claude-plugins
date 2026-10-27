@@ -22,6 +22,7 @@
     "branch8-jira-check@branch8": true,
     "branch8-jira-mod@branch8": true,
     "branch8-deepwiki@branch8": true,
+    "branch8-auth-check@branch8": true,
     "cc-plugin-you-should-know@builtin": true
   }
 }

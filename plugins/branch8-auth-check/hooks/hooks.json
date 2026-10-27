@@ -1,0 +1,28 @@
+{
+  "description": "Branch8 sign-in check: tell Claude which services need signing in and how to guide the user; on the first message, show one sign-in status line. Set BRANCH8_AUTH_CHECK=off to skip it.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh\"",
+            "timeout": 60
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/first-prompt.sh\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

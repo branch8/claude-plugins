@@ -31,6 +31,13 @@
       "keywords": ["jira", "atlassian", "mod"]
     },
     {
+      "name": "branch8-auth-check",
+      "source": "./plugins/branch8-auth-check",
+      "description": "One place for every sign-in: Jira, GitHub (gh), Devin DeepWiki, Gemini. Shows one status line on the first turn and, when a task needs a service that is not signed in, asks with a card and walks the user through sign-in or tells them who to ask for an account. Adds /auth-check.",
+      "category": "productivity",
+      "keywords": ["auth", "login", "jira", "github", "devin", "hook"]
+    },
+    {
       "name": "branch8-deepwiki",
       "source": "./plugins/branch8-deepwiki",
       "description": "DeepWiki as a knowledge source: Devin MCP (OAuth) for Branch8's own repos indexed in Devin, public DeepWiki MCP (no auth) for open-source repos, plus a skill telling Claude when and how to query them.",

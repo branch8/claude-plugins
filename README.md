@@ -47,7 +47,8 @@
 | `frontend-design` | 官方 | 前端視覺設計方向 |
 | `github` | 官方 | GitHub MCP |
 | `ui-ux-pro-max` | **vendored** | UI/UX 設計資料庫。**官方沒有上架**，所以走 vendoring |
-| `branch8-deepwiki` | 自家 | DeepWiki 知識庫：組織 repo 走 Devin MCP（每人第一次 `/mcp` → devin → Authenticate 用 Devin 帳號 OAuth 登入），開源 repo 走公開 DeepWiki（免登入）；開場注入一段短規則，讓 Claude 工作中也會主動把組織 wiki 當專案知識查（`BRANCH8_DEEPWIKI=off` 關閉）。**官方沒有上架**（2026-10-23 查 315 個） |
+| `branch8-deepwiki` | 自家 | DeepWiki 知識庫：組織 repo 走 Devin MCP（Devin 帳號 OAuth，登入由 `branch8-auth-check` 引導），開源 repo 走公開 DeepWiki（免登入）；開場注入一段短規則，讓 Claude 工作中也會主動把組織 wiki 當專案知識查，不知道 repo 時自己從 git remote／Jira 設定單／Devin repo 清單找（`BRANCH8_DEEPWIKI=off` 關閉）。**官方沒有上架**（2026-10-23 查 315 個） |
+| `branch8-auth-check` | 自家 | 所有登入集中一處：Jira、GitHub（`gh`）、Devin DeepWiki、Gemini。第一則訊息顯示一行登入狀態；任務需要某服務但沒登入時才跳卡片（現在登入／這次先跳過／此 session 不再詢問／我沒有帳號），沒帳號就告知向誰申請（`config.env`）。GitHub 只在 git repo 資料夾檢查（PM 不受打擾）；Jira 對有 Jira 專案的公司資料夾仍一開場就問。官方 plugin 改不了，所以由這裡統一處理。`/auth-check` 隨時重查 |
 
 判斷方式不是「信不信任作者」，而是**官方有沒有上架**。官方上架的 plugin，
 Anthropic 的 CI 已經幫它釘在特定 commit 上（外部 repo 的 source 都帶 `sha`），
