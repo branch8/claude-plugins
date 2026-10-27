@@ -34,15 +34,16 @@ No question card here.
 ## 3. When a task needs it and `devin` is not signed in: ask with a card
 
 Only when you are about to consult an organisation repo's wiki (or the user asks
-to). Use AskUserQuestion, never a plain sentence. Ask at most once per session;
-after a "not now", carry on without the wiki.
+to). Use AskUserQuestion, never a plain sentence. Ask each time a task needs it,
+until the user picks "stop asking this session" - then never again this session.
 
 Question, e.g. 「這個問題可以查公司的 DeepWiki（Devin），但你還沒登入。要現在登入嗎？」
 
-Options:
+Options (exactly these four):
 1. **現在登入（推薦）** - sign in with your Devin account in the browser
-2. **我沒有 Devin 帳號** - shows who to ask for one; will not ask again
-3. **這次先不要** - continue without it
+2. **這次先跳過** - continue without it; ask again next time it is needed
+3. **此 session 不再詢問** - continue without it for the rest of this session
+4. **我沒有 Devin 帳號** - shows who to ask for one; will not ask again
 
 ## 4. Act on the answer
 
@@ -68,7 +69,12 @@ Options:
    `/deepwiki-login` 就能登入。」 Public open-source repos still work through
    `deepwiki` meanwhile.
 
-**Not now**
-Continue the task without the organisation wiki. Do not ask again this session.
+**Skip this time**
+Continue the task without the organisation wiki. Ask again the next time a task
+needs it.
+
+**Stop asking this session**
+Continue without the organisation wiki and do not ask again in this session.
+Mention once that `/deepwiki-login` signs in any time.
 
 Never block or delay the user's actual request on any of this.

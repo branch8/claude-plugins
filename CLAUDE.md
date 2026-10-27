@@ -226,7 +226,7 @@ plugins/branch8-deepwiki/         兩個 http MCP ＋ skills/deepwiki。devin（
                                   不去讀 Claude Code 存的 OAuth token（碰憑證檔），所以照 jira-check：SessionStart 上膛、
                                   first-prompt.sh 在第一則訊息請 Claude 以 ToolSearch "devin" 判斷（只有 authenticate 工具
                                   = 未登入），**只顯示一行狀態、不跳卡**；真的要查組織 wiki 時才跳卡引導（docs/login.md），
-                                  每 session 最多一次。「沒有 Devin 帳號」記在 ~/.claude/branch8-deepwiki/no-account，之後不再
+                                  每次需要都問，直到使用者選「此 session 不再詢問」（「這次先跳過」下次還會問）。「沒有 Devin 帳號」記在 ~/.claude/branch8-deepwiki/no-account，之後不再
                                   顯示也不問，/deepwiki-login 清掉重來。管理者聯絡人在 config.env。
                                   登入狀態不放 jira-mod 面板：會把兩個 plugin 綁在一起，且 mod 自動安裝未驗證（2026-10-27）
                                   官方 marketplace 沒有（2026-10-23 查 315 個），所以自己包。實測（2026-10-23）：

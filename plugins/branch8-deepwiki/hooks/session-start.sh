@@ -38,7 +38,7 @@ fi
 if [ -f "$DW_NO_ACCOUNT" ]; then
   login="This user has no Devin account (they said so earlier): do not ask them to sign in to \`devin\`; use \`deepwiki\` for public repos only. \`/deepwiki-login\` re-checks."
 else
-  login="If \`devin\` is not signed in when a task needs it, offer sign-in with a question card, once per session (details: \`$DW_ROOT/docs/login.md\`, helper: \`$DW_ROOT/bin/branch8-deepwiki\`)."
+  login="If \`devin\` is not signed in when a task needs it, offer sign-in with a question card each time, unless the user chose to stop asking this session (details: \`$DW_ROOT/docs/login.md\`, helper: \`$DW_ROOT/bin/branch8-deepwiki\`)."
 fi
 
 context="# Branch8 DeepWiki (project knowledge)
