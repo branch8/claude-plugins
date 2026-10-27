@@ -217,6 +217,11 @@ plugins/branch8-deepwiki/         兩個 http MCP ＋ skills/deepwiki。devin（
                                   無 DCR、改用 client_id_metadata_document。devin 另有 session/playbook/knowledge 等
                                   會花錢或改設定的工具，skill 禁止主動呼叫。deepwiki（https://mcp.deepwiki.com/mcp）
                                   免認證、只看公開 repo，給沒 Devin 帳號的人也能查開源專案。
+                                  目標是「專案知識來源」：AI 工作中也要主動查，不只使用者問才查。skill 只在請求吻合
+                                  描述時才載入，做不到主動，所以 hooks/session-start.sh 在開場注入約 1.1 KB 常駐規則
+                                  （偵測 origin 是否 branch8/* 並點名該 repo；compact 後重注入；BRANCH8_DEEPWIKI=off 關閉，
+                                  BRANCH8_DEEPWIKI_ORG 改組織名）。不用 mod 的 prompt.compose：會被 sec-default 擋（見 jira-mod）。
+                                  tests/session-start.sh 在 CI 把關大小與偵測
                                   官方 marketplace 沒有（2026-10-23 查 315 個），所以自己包。實測（2026-10-23）：
                                   工具名是 ask_wiki_question（官方文件寫 ask_question，過時）、repoName 可給最多 10 個；
                                   read_wiki_contents 對大 repo 回 1.27 MB（anthropics/claude-code），一定被轉存成檔案，

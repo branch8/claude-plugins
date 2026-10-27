@@ -1,6 +1,6 @@
 ---
 name: deepwiki
-description: Use when a question depends on how a GitHub repository works and its source is not in the working tree - a Branch8 / organisation repository indexed in Devin's DeepWiki, or a public open-source library, framework, SDK or tool - including where something is implemented, how a module or flow works, which config option or extension point exists, comparing libraries, deciding whether to adopt one, or debugging behaviour that comes from another repo or a third-party dependency. Also when the user mentions DeepWiki or Devin wiki, pastes a deepwiki.com / app.devin.ai wiki link, or asks to research / look up / study a repo.
+description: Use as a project knowledge source for Branch8 work - on your own initiative, not only when asked. Use when you need the big picture of a Branch8 repository before changing an unfamiliar area (architecture, module boundaries, data flow, why it is built this way); when work touches another Branch8 repo or service (API contract, shared library, integration) whose source is not here; when the user asks how a company system or project works; and when a question depends on how a public open-source library, framework or tool works internally, or a bug comes from a third-party dependency. Also when the user mentions DeepWiki or Devin wiki, pastes a deepwiki.com / app.devin.ai wiki link, or asks to research / look up / study a repo.
 ---
 
 # DeepWiki
@@ -54,7 +54,9 @@ Use it when all of these hold:
 3. Memory is not enough: internals, recent behaviour, exact names, "where is X
    implemented", how another team's service works, or the user asked to research.
 
-Skip it for the code of the repo you are currently in (read it), and for general
+For the repo you are currently in, the wiki is for orientation - architecture,
+how parts connect, design intent - before you dive into an unfamiliar area. For
+exact behaviour of code that is right here, read the code. Skip it for general
 language/API facts the model knows well.
 
 ## What may go into a question

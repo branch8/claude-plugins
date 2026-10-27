@@ -26,6 +26,9 @@ jobs:
       - name: branch8-jira-check context size
         run: bash plugins/branch8-jira-check/tests/context-size.sh
 
+      - name: branch8-deepwiki session-start hook
+        run: bash plugins/branch8-deepwiki/tests/session-start.sh
+
       # Rather than failing the PR for a forgotten version bump, just do it and
       # push the commit. Forgetting is the normal case, not an error worth blocking on.
       - name: Auto-bump versions for changed plugins

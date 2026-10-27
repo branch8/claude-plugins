@@ -1,0 +1,17 @@
+{
+  "description": "Tell Claude at session start that Branch8's repositories are indexed in Devin's DeepWiki and when to consult it as project knowledge. Set BRANCH8_DEEPWIKI=off to skip it.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh\"",
+            "timeout": 60
+          }
+        ]
+      }
+    ]
+  }
+}
