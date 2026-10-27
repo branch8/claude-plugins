@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Local state for the branch8-deepwiki sign-in check.
+#   no-account  remember that this user has no Devin account (stop asking)
+#   clear       forget that answer (ask again from the next session)
+#   status      print whether the answer is recorded
+#   config      print the organisation and the admin contact
+
+. "$(cd "$(dirname "$0")/.." && pwd)/hooks/lib.sh"
+
+case "$1" in
+  no-account)
+    mkdir -p "$DW_STATE_DIR" && date '+%F' > "$DW_NO_ACCOUNT" && echo "recorded: no Devin account"
+    ;;
+  clear)
+    rm -f "$DW_NO_ACCOUNT" && echo "cleared"
+    ;;
+  status)
+    if [ -f "$DW_NO_ACCOUNT" ]; then echo "no-account (since $(cat "$DW_NO_ACCOUNT"))"; else echo "not recorded"; fi
+    ;;
+  config)
+    echo "org=$BRANCH8_DEEPWIKI_ORG"
+    echo "admin=${BRANCH8_DEEPWIKI_ADMIN:-your Branch8 admin}"
+    ;;
+  *)
+    echo "usage: branch8-deepwiki no-account|clear|status|config" >&2
+    exit 2
+    ;;
+esac

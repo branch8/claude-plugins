@@ -23,10 +23,11 @@ beats guessing from memory, and say when an answer came from it.
   says the repo is not indexed and the user has Devin access.
 - Tools may be deferred: ToolSearch "deepwiki" or "devin".
 
-**`devin` not authenticated** (tools missing, or an auth / 401 error): tell the
-user to run `/mcp`, choose **devin**, and complete **Authenticate** in the
-browser with their Devin account, then retry. Do not fall back to guessing about
-a private repo, and never ask for or paste an API key.
+**`devin` not signed in** (only an `authenticate` tool, or an auth / 401 error):
+offer sign-in with a question card and walk the user through it - see
+`../../docs/login.md` (sections 3-4; it also covers users with no Devin account).
+Do not fall back to guessing about a private repo, and never ask for or paste an
+API key.
 
 ## Tools to use - and not use
 

@@ -1,8 +1,8 @@
 {
   "name": "branch8-deepwiki",
   "displayName": "Branch8 DeepWiki",
-  "version": "0.1.0",
-  "description": "DeepWiki as a knowledge source: the Devin MCP (mcp.devin.ai, OAuth login once via /mcp) for Branch8's own repositories indexed in Devin, and the public DeepWiki MCP (mcp.deepwiki.com, no auth) for open-source repositories. A skill tells Claude when to consult it, which server to use, how to query without flooding the context, and never to start paid Devin sessions on its own.",
+  "version": "0.2.0",
+  "description": "DeepWiki as a knowledge source: the Devin MCP (mcp.devin.ai, OAuth) for Branch8's own repositories indexed in Devin, and the public DeepWiki MCP (mcp.deepwiki.com, no auth) for open-source repositories. Claude consults it as project knowledge on its own initiative, shows the Devin sign-in status on the first turn, and walks the user through sign-in (or who to ask for an account) when a task needs it. Never starts paid Devin sessions on its own. Adds /deepwiki-login.",
   "author": {
     "name": "Branch8"
   },

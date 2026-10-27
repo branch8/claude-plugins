@@ -222,6 +222,13 @@ plugins/branch8-deepwiki/         兩個 http MCP ＋ skills/deepwiki。devin（
                                   （偵測 origin 是否 branch8/* 並點名該 repo；compact 後重注入；BRANCH8_DEEPWIKI=off 關閉，
                                   BRANCH8_DEEPWIKI_ORG 改組織名）。不用 mod 的 prompt.compose：會被 sec-default 擋（見 jira-mod）。
                                   tests/session-start.sh 在 CI 把關大小與偵測
+                                  登入檢查（0.2.0）：同事大多不會自己開 /mcp。hook 時 MCP 還沒連上無從判斷，也刻意
+                                  不去讀 Claude Code 存的 OAuth token（碰憑證檔），所以照 jira-check：SessionStart 上膛、
+                                  first-prompt.sh 在第一則訊息請 Claude 以 ToolSearch "devin" 判斷（只有 authenticate 工具
+                                  = 未登入），**只顯示一行狀態、不跳卡**；真的要查組織 wiki 時才跳卡引導（docs/login.md），
+                                  每 session 最多一次。「沒有 Devin 帳號」記在 ~/.claude/branch8-deepwiki/no-account，之後不再
+                                  顯示也不問，/deepwiki-login 清掉重來。管理者聯絡人在 config.env。
+                                  登入狀態不放 jira-mod 面板：會把兩個 plugin 綁在一起，且 mod 自動安裝未驗證（2026-10-27）
                                   官方 marketplace 沒有（2026-10-23 查 315 個），所以自己包。實測（2026-10-23）：
                                   工具名是 ask_wiki_question（官方文件寫 ask_question，過時）、repoName 可給最多 10 個；
                                   read_wiki_contents 對大 repo 回 1.27 MB（anthropics/claude-code），一定被轉存成檔案，
