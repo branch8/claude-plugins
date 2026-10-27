@@ -210,7 +210,13 @@ plugins/branch8-jira-mod/         可選的 mod 擴充（TypeScript function hoo
                                   參數不同（plugin 版 transitionId、claude.ai 版 transition.id），都要支援
                                   hooks/logic.ts 是純函式（可單測），register.tsx 是引擎接線；
                                   `claude plugin test plugins/branch8-jira-mod` 跑測試
-plugins/branch8-deepwiki/         DeepWiki MCP（http，https://mcp.deepwiki.com/mcp，免認證、只看公開 repo）＋ skills/deepwiki。
+plugins/branch8-deepwiki/         兩個 http MCP ＋ skills/deepwiki。devin（https://mcp.devin.ai/mcp）查組織 repo，
+                                  用 OAuth、每人第一次 /mcp 登入——刻意不用 API key：repo 是 public 不能放 key，
+                                  共用 service key 又等於讓全公司都能開 Devin session（花錢）。2026-10-27 實測：
+                                  401 + protected-resource metadata → api.devin.ai，authorization code + PKCE，
+                                  無 DCR、改用 client_id_metadata_document。devin 另有 session/playbook/knowledge 等
+                                  會花錢或改設定的工具，skill 禁止主動呼叫。deepwiki（https://mcp.deepwiki.com/mcp）
+                                  免認證、只看公開 repo，給沒 Devin 帳號的人也能查開源專案。
                                   官方 marketplace 沒有（2026-10-23 查 315 個），所以自己包。實測（2026-10-23）：
                                   工具名是 ask_wiki_question（官方文件寫 ask_question，過時）、repoName 可給最多 10 個；
                                   read_wiki_contents 對大 repo 回 1.27 MB（anthropics/claude-code），一定被轉存成檔案，

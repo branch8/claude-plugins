@@ -33,7 +33,7 @@
     {
       "name": "branch8-deepwiki",
       "source": "./plugins/branch8-deepwiki",
-      "description": "DeepWiki MCP (mcp.deepwiki.com, free, no auth) as a knowledge source for public GitHub repositories, plus a skill telling Claude when and how to query it without flooding the context. Public repos only.",
+      "description": "DeepWiki as a knowledge source: Devin MCP (OAuth) for Branch8's own repos indexed in Devin, public DeepWiki MCP (no auth) for open-source repos, plus a skill telling Claude when and how to query them.",
       "category": "productivity",
       "keywords": ["deepwiki", "mcp", "knowledge-base", "research"]
     }

@@ -2,7 +2,7 @@
   "name": "branch8-deepwiki",
   "displayName": "Branch8 DeepWiki",
   "version": "0.1.0",
-  "description": "Adds DeepWiki (Cognition's free, no-auth MCP at mcp.deepwiki.com) as a knowledge source for public GitHub repositories, plus a skill that tells Claude when to consult it - how an open-source library or framework works internally, comparing libraries, debugging a third-party dependency - and how to query it without flooding the context. Public repos only; never sends company code.",
+  "description": "DeepWiki as a knowledge source: the Devin MCP (mcp.devin.ai, OAuth login once via /mcp) for Branch8's own repositories indexed in Devin, and the public DeepWiki MCP (mcp.deepwiki.com, no auth) for open-source repositories. A skill tells Claude when to consult it, which server to use, how to query without flooding the context, and never to start paid Devin sessions on its own.",
   "author": {
     "name": "Branch8"
   },
