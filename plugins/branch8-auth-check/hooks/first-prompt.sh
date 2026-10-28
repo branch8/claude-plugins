@@ -14,7 +14,14 @@ marker=$(ba_session_marker "$(ba_jget "$input" session_id)") || exit 0
 [ -f "$marker" ] || exit 0
 rm -f "$marker"
 
-reminder="Branch8 sign-in - first message of the session. Before working on it, check jira and devin once and show the one status line (see \"Branch8 sign-in\" in the session context; format in \`$(ba_native "$BA_ROOT/docs")/status.md\`). No card, except the Jira exception described there. Quietly: no narration of the check. Then do the user's request."
+reminder="Branch8 sign-in - first message of the session. Before working on it, show this one line, then do the user's request (no narration, no card):
+
+> **登入狀態**　✅ Jira　✅ GitHub（<gh account>）　⚪ Devin DeepWiki
+
+- ✅ signed in, ⚪ not. Any ⚪ -> append 「（需要時我會引導登入，或輸入 /auth-check）」. Translate to the user's language.
+- Jira / Devin: the tool names you already see are enough, no need to load them - a server with only \`authenticate\` = not signed in; Jira counts as signed in if any Atlassian server (plugin or claude.ai connector) has working tools. GitHub: the gh fact in \"Branch8 sign-in\".
+- Leave out: github when the fact says not a git folder; services under \"no account\"; a service whose server is absent; Jira when branch8-jira-check shows its own Jira account block.
+- Only if Jira is NOT signed in and branch8-jira-check says this folder is company work with a Jira project: ask the Jira card now (\`$(ba_native "$BA_ROOT/docs")/status.md\`, last section)."
 
 printf '{"hookSpecificOutput":{"hookEventName":"UserPromptSubmit","additionalContext":"%s"}}\n' \
   "$(printf '%s' "$reminder" | ba_jesc)"
