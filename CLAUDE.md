@@ -223,6 +223,11 @@ plugins/branch8-auth-check/       所有登入集中一處（2026-10-27）：jir
                                   OAuth 沒有 DCR 也沒有 CIMD（2026-10-27 實測 metadata），Claude Code 無法自動 OAuth。
                                   jira-check 1.3.0 起不再自己問 Jira 連線，改用 auth-check 的結果；auth-check 不在時退回
                                   原本的 docs/connect.md。tests/hooks.sh 在 CI 把關
+                                  統一 vs 各自檢查（2026-10-28 討論後定案統一）：各自檢查時 GitHub/Gemini 沒有主人（官方 plugin
+                                  改不了），終究要有一處收；且每個 plugin 各自注入、各自跳卡會疊開場 context、樣式不一。
+                                  jira-mod 面板的 Jira 狀態是 mod 自己用 $.mcp.call 查的，不依賴 jira-check／auth-check；
+                                  它連不上時的提示自 0.15.2 起指向 /auth-check。mod 能在 session 中呼叫 MCP（hook 不能），
+                                  之後若要即時顯示所有服務登入狀態，放 jira-mod 資訊區是可行方向（未做）
 plugins/branch8-deepwiki/         兩個 http MCP ＋ skills/deepwiki。devin（https://mcp.devin.ai/mcp）查組織 repo，
                                   用 OAuth、每人第一次 /mcp 登入——刻意不用 API key：repo 是 public 不能放 key，
                                   共用 service key 又等於讓全公司都能開 Devin session（花錢）。2026-10-27 實測：
