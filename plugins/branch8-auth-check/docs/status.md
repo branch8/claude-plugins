@@ -32,7 +32,11 @@ Gemini is never in the status line.
 ## Jira exception: ask right away
 
 Jira tracks every task, so when Jira is not signed in **and**
-branch8-jira-check's context says this folder is company work with a Jira
-project (not "no Jira for this folder", not personal), ask the Jira card now -
-`card.md`, sign-in steps in `jira.md`. Otherwise Jira waits until a task needs
-it, like every other service.
+branch8-jira-check is in this session **and** this folder is company work -
+mapped to a Jira project *or not yet mapped* - ask the Jira card now (`card.md`,
+sign-in steps in `jira.md`). Only "no Jira for this folder" and personal
+projects wait until a task needs Jira, like every other service.
+
+Why "not yet mapped" counts: jira-check asks which Jira project a folder belongs
+to only once Jira is connected, and its jira-workflow skill skips tickets while
+Jira is not connected - so waiting would mean nobody asks at all.

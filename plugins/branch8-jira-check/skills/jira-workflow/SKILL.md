@@ -16,12 +16,30 @@ session, or the folder's record says `"jira": "none"` / `"company": false`.
 Stop at the first step that gives an answer:
 
 1. **The message names a key** (`HS-123`) → `getJiraIssue` to confirm; use it. No card.
-2. **The git branch name holds a key** (`git branch --show-current`) → same. No card.
-3. **This session already works on a ticket and this message continues that work** → keep it. No card.
-4. **Search** `assignee = currentUser() AND statusCategory != Done AND project = <folder's projectKey>`
-   (folder record via the plugin's `lookup` helper; no record → resolve the folder's Jira project first, see `../../docs/board.md` from this skill). Pick the ones whose summary matches the task:
-   - 1–3 candidates → one card: each as `KEY summary (status)`, plus "none of these", "create a new one", "no ticket needed".
-   - none → one card: "I have one (give the key)", "create one", "no ticket needed".
+2. **This session already has a current ticket** → decide whether the message is
+   the same unit of work, by these tests:
+   - **Same** (keep it, no card): a follow-up on what was just done - a fix or
+     tweak to it, review feedback, tests, the commit / PR for it, the next step
+     of the same feature or bug, or an answer to your question.
+   - **New** (go to step 3): a different feature, bug, document or area of the
+     product; the user signals a switch (「另外」「接下來做」「換一個」"next",
+     "also", "now let's"); or the result would be its own PR.
+   - **Unsure** → one card: 「繼續用 KEY summary」 / 「換一張單」 / 「開新單」 /
+     「不需要開單」. Never keep a ticket silently when unsure: a wrong ticket
+     collects the wrong status moves.
+3. **Find candidates** - one card, never a silent pick:
+   - the git branch's key (`git branch --show-current`), if any: a branch can be
+     left over from earlier work, so it is a candidate, not an answer. Show it
+     first as `KEY summary (status) · 目前分支`;
+   - **search** `assignee = currentUser() AND statusCategory != Done AND project = <folder's projectKey>`
+     (folder record via the plugin's `lookup` helper; no record → resolve the
+     folder's Jira project first, see `../../docs/board.md` from this skill) and
+     add the ones whose summary matches the task.
+
+   The card holds **at most 4 options**: up to 2 candidates (the branch's
+   included), then 「開新單」 and 「不需要開單」. The card's own "Other" field
+   takes any other key. With no candidates: 「開新單」 / 「不需要開單」, and
+   "Other" for a key the user has.
 
 **Another project's ticket:** if the resolved ticket's project (the key prefix) is not the
 folder's recorded project, do not start. One card: "open a new session in that project's
@@ -75,7 +93,10 @@ Without the mod, remember the ticket and the asked points yourself for the sessi
 
 | Mistake | Instead |
 |---|---|
-| Asking for a ticket when the branch or message already has the key | Steps 1–2 answer it silently |
+| Asking for a ticket when the message already names the key | Step 1 answers it silently |
+| Using the branch's key without asking | The branch may be left over from earlier work: offer it as the first candidate |
+| Keeping the current ticket when the user moved on to something else | Run the same / new / unsure tests in step 2 |
+| A card with more than 4 options | Up to 2 candidates + 開新單 + 不需要開單; other keys go in "Other" |
 | Moving a status without a card | Every write waits for the user's yes |
 | Guessing "In Progress" by name when the workflow has no such transition now | Only offer transitions the list returns |
 | Asking again after the user said "not now" | Once per ticket and point |

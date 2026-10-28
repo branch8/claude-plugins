@@ -48,6 +48,9 @@ check "env presence reported, values never" '[[ $c == *"PAT: set"* && $c == *"GE
 
 out=$(prompt s3)
 check "first prompt asks for the status line" '[[ $(printf "%s" "$out" | ctx) == *"status.md"* ]]'
+# jira-check only maps a folder once Jira is connected, so an unmapped company
+# folder must still get the Jira card on the first turn.
+check "first prompt asks Jira upfront for unmapped company folders too" '[[ $(printf "%s" "$out" | ctx) == *"not yet mapped"* ]]'
 out=$(prompt s3)
 check "second prompt adds nothing" '[ -z "$out" ]'
 
