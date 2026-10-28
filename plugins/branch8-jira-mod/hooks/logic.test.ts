@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { detectNode, reminderFor, formatBand, rulesSection, parseIssueStatus, parseIssueList, todoJql, nextRange, parseIssuePage, TODO_FIELDS, ISSUE_FIELDS, displayWidth, bandText, TODO_HELP, groupTodos, issueUrl, todoRow, langOf, STRINGS, statusTone, nextLangPref, resolveLang, recordFileName, ancestorDirs, parseRecord, projectOf, isOtherProject, applyScope, effectiveScope, foldersFor, suggestedFolder, typeIcon, focusedTicket, isOrgAccount, touchesFolderRecords, focusOrder, stepFocus, isArrowScroll, settingsValues, menuValues, leftFrom, pickNote, manifestVersion, isNewer, updateOutcome, parseTransitions, moveNote, claudeAccount, parseJiraUser, jiraWarning, syncTicket } from './logic'
+import { detectNode, reminderFor, formatBand, rulesSection, parseIssueStatus, parseIssueList, todoJql, nextRange, parseIssuePage, TODO_FIELDS, ISSUE_FIELDS, displayWidth, bandText, TODO_HELP, groupTodos, issueUrl, todoRow, langOf, STRINGS, statusTone, nextLangPref, resolveLang, recordFileName, ancestorDirs, parseRecord, projectOf, isOtherProject, applyScope, effectiveScope, foldersFor, suggestedFolder, typeIcon, focusedTicket, isOrgAccount, touchesFolderRecords, focusOrder, stepFocus, isArrowScroll, settingsValues, menuValues, leftFrom, pickNote, manifestVersion, isNewer, updateOutcome, parseTransitions, moveNote, claudeAccount, parseJiraUser, jiraWarning, syncTicket, parseGhStatus, isNoConnectedTool } from './logic'
 
 const T = { key: 'HS-1', summary: '修正請假審核通知', status: '待辦事項', cloudId: 'c' }
 
@@ -733,4 +733,20 @@ test('the band takes the current ticket status from the pane list, without askin
   expect(syncTicket(t, [{ key: 'HS-9', summary: 'x', status: 'y' }])).toBeNull()
   expect(syncTicket({ ...t, status: '進行中', summary: 'S2' }, items)).toBeNull()
   expect(syncTicket(null, items)).toBeNull()
+})
+
+test('gh auth status: signed in names the account, any failure is signed out', () => {
+  const out = 'github.com\n  ✓ Logged in to github.com account GlennCheng (/home/g/.config/gh/hosts.yml)\n'
+  expect(parseGhStatus(0, out)).toEqual({ state: 'in', user: 'GlennCheng' })
+  expect(parseGhStatus(0, 'github.com\n  ✓ Logged in\n')).toEqual({ state: 'in', user: '' })
+  expect(parseGhStatus(1, 'You are not logged into any GitHub hosts.')).toEqual({ state: 'out', user: '' })
+})
+
+test("only the engine's missing-tool error counts as not signed in", () => {
+  // As $.mcp.call threw for a signed-out server on 2026-10-28.
+  const missing =
+    'HooksError: branch8-jira-mod: $.mcp.call: no connected MCP tool "read_wiki_structure" on a server named "plugin:branch8-deepwiki:devin"'
+  expect(isNoConnectedTool(new Error(missing))).toBe(true)
+  expect(isNoConnectedTool(missing)).toBe(true)
+  expect(isNoConnectedTool(new Error('MCP error -32602: Invalid params'))).toBe(false)
 })

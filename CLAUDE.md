@@ -226,8 +226,12 @@ plugins/branch8-auth-check/       所有登入集中一處（2026-10-27）：jir
                                   統一 vs 各自檢查（2026-10-28 討論後定案統一）：各自檢查時 GitHub/Gemini 沒有主人（官方 plugin
                                   改不了），終究要有一處收；且每個 plugin 各自注入、各自跳卡會疊開場 context、樣式不一。
                                   jira-mod 面板的 Jira 狀態是 mod 自己用 $.mcp.call 查的，不依賴 jira-check／auth-check；
-                                  它連不上時的提示自 0.15.2 起指向 /auth-check。mod 能在 session 中呼叫 MCP（hook 不能），
-                                  之後若要即時顯示所有服務登入狀態，放 jira-mod 資訊區是可行方向（未做）
+                                  它連不上時的提示自 0.15.2 起指向 /auth-check。
+                                  jira-mod 0.16.0 起資訊區也即時顯示 GitHub（gh，只在 git 資料夾）與 Devin 的登入，未登入指向
+                                  /auth-check；開場背景查、開場重試（5/15/30 秒，MCP 還在連）與「重新整理」時再查，最後一次
+                                  重試仍查不到 Jira 才標未登入（以前會永遠停在「連線中」）。$.mcp.call 對「未登入／工具不存在／
+                                  沒裝這個 server」都丟同一個 "no connected MCP tool"（2026-10-28 實測），分不出原因，所以只能
+                                  用「呼叫登入後才有的 wiki 工具不被擋」證明已登入；未裝 deepwiki 的人 Devin 也會顯示未登入
 plugins/branch8-deepwiki/         兩個 http MCP ＋ skills/deepwiki。devin（https://mcp.devin.ai/mcp）查組織 repo，
                                   用 OAuth、每人第一次 /mcp 登入——刻意不用 API key：repo 是 public 不能放 key，
                                   共用 service key 又等於讓全公司都能開 Devin session（花錢）。2026-10-27 實測：

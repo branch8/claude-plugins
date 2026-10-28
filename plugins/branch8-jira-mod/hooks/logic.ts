@@ -381,6 +381,11 @@ export type Strings = {
   jiraDiffers: string
   noJiraFolder: string
   unmappedFolder: string
+  labelGithub: string
+  labelDevin: string
+  signedIn: string
+  authOut: string
+  ghMissing: string
 }
 
 const LANG_NAMES = { 'zh-TW': '繁中', 'zh-CN': '简中', en: 'English' }
@@ -419,6 +424,11 @@ export const STRINGS: Record<Lang, Strings> = {
     jiraDiffers: '⚠ 和 Claude 帳號不同',
     noJiraFolder: '不使用 Jira',
     unmappedFolder: '尚未對應 Jira 專案',
+    labelGithub: 'GitHub',
+    labelDevin: 'Devin ',
+    signedIn: '已登入',
+    authOut: '未登入 · /auth-check',
+    ghMissing: '未安裝 gh · /auth-check',
     language: '語言：',
     langNames: { ...LANG_NAMES, auto: '自動' },
     open: '開啟',
@@ -492,6 +502,11 @@ export const STRINGS: Record<Lang, Strings> = {
     jiraDiffers: '⚠ 和 Claude 账号不同',
     noJiraFolder: '不使用 Jira',
     unmappedFolder: '尚未对应 Jira 项目',
+    labelGithub: 'GitHub',
+    labelDevin: 'Devin ',
+    signedIn: '已登录',
+    authOut: '未登录 · /auth-check',
+    ghMissing: '未安装 gh · /auth-check',
     language: '语言：',
     langNames: { ...LANG_NAMES, auto: '自动' },
     open: '打开',
@@ -565,6 +580,11 @@ export const STRINGS: Record<Lang, Strings> = {
     jiraDiffers: '⚠ not the Claude account',
     noJiraFolder: 'no Jira',
     unmappedFolder: 'no Jira project recorded yet',
+    labelGithub: 'GitHub',
+    labelDevin: 'Devin ',
+    signedIn: 'signed in',
+    authOut: 'signed out · /auth-check',
+    ghMissing: 'gh not installed · /auth-check',
     language: 'Language: ',
     langNames: { ...LANG_NAMES, auto: 'Auto' },
     open: 'Open',
@@ -718,6 +738,23 @@ export function typeIcon(type: string | undefined): string {
 // item) means no ticket, so a stale one is never reused.
 export function focusedTicket(element: string | undefined): string | null {
   return element && /^[A-Z][A-Z0-9_]*-\d+$/.test(element) ? element : null
+}
+
+// A service's sign-in as the pane's account block shows it. `skip`: not
+// relevant here (GitHub outside a git folder), so the row is left out.
+export type SignIn = { state: 'in' | 'out' | 'missing' | 'skip'; user: string }
+
+// `gh auth status` exits 0 when signed in and names the account.
+export function parseGhStatus(exitCode: number, output: string): SignIn {
+  if (exitCode !== 0) return { state: 'out', user: '' }
+  return { state: 'in', user: /account (\S+)/.exec(output)?.[1] ?? '' }
+}
+
+// $.mcp.call's error when the server has no such tool connected. Signed out,
+// not installed and still connecting all give this same error (2026-10-28), so
+// only a call that gets past it proves a sign-in.
+export function isNoConnectedTool(err: unknown): boolean {
+  return String(err).includes('no connected MCP tool')
 }
 
 // Whether Claude Code is signed in to the Branch8 organisation, from the
