@@ -42,8 +42,17 @@ declare module 'claude-code' {
       settings: string | null
       autoOpen: boolean
       // The pane's account block: the Claude login, and the Jira user once the
-      // Atlassian MCP answers (checked: asked already, whatever came back).
-      account: { claude: { email: string; org: string; plan: string } | null; jira: { name: string; email: string } | null; isJiraChecked: boolean }
+      // Atlassian MCP answers (checked: asked already, whatever came back;
+      // out: still none after the last start-up retry). GitHub (gh) and Devin
+      // sign-ins: null while checking; GitHub `skip` outside a git folder.
+      account: {
+        claude: { email: string; org: string; plan: string } | null
+        jira: { name: string; email: string } | null
+        isJiraChecked: boolean
+        isJiraOut: boolean
+        github: { state: 'in' | 'out' | 'missing' | 'skip'; user: string } | null
+        devin: { state: 'in' | 'out' | 'missing' | 'skip'; user: string } | null
+      }
       // Only tickets updated within this many days; 0 for any age.
       range: number
       isOrg: boolean

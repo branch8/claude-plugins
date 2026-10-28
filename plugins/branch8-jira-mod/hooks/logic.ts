@@ -381,6 +381,11 @@ export type Strings = {
   jiraDiffers: string
   noJiraFolder: string
   unmappedFolder: string
+  labelGithub: string
+  labelDevin: string
+  signedIn: string
+  authOut: string
+  ghMissing: string
 }
 
 const LANG_NAMES = { 'zh-TW': '繁中', 'zh-CN': '简中', en: 'English' }
@@ -419,6 +424,11 @@ export const STRINGS: Record<Lang, Strings> = {
     jiraDiffers: '⚠ 和 Claude 帳號不同',
     noJiraFolder: '不使用 Jira',
     unmappedFolder: '尚未對應 Jira 專案',
+    labelGithub: 'GitHub',
+    labelDevin: 'Devin ',
+    signedIn: '已登入',
+    authOut: '未登入 · /auth-check',
+    ghMissing: '未安裝 gh · /auth-check',
     language: '語言：',
     langNames: { ...LANG_NAMES, auto: '自動' },
     open: '開啟',
@@ -427,8 +437,8 @@ export const STRINGS: Record<Lang, Strings> = {
     refreshing: '更新中…',
     empty: '沒有指派給你、還沒完成的單。',
     noStatus: '（無狀態）',
-    noJira: 'Jira 沒有連線（找不到 Atlassian MCP），請先跑 /jira-check',
-    signedOut: 'Jira 查詢失敗：Atlassian 可能還沒登入，請跑 /jira-check',
+    noJira: 'Jira 沒有連線（找不到 Atlassian MCP），請先跑 /auth-check',
+    signedOut: 'Jira 查詢失敗：Atlassian 可能還沒登入，請跑 /auth-check',
     queryFailed: 'Jira 查詢失敗，請稍後再試',
     todoCount: n => `Jira 待辦：${n} 張。`,
     closed: 'Jira 待辦面板已關閉（再打 /jira-todo 打開）。',
@@ -492,6 +502,11 @@ export const STRINGS: Record<Lang, Strings> = {
     jiraDiffers: '⚠ 和 Claude 账号不同',
     noJiraFolder: '不使用 Jira',
     unmappedFolder: '尚未对应 Jira 项目',
+    labelGithub: 'GitHub',
+    labelDevin: 'Devin ',
+    signedIn: '已登录',
+    authOut: '未登录 · /auth-check',
+    ghMissing: '未安装 gh · /auth-check',
     language: '语言：',
     langNames: { ...LANG_NAMES, auto: '自动' },
     open: '打开',
@@ -500,8 +515,8 @@ export const STRINGS: Record<Lang, Strings> = {
     refreshing: '更新中…',
     empty: '没有指派给你、尚未完成的单。',
     noStatus: '（无状态）',
-    noJira: 'Jira 未连接（找不到 Atlassian MCP），请先运行 /jira-check',
-    signedOut: 'Jira 查询失败：Atlassian 可能尚未登录，请运行 /jira-check',
+    noJira: 'Jira 未连接（找不到 Atlassian MCP），请先运行 /auth-check',
+    signedOut: 'Jira 查询失败：Atlassian 可能尚未登录，请运行 /auth-check',
     queryFailed: 'Jira 查询失败，请稍后再试',
     todoCount: n => `Jira 待办：${n} 张。`,
     closed: 'Jira 待办面板已关闭（再输入 /jira-todo 打开）。',
@@ -565,6 +580,11 @@ export const STRINGS: Record<Lang, Strings> = {
     jiraDiffers: '⚠ not the Claude account',
     noJiraFolder: 'no Jira',
     unmappedFolder: 'no Jira project recorded yet',
+    labelGithub: 'GitHub',
+    labelDevin: 'Devin ',
+    signedIn: 'signed in',
+    authOut: 'signed out · /auth-check',
+    ghMissing: 'gh not installed · /auth-check',
     language: 'Language: ',
     langNames: { ...LANG_NAMES, auto: 'Auto' },
     open: 'Open',
@@ -573,8 +593,8 @@ export const STRINGS: Record<Lang, Strings> = {
     refreshing: 'Refreshing…',
     empty: 'No open tickets assigned to you.',
     noStatus: '(no status)',
-    noJira: 'Jira is not connected (no Atlassian MCP). Run /jira-check',
-    signedOut: 'Jira query failed: Atlassian may be signed out. Run /jira-check',
+    noJira: 'Jira is not connected (no Atlassian MCP). Run /auth-check',
+    signedOut: 'Jira query failed: Atlassian may be signed out. Run /auth-check',
     queryFailed: 'Jira query failed, try again later',
     todoCount: n => `Jira: ${n} open tickets.`,
     closed: 'Jira pane closed (/jira-todo opens it again).',
@@ -718,6 +738,23 @@ export function typeIcon(type: string | undefined): string {
 // item) means no ticket, so a stale one is never reused.
 export function focusedTicket(element: string | undefined): string | null {
   return element && /^[A-Z][A-Z0-9_]*-\d+$/.test(element) ? element : null
+}
+
+// A service's sign-in as the pane's account block shows it. `skip`: not
+// relevant here (GitHub outside a git folder), so the row is left out.
+export type SignIn = { state: 'in' | 'out' | 'missing' | 'skip'; user: string }
+
+// `gh auth status` exits 0 when signed in and names the account.
+export function parseGhStatus(exitCode: number, output: string): SignIn {
+  if (exitCode !== 0) return { state: 'out', user: '' }
+  return { state: 'in', user: /account (\S+)/.exec(output)?.[1] ?? '' }
+}
+
+// $.mcp.call's error when the server has no such tool connected. Signed out,
+// not installed and still connecting all give this same error (2026-10-28), so
+// only a call that gets past it proves a sign-in.
+export function isNoConnectedTool(err: unknown): boolean {
+  return String(err).includes('no connected MCP tool')
 }
 
 // Whether Claude Code is signed in to the Branch8 organisation, from the

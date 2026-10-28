@@ -39,7 +39,7 @@ Consult it on your own initiative, without being asked, when:
 - the work touches another $org repo or service (API contract, shared library, integration) whose source is not here;
 - the user asks how a company system or project works.
 
-Ask one specific question (\`ask_question\` / \`ask_wiki_question\`, repoName \`owner/repo\`, up to 10 repos), then verify in the actual code anything you will rely on - the wiki is a snapshot. Never call devin_session_* or other Devin management tools unless the user asks. If \`devin\` is not authenticated, tell the user once: \`/mcp\` -> devin -> Authenticate. Details: skill \`branch8-deepwiki:deepwiki\`."
+Ask one specific question (\`ask_question\` / \`ask_wiki_question\`, repoName \`owner/repo\`, up to 10 repos), then verify in the actual code anything you will rely on - the wiki is a snapshot. Do not ask the user which repo: find it from the git remote, the Jira project's repo list, or the devin repo list (\`list_available_repos\`) first. Never call devin_session_* or other Devin management tools unless the user asks. Sign-in when \`devin\` is not signed in: branch8-auth-check's rules. Details: skill \`branch8-deepwiki:deepwiki\`."
 
 jesc() {
   sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/\t/\\t/g' -e 's/\r//g' |

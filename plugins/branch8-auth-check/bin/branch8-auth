@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# Local answers for the branch8-auth-check sign-in flow.
+#   no-account <service>  remember the user has no account (stop showing/asking)
+#   clear [service]       forget that answer (all services when none is given)
+#   status                print recorded answers and the gh CLI state
+#   config                print the admin contact and GitHub organisation
+
+. "$(cd "$(dirname "$0")/.." && pwd)/hooks/lib.sh"
+
+known() {
+  case " $BA_SERVICES " in *" $1 "*) return 0 ;; esac
+  echo "unknown service '$1' (one of: $BA_SERVICES)" >&2
+  exit 2
+}
+
+case "$1" in
+  no-account)
+    known "$2"
+    mkdir -p "$BA_NO_ACCOUNT_DIR" && date '+%F' > "$BA_NO_ACCOUNT_DIR/$2" && echo "recorded: no $2 account"
+    ;;
+  clear)
+    if [ -n "$2" ]; then
+      known "$2"
+      rm -f "$BA_NO_ACCOUNT_DIR/$2"
+    else
+      rm -rf "$BA_NO_ACCOUNT_DIR"
+    fi
+    echo "cleared${2:+ $2}"
+    ;;
+  status)
+    list=$(ba_no_account_list)
+    echo "no-account: ${list:-none}"
+    echo "gh: $(ba_gh_state)"
+    ;;
+  config)
+    echo "admin=${BRANCH8_AUTH_ADMIN:-your Branch8 admin}"
+    echo "github_org=${BRANCH8_GITHUB_ORG:-branch8}"
+    ;;
+  *)
+    echo "usage: branch8-auth no-account <service>|clear [service]|status|config" >&2
+    exit 2
+    ;;
+esac

@@ -6,9 +6,11 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { Ticket, Transition } from '../types'
-import type { FolderRecord, Lang, LangPref, Scope } from './logic'
+import type { FolderRecord, Lang, LangPref, Scope, SignIn } from './logic'
 import {
   STRINGS,
+  isNoConnectedTool,
+  parseGhStatus,
   ancestorDirs,
   applyScope,
   effectiveScope,
@@ -99,6 +101,9 @@ const accountAtom = atom({ plugin: 'branch8-jira-mod', key: 'account' } as const
   claude: null,
   jira: null,
   isJiraChecked: false,
+  isJiraOut: false,
+  github: null,
+  devin: null,
 })
 const settingsAtom = atom({ plugin: 'branch8-jira-mod', key: 'settings' } as const, null)
 // The ticket row the pane's focus ring is on, for the "o" hotkey.
@@ -128,6 +133,10 @@ const ROW_WIDTH = PANE_WIDTH - 10
 
 // The Atlassian MCP under either name it is installed as.
 const ATLASSIAN = ['plugin:atlassian:atlassian', 'claude.ai Atlassian Rovo']
+// Devin's DeepWiki (branch8-deepwiki), and wiki tools it lists only once signed
+// in - names differ by server version, so any one of them will do.
+const DEVIN = 'plugin:branch8-deepwiki:devin'
+const DEVIN_TOOLS = ['read_wiki_structure', 'ask_question', 'ask_wiki_question']
 
 const str = (v: unknown) => (typeof v === 'string' ? v : '')
 
@@ -428,6 +437,47 @@ async function loadJiraUser($: EngineInterface): Promise<void> {
   }
 }
 
+// GitHub through the gh CLI, checked only in a git folder: people outside one
+// (PMs' documents, research) rarely need it, and the row is left out for them.
+async function githubSignIn($: EngineInterface): Promise<SignIn> {
+  try {
+    const git = await $.process.run(['git', 'rev-parse', '--is-inside-work-tree'], { timeoutMs: 5_000 })
+    if (git.exitCode !== 0) return { state: 'skip', user: '' }
+  } catch {
+    return { state: 'skip', user: '' }
+  }
+  try {
+    const gh = await $.process.run(['gh', 'auth', 'status', '--hostname', 'github.com'], { timeoutMs: 8_000 })
+    return parseGhStatus(gh.exitCode, gh.stdout + gh.stderr)
+  } catch {
+    // gh could not start (not installed) or hung.
+    return { state: 'missing', user: '' }
+  }
+}
+
+// Devin is signed in once one of its wiki tools gets past the engine's
+// "no connected tool" check; the server's own answer to empty arguments, error
+// or not, still proves the sign-in.
+async function devinSignIn($: EngineInterface): Promise<SignIn> {
+  for (const tool of DEVIN_TOOLS) {
+    try {
+      await $.mcp.call(DEVIN, tool, {})
+      return { state: 'in', user: '' }
+    } catch (err) {
+      if (!isNoConnectedTool(err)) return { state: 'in', user: '' }
+    }
+  }
+  return { state: 'out', user: '' }
+}
+
+// The pane's GitHub and Devin rows, and the Jira user. MCP servers are still
+// connecting at start, so this runs again on the start-up retries and on
+// refresh; `final` marks Jira signed out once the last retry still finds none.
+async function loadSignIns($: EngineInterface, final = false): Promise<void> {
+  const [github, devin] = await Promise.all([githubSignIn($), devinSignIn($), loadJiraUser($)])
+  await update($, accountAtom, a => ({ ...a, github, devin, isJiraOut: final && !a.isJiraChecked }))
+}
+
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     // Side by side: one after another took up to 15 s at start (2026-10-20),
@@ -497,6 +547,18 @@ export const register: Register = on => {
     }
     // In the background: the pane offers the update once it answers.
     void checkLatest($)
+    // In the background too, again while MCP servers are still connecting.
+    void loadSignIns($)
+    AUTO_RETRY_MS.forEach((ms, i) => {
+      $.clock.after(ms, () => {
+        void (async () => {
+          const a = await read($, accountAtom)
+          const isLast = i === AUTO_RETRY_MS.length - 1
+          if (a.isJiraChecked && a.devin?.state === 'in' && !isLast) return
+          await loadSignIns($, isLast)
+        })()
+      })
+    })
     try {
       const text = await readClaudeJson($)
       const claude = text === null ? null : claudeAccount(text)
@@ -700,14 +762,37 @@ export const register: Register = on => {
           </Text>
         ) : (
           <Text>
-            <Text>{'🔗 '}</Text>
+            <Text>{account.isJiraOut ? '⚪ ' : '🔗 '}</Text>
             <Text color="claude" bold>{`${str.labelJira}  `}</Text>
-            <Text dimColor>{str.jiraPending}</Text>
+            <Text dimColor>{account.isJiraOut ? str.authOut : str.jiraPending}</Text>
           </Text>
         )}
         {jiraWarn && (
           <Text color="warning">{`   ${jiraWarn === 'domain' ? str.jiraDomain : str.jiraDiffers}`}</Text>
         )}
+        {/* Sign-ins branch8-auth-check offers; the rows only point at /auth-check. */}
+        {account.github?.state !== 'skip' && (
+          <Text>
+            <Text>{account.github?.state === 'in' ? '🔗 ' : account.github ? '⚪ ' : '🔗 '}</Text>
+            <Text color="claude" bold>{`${str.labelGithub}  `}</Text>
+            {account.github?.state === 'in' ? (
+              <Text bold>{account.github.user || str.signedIn}</Text>
+            ) : (
+              <Text dimColor>
+                {!account.github ? str.jiraPending : account.github.state === 'missing' ? str.ghMissing : str.authOut}
+              </Text>
+            )}
+          </Text>
+        )}
+        <Text>
+          <Text>{account.devin?.state === 'out' ? '⚪ ' : '🔗 '}</Text>
+          <Text color="claude" bold>{`${str.labelDevin}  `}</Text>
+          {account.devin?.state === 'in' ? (
+            <Text bold>{str.signedIn}</Text>
+          ) : (
+            <Text dimColor>{account.devin ? str.authOut : str.jiraPending}</Text>
+          )}
+        </Text>
         <Text>
           <Text>{'📁 '}</Text>
           <Text color="claude" bold>{`${str.labelFolder}  `}</Text>
@@ -808,7 +893,8 @@ export const register: Register = on => {
           label={todos.isLoading ? (todos.items.length ? str.refreshing : str.loading + '…') : str.refresh}
           onPress={async () => {
             if (todos.isLoading) return
-            await loadTodos($, str)
+            // Sign-ins too: someone who just ran /auth-check sees the rows turn.
+            await Promise.all([loadTodos($, str), loadSignIns($, true)])
           }}
         />
         {todos.error && <Text color="error">{todos.error}</Text>}

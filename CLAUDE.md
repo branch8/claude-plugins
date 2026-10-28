@@ -142,7 +142,7 @@ MIT 授權的 vendored 程式碼、維護腳本、文件。已掃描確認無硬
 
 ```
 .claude-plugin/marketplace.json   發送清單，只放「官方沒上架」的 plugin
-managed-settings.json             Claude Code 那一側的清單（官方 6 個 + vendored 1 個 + 自家 3 個 + 內建 1 個）
+managed-settings.json             Claude Code 那一側的清單（官方 6 個 + vendored 1 個 + 自家 4 個 + 內建 1 個）
                                   這兩份是不同的東西，別互相複製
                                   env.CLAUDE_CODE_PLUGIN_GIT_TIMEOUT_MS=600000：預設 120 秒，網路慢的同事（實測 30 KiB/s）
                                   clone 不完就放棄，殘留的 git 還會擋住之後每次更新（2026-10-21）。排查見 README「排查」
@@ -210,6 +210,28 @@ plugins/branch8-jira-mod/         可選的 mod 擴充（TypeScript function hoo
                                   參數不同（plugin 版 transitionId、claude.ai 版 transition.id），都要支援
                                   hooks/logic.ts 是純函式（可單測），register.tsx 是引擎接線；
                                   `claude plugin test plugins/branch8-jira-mod` 跑測試
+plugins/branch8-auth-check/       所有登入集中一處（2026-10-27）：jira（atlassian MCP）、github（gh CLI）、devin（Devin DeepWiki）、
+                                  gemini（GEMINI_API_KEY，只有 ui-ux-pro-max 產圖用）。為什麼獨立一個 plugin：官方 plugin
+                                  （atlassian、github）改不了；各 plugin 各自注入、各自跳卡會疊 context 又不一致。
+                                  hook 時 MCP 未連線，jira/devin 由 Claude 第一輪 ToolSearch 判斷（只有 authenticate 工具 =
+                                  未登入）；gh 與環境變數由 hook 直接查（gh 有 5 秒上限）、只傳「有沒有設」不傳值。
+                                  第一輪只顯示一行狀態不跳卡；任務需要時才跳卡，四個選項：現在登入／這次先跳過（下次再問）／
+                                  此 session 不再詢問／我沒有帳號（記在 ~/.claude/branch8-auth/no-account/<service>）。
+                                  例外：jira 在 jira-check 判定為有 Jira 專案的公司資料夾時一開場就問（每個任務都要開單）。
+                                  github 只在 git repo 資料夾檢查與顯示——PM 多半不用 GitHub，不必設定角色。
+                                  GitHub 以 gh 為主：官方 github MCP 只吃 PAT（GITHUB_PERSONAL_ACCESS_TOKEN），GitHub 的
+                                  OAuth 沒有 DCR 也沒有 CIMD（2026-10-27 實測 metadata），Claude Code 無法自動 OAuth。
+                                  jira-check 1.3.0 起不再自己問 Jira 連線，改用 auth-check 的結果；auth-check 不在時退回
+                                  原本的 docs/connect.md。tests/hooks.sh 在 CI 把關
+                                  統一 vs 各自檢查（2026-10-28 討論後定案統一）：各自檢查時 GitHub/Gemini 沒有主人（官方 plugin
+                                  改不了），終究要有一處收；且每個 plugin 各自注入、各自跳卡會疊開場 context、樣式不一。
+                                  jira-mod 面板的 Jira 狀態是 mod 自己用 $.mcp.call 查的，不依賴 jira-check／auth-check；
+                                  它連不上時的提示自 0.15.2 起指向 /auth-check。
+                                  jira-mod 0.16.0 起資訊區也即時顯示 GitHub（gh，只在 git 資料夾）與 Devin 的登入，未登入指向
+                                  /auth-check；開場背景查、開場重試（5/15/30 秒，MCP 還在連）與「重新整理」時再查，最後一次
+                                  重試仍查不到 Jira 才標未登入（以前會永遠停在「連線中」）。$.mcp.call 對「未登入／工具不存在／
+                                  沒裝這個 server」都丟同一個 "no connected MCP tool"（2026-10-28 實測），分不出原因，所以只能
+                                  用「呼叫登入後才有的 wiki 工具不被擋」證明已登入；未裝 deepwiki 的人 Devin 也會顯示未登入
 plugins/branch8-deepwiki/         兩個 http MCP ＋ skills/deepwiki。devin（https://mcp.devin.ai/mcp）查組織 repo，
                                   用 OAuth、每人第一次 /mcp 登入——刻意不用 API key：repo 是 public 不能放 key，
                                   共用 service key 又等於讓全公司都能開 Devin session（花錢）。2026-10-27 實測：

@@ -1,9 +1,7 @@
 ## Jira connection (first turn, before the task)
 
-Load the Atlassian tools (`mcp__plugin_atlassian_atlassian__*` or a claude.ai
-Atlassian connector; ToolSearch "atlassian jira" if deferred) and call
-`atlassianUserInfo` or `getAccessibleAtlassianResources` once. Works ->
-connected, say nothing by itself. Auth
-error / only an `authenticate` tool / no tool -> ask with a card whether to
-connect now. Details: `{{DOCS}}/connect.md`. If declined, skip every Jira
-step this session.
+The branch8-auth-check plugin checks the Jira sign-in on the first turn and
+offers it (its "Branch8 sign-in" section). Do not ask about Jira separately; use
+its result. If its section is not in this session, check it yourself as in
+`{{DOCS}}/connect.md`. Jira not connected after that (the user skipped or
+declined) -> skip every Jira step until it is.

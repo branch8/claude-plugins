@@ -13,7 +13,7 @@ beats guessing from memory, and say when an answer came from it.
 
 | Server | Covers | Auth |
 |---|---|---|
-| `devin` | **Organisation (private) repos** indexed in our Devin org, plus public repos | OAuth, once per person (`/mcp` → devin → Authenticate) |
+| `devin` | **Organisation (private) repos** indexed in our Devin org, plus public repos | OAuth, once per person (Devin account) |
 | `deepwiki` | Public GitHub repos only | None |
 
 - Organisation repo (e.g. `branch8/...`, or any repo the user calls ours / internal)
@@ -23,10 +23,26 @@ beats guessing from memory, and say when an answer came from it.
   says the repo is not indexed and the user has Devin access.
 - Tools may be deferred: ToolSearch "deepwiki" or "devin".
 
-**`devin` not authenticated** (tools missing, or an auth / 401 error): tell the
-user to run `/mcp`, choose **devin**, and complete **Authenticate** in the
-browser with their Devin account, then retry. Do not fall back to guessing about
-a private repo, and never ask for or paste an API key.
+**`devin` not signed in** (only an `authenticate` tool, or an auth / 401 error):
+the branch8-auth-check plugin owns sign-in - follow its "Branch8 sign-in" rules
+(question card, then its `devin.md` steps). Without that plugin: `/mcp` ->
+**devin** -> **Authenticate**. Do not fall back to guessing about a private repo,
+and never ask for or paste an API key.
+
+## Which repo? Find it before asking
+
+The user often does not know the repo name (PMs especially) and should not need
+to. Before asking them, in this order:
+
+1. The current folder's git remote, if it is a Branch8 repo.
+2. The Jira project's config issue that lists its repos (branch8-jira-check,
+   `docs/repos.md`), when the work belongs to a Jira project.
+3. The devin repo list (`list_available_repos` / `list_wiki_repos`): pick the
+   repos whose names match the topic, and ask across several at once
+   (`repoName` takes up to 10).
+
+Ask the user only if none of these narrows it down - offer the likely
+candidates as card options rather than asking for a name.
 
 ## Tools to use - and not use
 
