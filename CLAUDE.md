@@ -217,7 +217,12 @@ plugins/branch8-auth-check/       所有登入集中一處（2026-10-27）：jir
                                   未登入）；gh 與環境變數由 hook 直接查（gh 有 5 秒上限）、只傳「有沒有設」不傳值。
                                   第一輪只顯示一行狀態不跳卡；任務需要時才跳卡，四個選項：現在登入／這次先跳過（下次再問）／
                                   此 session 不再詢問／我沒有帳號（記在 ~/.claude/branch8-auth/no-account/<service>）。
-                                  例外：jira 在 jira-check 判定為有 Jira 專案的公司資料夾時一開場就問（每個任務都要開單）。
+                                  例外：jira 在 jira-check 判定為公司工作時一開場就問（每個任務都要開單），**含尚未對應
+                                  Jira 專案的資料夾**——只排除「這資料夾不用 Jira」與個人專案。0.1.0 只對「已對應」的問，
+                                  但 jira-check 要 Jira 連上後才會問資料夾對應、jira-workflow 在 Jira 未連線時跳過開單，
+                                  兩邊互等＝沒人問（2026-10-28 發現，0.1.1 修）。
+                                  過渡期：jira-check 1.3.0 會先自動更新到同事電腦，但 auth-check 要等後台貼上 managed settings
+                                  才啟用；這段期間走 jira-check 的備援（docs/connect.md，等同舊行為）。
                                   github 只在 git repo 資料夾檢查與顯示——PM 多半不用 GitHub，不必設定角色。
                                   GitHub 以 gh 為主：官方 github MCP 只吃 PAT（GITHUB_PERSONAL_ACCESS_TOKEN），GitHub 的
                                   OAuth 沒有 DCR 也沒有 CIMD（2026-10-27 實測 metadata），Claude Code 無法自動 OAuth。
