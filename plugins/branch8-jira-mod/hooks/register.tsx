@@ -9,6 +9,7 @@ import type { Ticket, Transition } from '../types'
 import type { FolderRecord, Lang, LangPref, Scope, SignIn } from './logic'
 import {
   STRINGS,
+  folderLabel,
   isNoConnectedTool,
   parseGhStatus,
   ancestorDirs,
@@ -185,9 +186,15 @@ async function stateDir($: EngineInterface): Promise<string> {
 async function resolveFolder($: EngineInterface): Promise<void> {
   const cwd = await $.session.cwd()
   let base = cwd
+  let common = ''
   try {
     const r = await $.process.run(['git', '-C', cwd, 'rev-parse', '--show-toplevel'], { timeoutMs: 5_000 })
     if (r.exitCode === 0 && r.stdout.trim()) base = r.stdout.trim()
+    // A worktree's main repo; git before 2.31 lacks --path-format and leaves it empty.
+    const c = await $.process.run(['git', '-C', cwd, 'rev-parse', '--path-format=absolute', '--git-common-dir'], {
+      timeoutMs: 5_000,
+    })
+    if (c.exitCode === 0) common = c.stdout.trim()
   } catch {
     // No git: the folder itself is the unit.
   }
@@ -199,11 +206,11 @@ async function resolveFolder($: EngineInterface): Promise<void> {
     rec = parseRecord(await $.fs.read(file))
     if (rec) break
   }
-  const name = base.split(/[/\\]/).filter(Boolean).pop() || base
+  const { dir: name, worktree } = folderLabel(base, common)
   await update($, folderAtom, () =>
     rec?.kind === 'project'
-      ? { dir: name, project: rec.key, name: rec.name }
-      : { dir: name, project: null, name: '', noJira: rec?.kind === 'none' },
+      ? { dir: name, worktree, project: rec.key, name: rec.name }
+      : { dir: name, worktree, project: null, name: '', noJira: rec?.kind === 'none' },
   )
 }
 
@@ -797,6 +804,7 @@ export const register: Register = on => {
           <Text>{'📁 '}</Text>
           <Text color="claude" bold>{`${str.labelFolder}  `}</Text>
           <Text bold>{folder.dir || '?'}</Text>
+          {folder.worktree ? <Text dimColor>{` · worktree ${folder.worktree}`}</Text> : null}
           <Text color={folder.project ? 'success' : undefined} dimColor={!folder.project}>
             {folder.project
               ? ` → Jira ${folder.project}${folder.name ? `（${folder.name}）` : ''}`

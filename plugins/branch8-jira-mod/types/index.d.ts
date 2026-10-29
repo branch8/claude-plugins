@@ -26,7 +26,9 @@ declare module 'claude-code' {
       statusFolded: string[]
       scopePref: 'auto' | 'folder' | 'all'
       // noJira: the folder's record says it uses no Jira (not merely unmapped).
-      folder: { dir: string; project: string | null; name: string; noJira?: boolean }
+      // dir: the folder's name - in a git worktree the main repo's, with the
+      // worktree's own name in `worktree` (it is often a ticket key).
+      folder: { dir: string; worktree?: string; project: string | null; name: string; noJira?: boolean }
       // The row menu under one ticket; status while its status popup is open:
       // the moves Jira offers (loading until they come), and the one picked to confirm.
       menu: {
