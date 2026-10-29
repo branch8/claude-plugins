@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { detectNode, reminderFor, formatBand, rulesSection, parseIssueStatus, parseIssueList, todoJql, nextRange, parseIssuePage, TODO_FIELDS, ISSUE_FIELDS, displayWidth, bandText, TODO_HELP, groupTodos, issueUrl, todoRow, langOf, STRINGS, statusTone, nextLangPref, resolveLang, recordFileName, ancestorDirs, parseRecord, projectOf, isOtherProject, applyScope, effectiveScope, foldersFor, suggestedFolder, typeIcon, focusedTicket, isOrgAccount, touchesFolderRecords, focusOrder, stepFocus, isArrowScroll, settingsValues, menuValues, leftFrom, pickNote, manifestVersion, isNewer, updateOutcome, parseTransitions, moveNote, claudeAccount, parseJiraUser, jiraWarning, syncTicket, parseGhStatus, isNoConnectedTool } from './logic'
+import { detectNode, reminderFor, formatBand, rulesSection, parseIssueStatus, parseIssueList, todoJql, nextRange, parseIssuePage, TODO_FIELDS, ISSUE_FIELDS, displayWidth, bandText, TODO_HELP, groupTodos, issueUrl, todoRow, langOf, STRINGS, statusTone, nextLangPref, resolveLang, recordFileName, ancestorDirs, parseRecord, projectOf, isOtherProject, applyScope, effectiveScope, foldersFor, suggestedFolder, typeIcon, focusedTicket, isOrgAccount, touchesFolderRecords, focusOrder, stepFocus, isArrowScroll, settingsValues, menuValues, leftFrom, pickNote, manifestVersion, isNewer, updateOutcome, parseTransitions, moveNote, claudeAccount, parseJiraUser, jiraWarning, syncTicket, parseGhStatus, isNoConnectedTool, folderLabel } from './logic'
 
 const T = { key: 'HS-1', summary: '修正請假審核通知', status: '待辦事項', cloudId: 'c' }
 
@@ -740,6 +740,24 @@ test('gh auth status: signed in names the account, any failure is signed out', (
   expect(parseGhStatus(0, out)).toEqual({ state: 'in', user: 'GlennCheng' })
   expect(parseGhStatus(0, 'github.com\n  ✓ Logged in\n')).toEqual({ state: 'in', user: '' })
   expect(parseGhStatus(1, 'You are not logged into any GitHub hosts.')).toEqual({ state: 'out', user: '' })
+})
+
+test('a worktree shows its main repo, with the worktree beside it', () => {
+  // The session that showed "HS-134" as the folder (2026-10-30).
+  expect(
+    folderLabel(
+      '/home/g/Projects/HR-system/main-file/.claude/worktrees/HS-134',
+      '/home/g/Projects/HR-system/main-file/.git',
+    ),
+  ).toEqual({ dir: 'main-file', worktree: 'HS-134' })
+  expect(folderLabel('/home/g/Projects/HR-system/main-file', '/home/g/Projects/HR-system/main-file/.git')).toEqual({
+    dir: 'main-file',
+    worktree: '',
+  })
+  expect(folderLabel('C:\\Users\\g\\repo\\wt\\HS-1', 'C:\\Users\\g\\repo\\.git')).toEqual({ dir: 'repo', worktree: 'HS-1' })
+  // No git, old git (no --path-format) or a submodule: the folder as it is.
+  expect(folderLabel('/home/g/docs', '')).toEqual({ dir: 'docs', worktree: '' })
+  expect(folderLabel('/home/g/app/lib', '/home/g/app/.git/modules/lib')).toEqual({ dir: 'lib', worktree: '' })
 })
 
 test("only the engine's missing-tool error counts as not signed in", () => {

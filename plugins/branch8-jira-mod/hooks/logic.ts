@@ -649,6 +649,22 @@ export function statusTone(status: string): Tone {
 
 // --- Folder ↔ Jira project: the records branch8-jira-check keeps ---
 
+// The pane's folder name. In a git worktree the top level is the worktree's own
+// folder, often named after a ticket (`.claude/worktrees/HS-134`), which read as
+// the current ticket (2026-10-30): name the main repo, and the worktree beside it.
+// `commonDir` is `git rev-parse --path-format=absolute --git-common-dir`.
+export function folderLabel(topLevel: string, commonDir: string): { dir: string; worktree: string } {
+  const trim = (p: string) => p.replace(/[/\\]+$/, '')
+  const last = (p: string) => trim(p).split(/[/\\]/).filter(Boolean).pop() || p
+  const top = trim(topLevel)
+  const common = trim(commonDir)
+  // Only a main repo's `<repo>/.git`; submodules and bare repos stay as they are.
+  if (!/[/\\]\.git$/.test(common)) return { dir: last(top), worktree: '' }
+  const main = common.slice(0, -'/.git'.length)
+  if (main === top) return { dir: last(top), worktree: '' }
+  return { dir: last(main), worktree: last(top) }
+}
+
 // File name of a folder's record, exactly as hooks/lib.sh computes it.
 export function recordFileName(dir: string): string {
   const key = dir.replace(/[/\\: ]/g, '_').replace(/^_+/, '')

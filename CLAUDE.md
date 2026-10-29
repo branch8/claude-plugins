@@ -208,6 +208,9 @@ plugins/branch8-jira-mod/         可選的 mod 擴充（TypeScript function hoo
                                   面板「↻ 切換狀態」：列選單 → 狀態 popup（即時查 listJiraIssueTransitions／
                                   getTransitionsForJiraIssue，不寫死）→ 確認 popup，按確認才寫入。兩個 Atlassian 伺服器的
                                   參數不同（plugin 版 transitionId、claude.ai 版 transition.id），都要支援
+                                  資料夾列在 git worktree 裡顯示主 repo 名＋淡色「· worktree <名>」：worktree 的 show-toplevel
+                                  是它自己的資料夾，常以單號命名（.claude/worktrees/HS-134），會被看成「目前的單」（2026-10-30
+                                  回報）。主 repo 由 rev-parse --path-format=absolute --git-common-dir 取（git ≥ 2.31）
                                   hooks/logic.ts 是純函式（可單測），register.tsx 是引擎接線；
                                   `claude plugin test plugins/branch8-jira-mod` 跑測試
 plugins/branch8-auth-check/       所有登入集中一處（2026-10-27）：jira（atlassian MCP）、github（gh CLI）、devin（Devin DeepWiki）、
