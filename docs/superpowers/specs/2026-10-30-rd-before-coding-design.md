@@ -1,4 +1,4 @@
-# branch8-feature-kickoff：RD 拿到需求後的標準 AI 協作流程（設計）
+# branch8-practices / rd-before-coding：RD 拿到需求後的標準 AI 協作流程（設計）
 
 日期：2026-10-30 ・ 狀態：設計待核可
 
@@ -44,7 +44,7 @@ AI 在這裡是 **pair programming 的夥伴**，不是代工，也不是家教�
 
 有兩種入口：
 - RD 在 jira-mod 面板選了一張單，或在對話中給出 PRD／Jira 單號。
-- RD 直接叫出 skill（`/branch8-feature-kickoff:kickoff`）。
+- RD 直接叫出 skill（`/branch8-practices:rd-before-coding`）。
 
 AI 先判斷規模。牽涉新功能、多個使用情境、或有架構選擇時，主動**提議**走這套流程，RD 可以拒絕；
 小改動就直接做，不提議。若 RD 主動叫出 skill，就不再判斷，直接開始。
@@ -108,19 +108,19 @@ RD 可以說「直接講給我聽」來跳過第 2 步，紀錄裡會註明「�
 
 ## 與既有 skill 的銜接（調整點）
 
-借用的 skill 有些預設行為和上面的規則衝突，kickoff 必須明確覆寫：
+借用的 skill 有些預設行為和上面的規則衝突，rd-before-coding 必須明確覆寫：
 
-| skill | 預設行為 | 在 kickoff 裡的調整 |
+| skill | 預設行為 | 在 rd-before-coding 裡的調整 |
 |---|---|---|
 | `mattpocock-skills:grilling` | 每題都附 AI 的建議答案，回答「yes」即採用 | 先讓 RD 作答，RD 答完或主動要求時才給 AI 的建議（*我的判斷，依據「RD 先想」*） |
-| `superpowers:brainstorming` | 另外寫一份 spec 到 `docs/superpowers/specs/`；技術上的小決定由 AI 自己定（"Settle it yourself and mark it … as your call"）；結束時強制交給 writing-plans | 每次都叫用。叫用前先交出第 1、2 段的結論，讓它跳過「你想做什麼」的開場。spec 直接寫進 kickoff 紀錄的「解法」段（brainstorming 本身允許："Your human partner's preferences override both"）。它交出的「我替你做的決定」清單，由 RD 逐條確認，確認結果記進紀錄。**順序衝突**：brainstorming 規定文件一旦核可，下一步只能是 writing-plans，但 kickoff 在那之後還有「RD 選定方案」和「grilling 施壓」兩步。因此 kickoff 要明確說明：brainstorming 寫出的「解法」段，要等 grilling 結束後才送 RD 核可，核可後才進入 writing-plans |
+| `superpowers:brainstorming` | 另外寫一份 spec 到 `docs/superpowers/specs/`；技術上的小決定由 AI 自己定（"Settle it yourself and mark it … as your call"）；結束時強制交給 writing-plans | 每次都叫用。叫用前先交出第 1、2 段的結論，讓它跳過「你想做什麼」的開場。spec 直接寫進本流程紀錄的「解法」段（brainstorming 本身允許："Your human partner's preferences override both"）。它交出的「我替你做的決定」清單，由 RD 逐條確認，確認結果記進紀錄。**順序衝突**：brainstorming 規定文件一旦核可，下一步只能是 writing-plans，但 rd-before-coding 在那之後還有「RD 選定方案」和「grilling 施壓」兩步。因此 rd-before-coding 要明確說明：brainstorming 寫出的「解法」段，要等 grilling 結束後才送 RD 核可，核可後才進入 writing-plans |
 | `mattpocock-skills:domain-modeling` | 用情境檢驗設計、拿 code 比對說法、維護 GLOSSARY.md，並在必要時寫 ADR | 和 grilling 一起使用（等同 grill-with-docs），照它原本的方式運作；紀錄裡只放 ADR 的連結 |
 
 註：`grill-with-docs`（也就是 grilling ＋ domain-modeling）設了 `disable-model-invocation`，AI 不能叫用，所以要分別叫用這兩個 skill。
 
 這兩個 plugin（superpowers、mattpocock-skills）都已經在 `managed-settings.json` 的發送清單中（已確認）。
 
-kickoff 只負責「何時叫用、輸出寫到哪裡」，不複製它們的內容。若之後在某個 session 裡沒有安裝它們，就以 kickoff 內建的簡化版問法代替，不能讓流程卡住。
+rd-before-coding 只負責「何時叫用、輸出寫到哪裡」，不複製它們的內容。若之後在某個 session 裡沒有安裝它們，就以 rd-before-coding 內建的簡化版問法代替，不能讓流程卡住。
 
 ## 紀錄格式
 
@@ -155,19 +155,23 @@ Jira 留言要寫成**不點連結也能讀懂**的完整摘要，因為 PM 和 
 
 ## 形式與發送
 
-- 新 plugin：`plugins/branch8-feature-kickoff/`，內含一個 skill，加入 `marketplace.json` 和 `managed-settings.json`。
+- 新 plugin：`plugins/branch8-practices/`，代表「Branch8 的工作方式」，日後同類的規範都收進這個 plugin。
+  這一期只有一個 skill：`rd-before-coding`。加入 `marketplace.json` 和 `managed-settings.json`。
+- **命名規則**（使用者 2026-10-31 定案）：skill 名加角色前綴，例如 `rd-…`、`pm-…`，讓人一看就知道是誰的流程。
+  不同階段拆成不同 skill，例如寫 code 中、寫完之後，不全部塞進同一個。曾考慮直接命名為 `coding`，但這個名稱太寬，
+  所有寫 code 的任務都可能觸發它，而且名稱大於實際範圍，所以沒有採用。
 - skill 本體用英文撰寫（與 jira-workflow 一致），和 RD 對話時用 RD 的語言。
   SKILL.md 保持精簡，各段的詳細步驟放在 `docs/` 中，需要時才讀（沿用 jira-check 的做法：注入的 context 太大會失效）。
-- jira-mod：在 `pickNote` 裡加一句，提示 Claude 先判斷規模，必要時提議 kickoff。這需要 bump mod 的版本號。
+- jira-mod：在 `pickNote` 裡加一句，提示 Claude 先判斷規模，必要時提議 rd-before-coding。這需要 bump mod 的版本號。
   mod 沒有安裝時，就靠 skill 的 description 自己觸發。
 - 依循 repo 慣例：版本號、validate.py、README／CLAUDE.md 都要同步更新。
 
 ## 我的判斷（設計者決定，非使用者明示）
 
-- **紀錄的位置與接續**：kickoff 一開始就切出以單號命名的 branch（沿用 jira-workflow「branch 名帶單號」的慣例），
-  在第 2 段結束、送 PM 問題之前先 commit 並 push 紀錄。接續時先看目前 branch，找不到再用
-  `git log --all -- 'docs/features/<KEY>-*'` 依單號尋找。不另外建立本機索引。
-- **與 jira-workflow 的分工**：狀態轉換一律交給 jira-workflow，kickoff 不自己推薦轉換。
+- **紀錄的接續**：在第 2 段結束、送 PM 問題之前，先把紀錄 commit 起來（branch 與 push 的規則見下方）。
+  接續時先看目前的 branch；找不到，再用
+  `git log --all -- 'docs/features/<KEY>-*'` 依單號找。不另外建本機索引。
+- **與 jira-workflow 的分工**：狀態轉換一律交給 jira-workflow，rd-before-coding 不自己推薦轉換。
   分析需求本身就算開始工作，所以 jira-workflow 的 `start` 時機照常觸發。等 PM 回覆時不推薦任何轉換。
 - **非 RD 選單**：pickNote 那一句只叫 Claude「若這裡是 code repo 的開發工作」才判斷規模。
   PM 在非 code 資料夾選單時不會收到提議。這由 Claude 判斷，mod 不另外讀取資料夾狀態。
@@ -177,12 +181,12 @@ Jira 留言要寫成**不點連結也能讀懂**的完整摘要，因為 PM 和 
   完整流程用真實的 Jira 單手動走一遍來驗證。
 
 - **branch 與 push**：Jira 留言已經能單獨閱讀，PM 不需要看 repo，所以送 PM 問題前**只需 commit，不需 push**。
-  push 照 RD 平常的工作流程進行。kickoff 不會自己開 branch；只有當 RD 正在預設分支上時，才建議開一個帶單號的 branch。
+  push 照 RD 平常的工作流程進行。rd-before-coding 不會自己開 branch；只有當 RD 正在預設分支上時，才建議開一個帶單號的 branch。
 - **上游變動**：superpowers 和 mattpocock-skills 走官方來源，Anthropic 更新時公司這邊沒有審查點（見 CLAUDE.md 決策 3）。
-  kickoff 的關鍵規則（RD 先想、只留一份文件、決策交給 RD）**寫在 kickoff 自己的文字裡**，
+  rd-before-coding 的關鍵規則（RD 先想、只留一份文件、決策交給 RD）**寫在 rd-before-coding 自己的文字裡**，
   不依賴上游 skill 的某句話剛好還在。eval 會檢查這幾條是否仍然成立。
 - **ADR**：如果 domain-modeling 寫了 ADR（`docs/adr/`），紀錄的「解法」段只放連結和一句摘要，不重抄。
-  ADR 記錄跨功能、難以回頭的決定；kickoff 紀錄記錄這張單的來龍去脈。
+  ADR 記錄跨功能、難以回頭的決定；本流程的紀錄記錄這張單的來龍去脈。
 - **公開 repo**：本 repo 是 public，所以 skill 和 docs 裡的範例一律使用虛構的情境，不寫客戶名稱或專案名稱。
 - **Jira 和紀錄的差異**：Jira 留言是送出當下的快照，repo 紀錄才會持續更新。兩者對不上時，以 repo 為準。
 
