@@ -200,6 +200,10 @@ Jira 留言要寫成**不點連結也能讀懂**的完整摘要，因為 PM 和 
 
 ## 驗證方式
 
-- eval 必須檢查：用了 brainstorming 之後，流程仍然會先跑 grilling 才進 writing-plans；而且 spec 沒有另外寫到 `docs/superpowers/specs/`。
-- 用 `skill-creator` 的 eval 跑三種情境：PRD 有情境、PRD 沒有情境、小改動（應該不觸發）。
+- 用 `claude plugin eval`（`plugins/branch8-practices/evals/`）在本機跑五種情境：PRD 有情境、PRD 沒有情境、小改動（應該不觸發）、
+  打不開的 PRD 連結（不能編造內容）、PM 回覆後從紀錄接續。eval 是付費的模型呼叫，所以不放進 CI。
+- eval 的沙盒只會載入受測的 plugin（沒有 superpowers、mattpocock、Jira MCP），而且只有一輪對話，
+  所以以下兩點要改用手動走一遍來驗證（2026-10-31 實作時確認）：
+  - 用了 brainstorming 之後，流程仍然會先跑 grilling 才進 writing-plans；
+  - spec 沒有另外寫到 `docs/superpowers/specs/`。
 - 找一張真實的 Jira 單，從 jira-mod 面板選單開始走完整流程，確認紀錄內容和 Jira 留言都正確。
