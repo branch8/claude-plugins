@@ -142,7 +142,7 @@ MIT 授權的 vendored 程式碼、維護腳本、文件。已掃描確認無硬
 
 ```
 .claude-plugin/marketplace.json   發送清單，只放「官方沒上架」的 plugin
-managed-settings.json             Claude Code 那一側的清單（官方 6 個 + vendored 1 個 + 自家 4 個 + 內建 1 個）
+managed-settings.json             Claude Code 那一側的清單（官方 6 個 + vendored 1 個 + 自家 5 個 + 內建 1 個）
                                   這兩份是不同的東西，別互相複製
                                   env.CLAUDE_CODE_PLUGIN_GIT_TIMEOUT_MS=600000：預設 120 秒，網路慢的同事（實測 30 KiB/s）
                                   clone 不完就放棄，殘留的 git 還會擋住之後每次更新（2026-10-21）。排查見 README「排查」
@@ -257,6 +257,24 @@ plugins/branch8-deepwiki/         兩個 http MCP ＋ skills/deepwiki。devin（
                                   read_wiki_contents 對大 repo 回 1.27 MB（anthropics/claude-code），一定被轉存成檔案，
                                   所以 skill 要求先 ask／structure；未建索引的 repo 回 "Repository not found"，重試無用。
                                   問題文字會送到第三方（Cognition），skill 禁止夾帶公司程式碼與資料
+plugins/branch8-practices/        Branch8 的工作方式，同類的規範都收在這裡。skill 名稱加上角色前綴（rd-…、pm-…），
+                                  不同階段各自拆成一個 skill（2026-10-31 定案；曾考慮直接取名 `coding`，但太寬、
+                                  名稱大於實際範圍，所以沒採用）。目前只有 rd-before-coding：RD 接到功能等級的單後、
+                                  寫 code 前，由 Claude 陪 RD 讀懂需求 → 逐條檢視 PRD 情境（問題回 PM）→ 構思解法
+                                  （brainstorming → RD 選 → grilling＋domain-modeling），並在 repo 留紀錄、在 Jira 留摘要。
+                                  設計：docs/superpowers/specs/2026-10-30-rd-before-coding-design.md。
+                                  AI 是 pair，不是代工：關鍵點 RD 先想，決定由 RD 做。
+                                  紀錄放 docs/features/，客戶看得到的 repo 也照放（使用者決定）。
+                                  Jira 留言要寫到單獨看也能懂：PM、QA 大多打不開 GitHub。
+                                  借用的 skill 有兩處要覆寫：grilling 改成先讓 RD 答；brainstorming 不另寫 spec，
+                                  而且要等 grilling 結束才進 writing-plans。這些規則寫在本 skill 自己的文字裡，
+                                  不依賴上游原文（官方 plugin 更新時沒有審查點）。
+                                  jira-mod 的 pickNote 會提示 Claude：選單後先判斷規模，必要時提議走這套流程。
+                                  官方 feature-dev 有部分重疊，但方向相反（AI 先解讀、先推薦，沒有回 PM 的迴路，
+                                  也不留紀錄），2026-10-31 查 315 個 plugin，沒有同類。
+                                  evals/ 是 claude plugin eval 的套件：每次執行都要付費，只在本機跑，不進 CI。
+                                  沙盒只載入受測的 plugin，而且只有單輪對話，「brainstorming 後先 grilling」這點
+                                  只能手動驗證。tests/structure.sh 在 CI 檢查結構與大小。
 template/plugin-template/         開發新 plugin 的起點。刻意不列入 marketplace.json，
                                   所以不會被發送、也不會被 validate 檢查
                                   validate.py 會擋住把 ./template/ 當 source 的 entry

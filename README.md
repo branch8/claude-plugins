@@ -49,6 +49,7 @@
 | `ui-ux-pro-max` | **vendored** | UI/UX 設計資料庫。**官方沒有上架**，所以走 vendoring |
 | `branch8-deepwiki` | 自家 | DeepWiki 知識庫：組織 repo 走 Devin MCP（Devin 帳號 OAuth，登入由 `branch8-auth-check` 引導），開源 repo 走公開 DeepWiki（免登入）；開場注入一段短規則，讓 Claude 工作中也會主動把組織 wiki 當專案知識查，不知道 repo 時自己從 git remote／Jira 設定單／Devin repo 清單找（`BRANCH8_DEEPWIKI=off` 關閉）。**官方沒有上架**（2026-10-23 查 315 個） |
 | `branch8-auth-check` | 自家 | 所有登入集中一處：Jira、GitHub（`gh`）、Devin DeepWiki、Gemini。第一則訊息顯示一行登入狀態；任務需要某服務但沒登入時才跳卡片（現在登入／這次先跳過／此 session 不再詢問／我沒有帳號），沒帳號就告知向誰申請（`config.env`）。GitHub 只在 git repo 資料夾檢查（PM 不受打擾）；Jira 對有 Jira 專案的公司資料夾仍一開場就問。官方 plugin 改不了，所以由這裡統一處理。`/auth-check` 隨時重查 |
+| `branch8-practices` | 自家 | Branch8 的工作方式。第一個 skill 是 `rd-before-coding`：RD 接到功能等級的單或 PRD 後、寫 code 前，Claude 以 pair 的身分陪 RD 走四段：先讀懂需求（原文攤開，RD 先說）、逐條檢視 PRD 情境（缺漏、衝突、做不到的地方，問題回 PM）、構思解法（brainstorming → RD 選定 → grilling＋domain-modeling），最後在 repo 的 `docs/features/` 留紀錄，在 Jira 留一份單獨看也懂的摘要。在 `/jira-todo` 面板選單時會自動提議，也可以用 `/branch8-practices:rd-before-coding` 叫出；小改動不會觸發。**官方沒有上架**（2026-10-31 查 315 個；`feature-dev` 部分重疊，但由 AI 先解讀、先推薦，也沒有回 PM 的迴路與紀錄） |
 
 判斷方式不是「信不信任作者」，而是**官方有沒有上架**。官方上架的 plugin，
 Anthropic 的 CI 已經幫它釘在特定 commit 上（外部 repo 的 source 都帶 `sha`），
