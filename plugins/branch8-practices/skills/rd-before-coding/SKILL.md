@@ -16,9 +16,11 @@ this is written down for the PM, QA, their lead and whoever takes over.
 - Only in a code repository, and only for work beyond a small change: a new
   feature, several user scenarios, or an architecture choice. A copy edit or a
   limit tweak: just do it, do not mention this flow.
-- Offer it in one line ("Before coding, shall we go through the requirement
-  together?"). A no holds for this ticket only: do not offer again for it, but
-  do offer for another feature-sized ticket.
+- Offer it with a question card, three options: "Yes, together" / "Not for
+  this ticket" / "Not again this session". A no holds for this ticket only: do
+  not offer again for it, but do offer for the next feature-sized ticket.
+  "Not again this session" stops all offers until the session ends; the RD can
+  still start the flow by asking for it.
 - Already accepted - the RD said yes to the offer, named this flow, or ran
   `/branch8-practices:rd-before-coding`: start, and do not offer again.
 - A record already exists for this ticket: resume (see "Record and resume").

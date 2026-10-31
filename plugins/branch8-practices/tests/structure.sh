@@ -72,6 +72,7 @@ check "review.md writes missing scenarios before asking the RD" '[ "$(line_of "N
 check "review.md commits the record before posting the PM questions" '[ "$(line_of "commit the record" "$docs/review.md")" -lt "$(line_of "Then post it" "$docs/review.md")" ]'
 check "resume on another branch asks, never a second record" 'grep -qF "never start a second record" "$skill"'
 check "a no covers this ticket only; an accepted offer is not repeated" 'grep -qF "for this ticket" "$skill" && grep -qF "do not offer again" "$skill"'
+check "the offer card has a stop-offering-this-session option" 'grep -qF "Not again this session" "$skill"'
 check "small-change not-fired grader is scored in both arms" 'grep -qF "arm: both" "$root/evals/small-change/graders/skill-not-fired.md"'
 check "unreadable-link checks the skill fired" '[ -f "$root/evals/unreadable-link/graders/skill-fired.md" ]'
 check "CLAUDE.md records the eval command with --scaffold" 'grep -qF "claude plugin eval . --scaffold --ablation none" "$root/../../CLAUDE.md"'

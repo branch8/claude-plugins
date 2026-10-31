@@ -584,6 +584,7 @@ test('picking a ticket offers rd-before-coding only for feature-sized work in a 
   const note = pickNote({ key: 'HS-96', summary: 'x', status: 'To Do', cloudId: 'c' })
   expect(note.includes('branch8-practices:rd-before-coding')).toBe(true)
   expect(note.includes('code repo')).toBe(true)
+  expect(note.includes('not to offer it again this session')).toBe(true)
   expect(pickNote(null).includes('rd-before-coding')).toBe(false)
 })
 
