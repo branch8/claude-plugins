@@ -892,7 +892,8 @@ export function pickNote(ticket: Ticket | null): string {
   return (
     `[branch8-jira-mod] In the /jira-todo pane the user picked ${ticket.key}${what}${status} as the current Jira ticket. ` +
     'Work on this ticket from now on; when the user says "this one" or "this ticket", they mean it. ' +
-    'It is already recorded: no need to call set_ticket again.'
+    'It is already recorded: no need to call set_ticket again. ' +
+    'If this folder is a code repo and the ticket is more than a small change (a new feature, several user scenarios, or an architecture choice), offer the branch8-practices:rd-before-coding workflow before writing code, if that skill is available; the user may decline.'
   )
 }
 

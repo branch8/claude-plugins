@@ -580,6 +580,13 @@ test('the note Claude reads when the person picks or unselects a ticket in the p
   expect(pickNote(null).includes('no current Jira ticket')).toBe(true)
 })
 
+test('picking a ticket offers rd-before-coding only for feature-sized work in a code repo', () => {
+  const note = pickNote({ key: 'HS-96', summary: 'x', status: 'To Do', cloudId: 'c' })
+  expect(note.includes('branch8-practices:rd-before-coding')).toBe(true)
+  expect(note.includes('code repo')).toBe(true)
+  expect(pickNote(null).includes('rd-before-coding')).toBe(false)
+})
+
 test('the version shown in the pane comes from plugin.json', () => {
   expect(manifestVersion('{"name":"branch8-jira-mod","version":"0.13.0"}')).toBe('0.13.0')
   expect(manifestVersion('{"name":"x"}')).toBeNull()
