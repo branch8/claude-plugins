@@ -4,4 +4,4 @@ max_turns: 15
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 
-這是新功能的 PRD：https://docs.google.com/document/d/FAKE-DEMO-ID/edit 單已經分給我了，幫我開始。
+DEMO-31 分給我了，單子內容在 ticket.md。我們用 rd-before-coding 走這張單，從讀懂需求開始。

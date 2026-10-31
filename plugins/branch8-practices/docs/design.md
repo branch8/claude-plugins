@@ -17,6 +17,9 @@ widen what they consider and stress-test what they choose - not to choose.
      file under `docs/superpowers/specs/`.
    - It ends with a list of the calls it made itself; the RD confirms or changes
      each one, and the record keeps the result.
+   - Inside this flow it never builds or hands off: skip its opening offer to
+     skip the questions, and however it ends - everything already known, sized
+     as a small change, or design approved - come back here to step 3.
 3. **The RD picks** an approach and says why. Quote their reason in the record.
 4. **Stress-test the choice** with `mattpocock-skills:grilling` (RD answers
    first in every round) together with `mattpocock-skills:domain-modeling`:
@@ -25,8 +28,7 @@ widen what they consider and stress-test what they choose - not to choose.
    without context, and the result of a real trade-off, domain-modeling
    writes an ADR; the record links it instead of copying it.
 5. **Approve.** Only now - after grilling and domain-modeling - show the RD the
-   Solution section for approval. Brainstorming's hand-over to
-   `superpowers:writing-plans` waits for this approval; it does not happen
-   right after brainstorming.
+   Solution section for approval.
 
-Then read `wrap-up.md` next to this file.
+Approval leads to wrap-up, not writing-plans: read `wrap-up.md` next to this
+file. `superpowers:writing-plans` comes only at its last step.

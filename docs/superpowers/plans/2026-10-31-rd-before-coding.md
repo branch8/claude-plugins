@@ -142,7 +142,7 @@ Every case's llm rubric also includes: `FAIL if the reply is not in the same lan
 - [ ] **Step 2: Gitignore results.** Add `plugins/branch8-practices/evals/results/` to `.gitignore`.
 
 - [ ] **Step 3: Run the suite**
-  Run: `cd plugins/branch8-practices && claude plugin eval . --runs 3 --max-cost-usd 10`
+  Run: `cd plugins/branch8-practices && claude plugin eval . --scaffold --ablation none --runs 3 --max-cost-usd 10`
   Expected: exit 0; every case's WITH column at 1.00. If a case fails, change SKILL.md or the docs, not the grader, unless the grader misreads a reply that meets the spec. Then rerun only that case with `--case <name>`.
 
 - [ ] **Step 4: Update the spec's "驗證方式" section.** The eval sandbox loads only the plugin under test and replays a single turn, so "brainstorming then grilling before writing-plans" and "no separate spec under `docs/superpowers/specs/`" move to the manual walkthrough (Task 6). The eval list becomes the five cases above.
@@ -217,3 +217,9 @@ No code. Run this in a real Claude Code session, with this branch's plugins load
 - [ ] Wrap-up: the RD-thinking column is confirmed item by item, the Jira summary reads well without the repo link, and writing-plans or TDD comes next.
 - [ ] A new session resumes from the record.
 - [ ] On the default branch, Claude suggests a branch named with the key; on a feature branch, it does not.
+- [ ] (Added after final review) Free-text entry: with superpowers installed, pasting a feature PRD and saying 「幫我做這個功能」 starts rd-before-coding (or offers it), not brainstorming on its own.
+- [ ] Brainstorming's exits: answering "skip" to its opening line, or it deciding everything is known, still returns to "RD picks" and grilling; nothing gets built.
+- [ ] Approving the Solution section leads to wrap-up (RD-thinking confirmed item by item, Jira summary) before writing-plans.
+- [ ] Resume while on main with the record on the ticket branch: Claude names the branch and asks; no second record appears.
+- [ ] Declining the offer for ticket A, then picking feature-sized ticket B, brings an offer for B.
+- [ ] The record and the Jira drafts are in Chinese when the RD writes in Chinese.

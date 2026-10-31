@@ -1,6 +1,6 @@
 ---
 name: rd-before-coding
-description: Use when, in a code repository, the user picks up or hands over a Jira ticket, PRD or feature request that is more than a small change - a new feature, several user scenarios, or an architecture choice - and no code has been written for it yet; also when the user runs /branch8-practices:rd-before-coding or resumes such work after the PM answered. Pairs with the RD to understand the requirement, review the PRD, and design the solution before coding, keeping a record in the repo. Not for small changes such as copy edits, a label, or a limit tweak.
+description: Use when, in a code repository, the user picks up or hands over a Jira ticket, PRD or feature request that is more than a small change - a new feature, several user scenarios, or an architecture choice - and no code has been written for it yet; also when the user runs /branch8-practices:rd-before-coding or resumes such work after the PM answered. Pairs with the RD to understand the requirement, review the PRD, and design the solution before coding, keeping a record in the repo. For such work, use this instead of starting superpowers:brainstorming directly - this flow calls brainstorming itself in stage 3. Not for small changes such as copy edits, a label, or a limit tweak.
 ---
 
 # RD before coding
@@ -17,9 +17,13 @@ this is written down for the PM, QA, their lead and whoever takes over.
   feature, several user scenarios, or an architecture choice. A copy edit or a
   limit tweak: just do it, do not mention this flow.
 - Offer it in one line ("Before coding, shall we go through the requirement
-  together?") and accept a no without asking again this session.
-- Explicit `/branch8-practices:rd-before-coding`: start without the check.
+  together?"). A no holds for this ticket only: do not offer again for it, but
+  do offer for another feature-sized ticket.
+- Already accepted - the RD said yes to the offer, named this flow, or ran
+  `/branch8-practices:rd-before-coding`: start, and do not offer again.
 - A record already exists for this ticket: resume (see "Record and resume").
+- superpowers:brainstorming already started on this ticket before this flow:
+  stop it and switch to this flow from stage 1, carrying over what was said.
 
 ## Pair rules (whole flow)
 
@@ -53,8 +57,12 @@ These rules hold whatever the borrowed skills say - they are this flow's own.
   the conclusions of stages 1-2 so it skips "what do you want to build". Its
   written design goes into the record's Solution section, never a separate file
   under `docs/superpowers/specs/`. The list of calls it made is confirmed by the
-  RD item by item. It does not hand over to writing-plans until grilling and
-  domain-modeling are done and the RD approved the Solution section.
+  RD item by item. Inside this flow brainstorming never builds or hands off:
+  skip its opening offer to skip the questions, and whichever way it ends
+  (everything known, sized as a small change, design approved) come back to
+  `design.md` step 3. Its "writing-plans next" rule does not apply here - after
+  grilling, domain-modeling and the RD's approval comes wrap-up, and
+  writing-plans only from wrap-up.
 - `mattpocock-skills:domain-modeling` (stage 3, together with grilling): as it
   is; the record links its ADRs instead of copying them.
 - A borrowed skill is not installed: ask the same questions yourself, carry on.
@@ -67,8 +75,10 @@ These rules hold whatever the borrowed skills say - they are this flow's own.
 - Its `Status:` line is the flow's state: `understanding`, `reviewing`,
   `waiting-for-pm`, `designing`, `done`. Update it as you move.
 - Resume: look on the current branch first, then
-  `git log --all -- 'docs/features/<KEY>-*'`. Continue from its status; do not
-  redo finished stages.
+  `git log --all -- 'docs/features/<KEY>-*'`. Found on another branch: name the
+  branch and ask whether to switch (mind uncommitted work);
+  never start a second record. Continue from its status; do not redo finished
+  stages.
 
 ## Jira and git
 

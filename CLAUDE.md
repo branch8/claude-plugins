@@ -273,6 +273,9 @@ plugins/branch8-practices/        Branch8 的工作方式，同類的規範都�
                                   官方 feature-dev 有部分重疊，但方向相反（AI 先解讀、先推薦，沒有回 PM 的迴路，
                                   也不留紀錄），2026-10-31 查 315 個 plugin，沒有同類。
                                   evals/ 是 claude plugin eval 的套件：每次執行都要付費，只在本機跑，不進 CI。
+                                  執行方式：cd plugins/branch8-practices && claude plugin eval . --scaffold --ablation none --runs 3 --max-cost-usd 10
+                                  一定要加 --scaffold：每個 case 都需要先建一個假的 code repo，沒加這個參數 scaffold 不會執行。
+                                  --ablation none 代表只跑「有裝 plugin」那一組，不跑對照組，因為對照組對這些行為沒有比較意義，跑了只會讓花費加倍。
                                   沙盒只載入受測的 plugin，而且只有單輪對話，「brainstorming 後先 grilling」這點
                                   只能手動驗證。tests/structure.sh 在 CI 檢查結構與大小。
 template/plugin-template/         開發新 plugin 的起點。刻意不列入 marketplace.json，
