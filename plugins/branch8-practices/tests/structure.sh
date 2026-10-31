@@ -54,6 +54,14 @@ for s in superpowers:brainstorming mattpocock-skills:grilling mattpocock-skills:
   check "SKILL.md names $s" 'grep -qF "$s" "$skill" 2>/dev/null'
 done
 
+# The record template carries the headings the resume eval's scaffold writes.
+for h in '## Purpose' '## Scenarios' '## Issues found' '## Solution' '## Collaboration' 'Status:'; do
+  check "record-template.md has '$h'" 'grep -qF "$h" "$docs/record-template.md"'
+done
+check "review.md sets the waiting-for-pm state" 'grep -qF waiting-for-pm "$docs/review.md"'
+check "design.md names superpowers:brainstorming" 'grep -qF superpowers:brainstorming "$docs/design.md"'
+check "design.md orders writing-plans after grilling" 'grep -qF writing-plans "$docs/design.md"'
+
 check "no TODO left in SKILL.md or docs/" '! grep -rq TODO "$skill" "$docs" 2>/dev/null'
 
 exit $fail
