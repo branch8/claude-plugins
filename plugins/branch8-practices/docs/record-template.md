@@ -23,7 +23,8 @@ Source: <Jira link> · <PRD link(s)>
 |---|---|---|---|
 
 ## Solution
-- Approaches considered and their trade-offs
+- Way: think it through together | options
+- Approaches considered, each with its trade-offs and proposed by (RD / Claude)
 - Chosen approach, and the RD's reason (their words)
 - Calls brainstorming made, as confirmed or changed by the RD
 - What changed under grilling
