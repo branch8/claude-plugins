@@ -32,6 +32,10 @@ jobs:
       - name: branch8-auth-check hooks
         run: bash plugins/branch8-auth-check/tests/hooks.sh
 
+      # Shape only; prompt behaviour is checked by its evals/, run locally (billed).
+      - name: branch8-practices structure
+        run: bash plugins/branch8-practices/tests/structure.sh
+
       # Rather than failing the PR for a forgotten version bump, just do it and
       # push the commit. Forgetting is the normal case, not an error worth blocking on.
       - name: Auto-bump versions for changed plugins
