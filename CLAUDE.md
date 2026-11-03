@@ -142,7 +142,7 @@ MIT 授權的 vendored 程式碼、維護腳本、文件。已掃描確認無硬
 
 ```
 .claude-plugin/marketplace.json   發送清單，只放「官方沒上架」的 plugin
-managed-settings.json             Claude Code 那一側的清單（官方 6 個 + vendored 1 個 + 自家 4 個 + 內建 1 個）
+managed-settings.json             Claude Code 那一側的清單（官方 6 個 + vendored 1 個 + 自家 5 個 + 內建 1 個）
                                   這兩份是不同的東西，別互相複製
                                   env.CLAUDE_CODE_PLUGIN_GIT_TIMEOUT_MS=600000：預設 120 秒，網路慢的同事（實測 30 KiB/s）
                                   clone 不完就放棄，殘留的 git 還會擋住之後每次更新（2026-10-21）。排查見 README「排查」
@@ -257,6 +257,35 @@ plugins/branch8-deepwiki/         兩個 http MCP ＋ skills/deepwiki。devin（
                                   read_wiki_contents 對大 repo 回 1.27 MB（anthropics/claude-code），一定被轉存成檔案，
                                   所以 skill 要求先 ask／structure；未建索引的 repo 回 "Repository not found"，重試無用。
                                   問題文字會送到第三方（Cognition），skill 禁止夾帶公司程式碼與資料
+plugins/branch8-practices/        Branch8 的工作方式，同類的規範都收在這裡。skill 名稱加上角色前綴（rd-…、pm-…），
+                                  不同階段各自拆成一個 skill（2026-10-31 定案；曾考慮直接取名 `coding`，但太寬、
+                                  名稱大於實際範圍，所以沒採用）。目前只有 rd-before-coding：RD 接到功能等級的單後、
+                                  寫 code 前，由 Claude 陪 RD 讀懂需求 → 逐條檢視 PRD 情境（問題回 PM）→ 構思解法
+                                  （brainstorming → RD 選 → grilling＋domain-modeling），並在 repo 留紀錄、在 Jira 留摘要。
+                                  設計：docs/superpowers/specs/2026-10-30-rd-before-coding-design.md。
+                                  AI 是 pair，不是代工：關鍵點 RD 先想，決定由 RD 做。
+                                  紀錄放 docs/features/，客戶看得到的 repo 也照放（使用者決定）。
+                                  Jira 留言要寫到單獨看也能懂：PM、QA 大多打不開 GitHub。
+                                  借用的 skill 有兩處要覆寫：grilling 改成先讓 RD 答；brainstorming 不另寫 spec，
+                                  而且要等 grilling 結束才進 writing-plans。這些規則寫在本 skill 自己的文字裡，
+                                  不依賴上游原文（官方 plugin 更新時沒有審查點）。
+                                  jira-mod 的 pickNote 會提示 Claude：選單後先判斷規模，必要時提議走這套流程。
+                                  官方 feature-dev 有部分重疊，但方向相反（AI 先解讀、先推薦，沒有回 PM 的迴路，
+                                  也不留紀錄），2026-10-31 查 315 個 plugin，沒有同類。
+                                  evals/ 是 claude plugin eval 的套件：每次執行都要付費，只在本機跑，不進 CI。
+                                  執行方式：cd plugins/branch8-practices && claude plugin eval . --scaffold --ablation none --runs 3 --max-cost-usd 10
+                                  一定要加 --scaffold：每個 case 都需要先建一個假的 code repo，沒加這個參數 scaffold 不會執行。
+                                  --ablation none 代表只跑「有裝 plugin」那一組，不跑對照組，因為對照組對這些行為沒有比較意義，跑了只會讓花費加倍。
+                                  沙盒只載入受測的 plugin，而且只有單輪對話，「brainstorming 後先 grilling」這點
+                                  只能手動驗證。tests/structure.sh 在 CI 檢查結構與大小。
+                                  2026-11-03 修訂（細節見設計文件末段）：
+                                  - 觸發範圍不限 code repo，任何專案任務都會觸發；小任務只用一句正向的話帶過，不跳卡。
+                                  - 第 1 段改成中立整理，並附上 Jira 連結。
+                                  - 第 3 段 brainstorming 的開場改成問題卡（一起想／跳過提問給我方案／Other 直接寫想法）。
+                                  - brainstorming 代為決定的事項，依相依關係確認，不再一條一條確認。
+                                  - 補上缺口 A–F，並加入四個建議開新 session 的時機。
+                                  - superpowers／mattpocock 照舊跟著官方自動更新。upstream-watch（見 scripts）一偵測到
+                                    官方換版就開 issue，提醒重跑手動檢查，因為 eval 的沙盒不載入這兩個 plugin，測不到衝突。
 template/plugin-template/         開發新 plugin 的起點。刻意不列入 marketplace.json，
                                   所以不會被發送、也不會被 validate 檢查
                                   validate.py 會擋住把 ./template/ 當 source 的 entry
@@ -267,10 +296,15 @@ scripts/
   auto_update.py                  決定抓什麼、版本怎麼改、PR 寫什麼（管理者）
   validate.py                     上線前檢查
   check_version_bump.py           CI 用，--fix 會自動補版本號
+  upstream_watch.py               比對官方 marketplace 和 upstream-watch.json 裡的 sha，列出有變動的 plugin（只用標準函式庫）。
+                                  單元測試在 test_upstream_watch.py，CI 用 unittest discover 執行
+upstream-watch.json               我們會叫用並部分覆寫的官方 plugin（superpowers、mattpocock-skills），記錄最後檢查過的 sha。
+                                  重跑手動檢查、確認沒問題後，才用 PR 更新 sha（2026-11-03）
 .github/workflows/
   vendor-update.yml               每週一 01:00 UTC，自動開 PR
   validate.yml                    每個 PR 跑檢查 + 自動補版本號
   automation-health.yml           每月 heartbeat + 逾期未審提醒
+  upstream-watch.yml              每週一執行：官方 plugin 的 sha 一變就開 issue，同一個變動不重複開
 ```
 
 ---

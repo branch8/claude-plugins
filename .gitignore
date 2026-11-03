@@ -6,3 +6,6 @@ node_modules/
 # vendor/ is intentionally NOT ignored. Organization marketplace sync resolves
 # relative paths out of this repository, so vendored plugins must be committed.
 .pr-body.md
+
+# claude plugin eval output (local, billed runs)
+plugins/branch8-practices/evals/results/

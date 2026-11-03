@@ -1,0 +1,16 @@
+{
+  "name": "branch8-practices",
+  "displayName": "Branch8 Practices",
+  "version": "0.1.0",
+  "description": "Branch8's way of working with Claude. First skill, rd-before-coding: when an RD picks up a feature-sized Jira ticket or PRD, Claude pairs with them before any code is written - laying out the requirement for the RD to understand first, reviewing the PRD scenario by scenario for gaps, conflicts and infeasible parts (questions go back to the PM on Jira), then designing the solution with brainstorming, grilling and domain-modeling while the RD makes the decisions. Leaves a record in the repo and a self-contained summary on the Jira ticket.",
+  "author": {
+    "name": "Branch8"
+  },
+  "keywords": [
+    "workflow",
+    "bdd",
+    "prd",
+    "design",
+    "pairing"
+  ]
+}

@@ -1,0 +1,42 @@
+name: upstream-watch
+
+# Official plugins we call and partly override (superpowers, mattpocock-skills)
+# update without a review on our side - CLAUDE.md decision 3. When the official
+# marketplace moves one of their pins, open an issue so someone re-runs the
+# manual check before colleagues hit a broken flow. Pins live in upstream-watch.json.
+
+on:
+  schedule:
+    - cron: "0 2 * * 1"     # Mondays 02:00 UTC, after vendor-update
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Open an issue per moved pin
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 scripts/upstream_watch.py > changes.jsonl
+          if [ ! -s changes.jsonl ]; then
+            echo "No pin moved."
+            exit 0
+          fi
+          while IFS= read -r line; do
+            title=$(printf '%s' "$line" | jq -r .title)
+            # One issue per move: skip if an open one already has this exact title.
+            if gh issue list --state open --search "\"$title\" in:title" --json title \
+                 --jq '.[].title' | grep -qxF "$title"; then
+              echo "Already open: $title"
+              continue
+            fi
+            printf '%s' "$line" | jq -r .body > issue.md
+            gh issue create --title "$title" --body-file issue.md
+          done < changes.jsonl

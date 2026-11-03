@@ -43,6 +43,13 @@
       "description": "DeepWiki as a knowledge source: Devin MCP (OAuth) for Branch8's own repos indexed in Devin, public DeepWiki MCP (no auth) for open-source repos, plus a skill telling Claude when and how to query them.",
       "category": "productivity",
       "keywords": ["deepwiki", "mcp", "knowledge-base", "research"]
+    },
+    {
+      "name": "branch8-practices",
+      "source": "./plugins/branch8-practices",
+      "description": "Branch8's way of working with Claude. rd-before-coding: before coding a feature-sized ticket, Claude pairs with the RD to understand the requirement, review the PRD (questions back to the PM on Jira) and design the solution, leaving a record in the repo and a self-contained Jira summary.",
+      "category": "productivity",
+      "keywords": ["workflow", "bdd", "prd", "design", "pairing"]
     }
   ]
 }

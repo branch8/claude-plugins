@@ -580,6 +580,21 @@ test('the note Claude reads when the person picks or unselects a ticket in the p
   expect(pickNote(null).includes('no current Jira ticket')).toBe(true)
 })
 
+test('picking a ticket sizes it: rd-before-coding for feature-sized work, a positive line for small ones', () => {
+  const note = pickNote({ key: 'HS-96', summary: 'x', status: 'To Do', cloudId: 'c' })
+  expect(note.includes('branch8-practices:rd-before-coding')).toBe(true)
+  expect(note.includes('code repo')).toBe(false) // any project task, not only code (2026-11-03)
+  expect(note.includes('small enough to start right away')).toBe(true)
+  expect(note.includes('not to offer it again this session')).toBe(true)
+  expect(pickNote(null).includes('rd-before-coding')).toBe(false)
+})
+
+test('picking a second ticket in one session suggests a new session', () => {
+  const note = pickNote({ key: 'HS-97', summary: 'y', status: 'To Do', cloudId: 'c' })
+  expect(note.includes('new session')).toBe(true)
+  expect(pickNote(null).includes('new session')).toBe(false)
+})
+
 test('the version shown in the pane comes from plugin.json', () => {
   expect(manifestVersion('{"name":"branch8-jira-mod","version":"0.13.0"}')).toBe('0.13.0')
   expect(manifestVersion('{"name":"x"}')).toBeNull()
