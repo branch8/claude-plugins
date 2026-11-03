@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { detectNode, reminderFor, formatBand, rulesSection, parseIssueStatus, parseIssueList, todoJql, nextRange, parseIssuePage, TODO_FIELDS, ISSUE_FIELDS, displayWidth, bandText, TODO_HELP, groupTodos, issueUrl, todoRow, langOf, STRINGS, statusTone, nextLangPref, resolveLang, recordFileName, ancestorDirs, parseRecord, projectOf, isOtherProject, applyScope, effectiveScope, foldersFor, suggestedFolder, typeIcon, focusedTicket, isOrgAccount, touchesFolderRecords, focusOrder, stepFocus, isArrowScroll, settingsValues, menuValues, leftFrom, pickNote, manifestVersion, isNewer, updateOutcome, parseTransitions, moveNote, claudeAccount, parseJiraUser, jiraWarning, syncTicket, parseGhStatus, isNoConnectedTool, folderLabel } from './logic'
+import { detectNode, reminderFor, formatBand, rulesSection, parseIssueStatus, parseIssueList, todoJql, nextRange, parseIssuePage, TODO_FIELDS, ISSUE_FIELDS, displayWidth, bandText, TODO_HELP, groupTodos, issueUrl, todoRow, langOf, STRINGS, statusTone, nextLangPref, resolveLang, recordFileName, ancestorDirs, parseRecord, projectOf, isOtherProject, applyScope, effectiveScope, foldersFor, suggestedFolder, typeIcon, focusedTicket, isOrgAccount, touchesFolderRecords, focusOrder, stepFocus, isArrowScroll, settingsValues, menuValues, leftFrom, pickNote, manifestVersion, isNewer, updateOutcome, parseTransitions, moveNote, claudeAccount, parseJiraUser, jiraWarning, syncTicket, parseGhStatus, isNoConnectedTool, folderLabel, serversWithTool, atlassianServers, devinServers } from './logic'
 
 const T = { key: 'HS-1', summary: '修正請假審核通知', status: '待辦事項', cloudId: 'c' }
 
@@ -782,4 +782,60 @@ test("only the engine's missing-tool error counts as not signed in", () => {
   expect(isNoConnectedTool(new Error(missing))).toBe(true)
   expect(isNoConnectedTool(missing)).toBe(true)
   expect(isNoConnectedTool(new Error('MCP error -32602: Invalid params'))).toBe(false)
+})
+
+test('servers come from the MCP tool names, whatever the host calls them', () => {
+  // Claude Desktop names claude.ai connectors by UUID (2026-11-03), and a second
+  // copy of a connector shows up as "... (2)": fixed names miss both.
+  const desktop = [
+    'Read',
+    'mcp__18e7e7c3-0b1d-4c55-9a51-1f2e3d4c5b6a__searchJiraIssuesUsingJql',
+    'mcp__18e7e7c3-0b1d-4c55-9a51-1f2e3d4c5b6a__getTransitionsForJiraIssue',
+    'mcp__7ae2543b-77aa-4f00-8e2d-aa11bb22cc33__getTransitionsForJiraIssue',
+  ]
+  expect(serversWithTool(desktop, 'getTransitionsForJiraIssue')).toEqual([
+    '18e7e7c3-0b1d-4c55-9a51-1f2e3d4c5b6a',
+    '7ae2543b-77aa-4f00-8e2d-aa11bb22cc33',
+  ])
+  expect(serversWithTool(desktop, 'executeRead')).toEqual([])
+  // A tool whose name only ends the same way is not that tool.
+  expect(serversWithTool(['mcp__x__fooexecuteRead'], 'executeRead')).toEqual([])
+})
+
+test('atlassian servers by kind: found ones first, the fixed names after', () => {
+  const cli = [
+    'mcp__claude_ai_Atlassian_Rovo__getTransitionsForJiraIssue',
+    'mcp__claude_ai_Atlassian_Rovo_2__getTransitionsForJiraIssue',
+    'mcp__plugin_atlassian_atlassian__executeRead',
+  ]
+  // The fixed names already found under their tool-name spelling are not repeated.
+  expect(atlassianServers(cli)).toEqual({
+    plugin: ['plugin_atlassian_atlassian'],
+    rovo: ['claude_ai_Atlassian_Rovo', 'claude_ai_Atlassian_Rovo_2'],
+    all: ['plugin_atlassian_atlassian', 'claude_ai_Atlassian_Rovo', 'claude_ai_Atlassian_Rovo_2'],
+  })
+  // Nothing listed (an engine without $.tool.list, or deferred tools left out):
+  // exactly the old fixed names, so nothing works worse than before.
+  expect(atlassianServers([])).toEqual({
+    plugin: ['plugin:atlassian:atlassian'],
+    rovo: ['claude.ai Atlassian Rovo'],
+    all: ['plugin:atlassian:atlassian', 'claude.ai Atlassian Rovo'],
+  })
+  expect(atlassianServers(['mcp__uuid-1__getTransitionsForJiraIssue']).rovo).toEqual([
+    'uuid-1',
+    'claude.ai Atlassian Rovo',
+  ])
+})
+
+test('devin counts as signed in only by its own devin_ tools', () => {
+  // The public deepwiki server shares the wiki tools, so they prove nothing.
+  expect(devinServers(['mcp__plugin_branch8-deepwiki_deepwiki__read_wiki_structure'])).toEqual([])
+  expect(devinServers(['mcp__plugin_branch8-deepwiki_devin__authenticate'])).toEqual([])
+  expect(
+    devinServers([
+      'mcp__plugin_branch8-deepwiki_devin__devin_session_create',
+      'mcp__plugin_branch8-deepwiki_devin__devin_playbook_manage',
+      'mcp__0f0f-uuid__devin_session_create',
+    ]),
+  ).toEqual(['plugin_branch8-deepwiki_devin', '0f0f-uuid'])
 })

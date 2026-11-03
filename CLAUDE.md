@@ -208,6 +208,11 @@ plugins/branch8-jira-mod/         可選的 mod 擴充（TypeScript function hoo
                                   面板「↻ 切換狀態」：列選單 → 狀態 popup（即時查 listJiraIssueTransitions／
                                   getTransitionsForJiraIssue，不寫死）→ 確認 popup，按確認才寫入。兩個 Atlassian 伺服器的
                                   參數不同（plugin 版 transitionId、claude.ai 版 transition.id），都要支援
+                                  MCP 伺服器名稱不能寫死：桌面版把 claude.ai 連接器命名成 UUID，重複的連接器會變成
+                                  「… (2)」（2026-11-03 桌面版顯示「no Atlassian MCP」的真因）。改由 $.tool.list() 的工具名稱
+                                  mcp__<server>__<tool> 反推（logic.ts atlassianServers：有 executeRead＝plugin 版、
+                                  有 getTransitionsForJiraIssue＝claude.ai 版），舊的固定名稱只當備援。Devin 只認 devin_* 工具——
+                                  公開的 deepwiki 伺服器也有 read_wiki_structure，拿它判斷會把沒登入誤認成已登入
                                   資料夾列在 git worktree 裡顯示主 repo 名＋淡色「· worktree <名>」：worktree 的 show-toplevel
                                   是它自己的資料夾，常以單號命名（.claude/worktrees/HS-134），會被看成「目前的單」（2026-10-30
                                   回報）。主 repo 由 rev-parse --path-format=absolute --git-common-dir 取（git ≥ 2.31）

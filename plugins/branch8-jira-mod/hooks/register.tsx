@@ -6,8 +6,10 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { Ticket, Transition } from '../types'
-import type { FolderRecord, Lang, LangPref, Scope, SignIn } from './logic'
+import type { AtlassianServers, FolderRecord, Lang, LangPref, Scope, SignIn } from './logic'
 import {
+  atlassianServers,
+  devinServers,
   STRINGS,
   folderLabel,
   isNoConnectedTool,
@@ -132,12 +134,29 @@ const PANE_WIDTH = 46
 // A tree row: indent (4) and the Open button (6) come off the pane width.
 const ROW_WIDTH = PANE_WIDTH - 10
 
-// The Atlassian MCP under either name it is installed as.
-const ATLASSIAN = ['plugin:atlassian:atlassian', 'claude.ai Atlassian Rovo']
 // Devin's DeepWiki (branch8-deepwiki), and wiki tools it lists only once signed
-// in - names differ by server version, so any one of them will do.
+// in - names differ by server version, so any one of them will do. The fallback
+// probe for when the tool list does not show Devin (see devinServers).
 const DEVIN = 'plugin:branch8-deepwiki:devin'
 const DEVIN_TOOLS = ['read_wiki_structure', 'ask_question', 'ask_wiki_question']
+
+// The MCP tool names the model has now; none when the engine cannot say.
+async function mcpToolNames($: EngineInterface): Promise<string[]> {
+  try {
+    return (await $.tool.list()).filter(t => t.mcp).map(t => t.name)
+  } catch {
+    return []
+  }
+}
+
+// The Atlassian servers to try, found by their tools rather than a fixed name:
+// asked each time, as servers keep connecting after the session starts.
+async function atlassian($: EngineInterface): Promise<AtlassianServers> {
+  return atlassianServers(await mcpToolNames($))
+}
+
+// One MCP call to try: server, tool, arguments.
+type Call = [string, string, Record<string, unknown>]
 
 const str = (v: unknown) => (typeof v === 'string' ? v : '')
 
@@ -307,9 +326,10 @@ async function runUpdate($: EngineInterface, str: (typeof STRINGS)[Lang]): Promi
 // null when neither does.
 async function loadTransitions($: EngineInterface, key: string, current: string): Promise<Transition[] | null> {
   const cloudId = (await read($, ticketAtom))?.cloudId || SITE
-  const calls: [string, string, Record<string, unknown>][] = [
-    [ATLASSIAN[0]!, 'executeRead', { name: 'listJiraIssueTransitions', cloudId, inputs: { issueIdOrKey: key } }],
-    [ATLASSIAN[1]!, 'getTransitionsForJiraIssue', { cloudId, issueIdOrKey: key }],
+  const { plugin, rovo } = await atlassian($)
+  const calls: Call[] = [
+    ...plugin.map((s): Call => [s, 'executeRead', { name: 'listJiraIssueTransitions', cloudId, inputs: { issueIdOrKey: key } }]),
+    ...rovo.map((s): Call => [s, 'getTransitionsForJiraIssue', { cloudId, issueIdOrKey: key }]),
   ]
   for (const [server, tool, args] of calls) {
     try {
@@ -328,9 +348,10 @@ async function loadTransitions($: EngineInterface, key: string, current: string)
 // permission, or not connected). The person confirmed it in the pane.
 async function moveTicket($: EngineInterface, key: string, transitionId: string): Promise<boolean> {
   const cloudId = (await read($, ticketAtom))?.cloudId || SITE
+  const { plugin, rovo } = await atlassian($)
   const calls: [string, Record<string, unknown>][] = [
-    [ATLASSIAN[0]!, { cloudId, issueIdOrKey: key, transitionId }],
-    [ATLASSIAN[1]!, { cloudId, issueIdOrKey: key, transition: { id: transitionId } }],
+    ...plugin.map((s): [string, Record<string, unknown>] => [s, { cloudId, issueIdOrKey: key, transitionId }]),
+    ...rovo.map((s): [string, Record<string, unknown>] => [s, { cloudId, issueIdOrKey: key, transition: { id: transitionId } }]),
   ]
   for (const [server, args] of calls) {
     try {
@@ -356,7 +377,7 @@ async function loadTodos(
   const scope = effectiveScope(await read($, scopePrefAtom), folder.project)
   const jql = todoJql({ days: await read($, rangeAtom), project: scope === 'folder' ? folder.project : null })
   let error = str.noJira
-  for (const server of ATLASSIAN) {
+  for (const server of (await atlassian($)).all) {
     try {
       const res = await $.mcp.call(server, 'searchJiraIssuesUsingJql', {
         cloudId,
@@ -425,9 +446,10 @@ async function readClaudeJson($: EngineInterface): Promise<string | null> {
 async function loadJiraUser($: EngineInterface): Promise<void> {
   if ((await read($, accountAtom)).isJiraChecked) return
   const cloudId = (await read($, ticketAtom))?.cloudId || SITE
-  const calls: [string, string, Record<string, unknown>][] = [
-    [ATLASSIAN[0]!, 'executeRead', { name: 'getJiraCurrentUser', cloudId, inputs: {} }],
-    [ATLASSIAN[1]!, 'atlassianUserInfo', {}],
+  const { plugin, rovo } = await atlassian($)
+  const calls: Call[] = [
+    ...plugin.map((s): Call => [s, 'executeRead', { name: 'getJiraCurrentUser', cloudId, inputs: {} }]),
+    ...rovo.map((s): Call => [s, 'atlassianUserInfo', {}]),
   ]
   for (const [server, tool, args] of calls) {
     try {
@@ -466,6 +488,8 @@ async function githubSignIn($: EngineInterface): Promise<SignIn> {
 // "no connected tool" check; the server's own answer to empty arguments, error
 // or not, still proves the sign-in.
 async function devinSignIn($: EngineInterface): Promise<SignIn> {
+  // Listed under any name (a UUID on Desktop): signed in, nothing to probe.
+  if (devinServers(await mcpToolNames($)).length) return { state: 'in', user: '' }
   for (const tool of DEVIN_TOOLS) {
     try {
       await $.mcp.call(DEVIN, tool, {})
@@ -1274,7 +1298,7 @@ export const register: Register = on => {
     await update($, statusAskedAtom, () => t.key)
 
     let fresh: { summary?: string; status?: string } | null = null
-    for (const server of ATLASSIAN) {
+    for (const server of (await atlassian($)).all) {
       try {
         const res = await $.mcp.call(server, 'getJiraIssue', {
           cloudId: t.cloudId || SITE,
