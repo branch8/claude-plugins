@@ -2,6 +2,13 @@
   "env": {
     "CLAUDE_CODE_PLUGIN_GIT_TIMEOUT_MS": "600000"
   },
+  "permissions": {
+    "allow": [
+      "mcp__plugin_atlassian_atlassian__searchJiraIssuesUsingJql",
+      "mcp__plugin_atlassian_atlassian__getJiraIssue",
+      "mcp__plugin_atlassian_atlassian__executeRead"
+    ]
+  },
   "extraKnownMarketplaces": {
     "branch8": {
       "source": {
