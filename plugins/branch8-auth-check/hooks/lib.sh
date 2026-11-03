@@ -72,3 +72,64 @@ ba_gh_state() {
     *) echo signed-out ;;
   esac
 }
+
+# Service names as typed after /auth-check, and their aliases.
+ba_service_of() {
+  case "$(printf '%s' "$1" | tr 'A-Z' 'a-z')" in
+    jira|atlassian) echo jira ;;
+    github|gh) echo github ;;
+    devin|deepwiki) echo devin ;;
+    gemini) echo gemini ;;
+    *) return 1 ;;
+  esac
+}
+
+# Host of each OAuth MCP service, to find its server whatever it is named
+# (the official plugin, a claude.ai connector, a second copy).
+ba_mcp_host() {
+  case "$1" in
+    jira) echo mcp.atlassian.com ;;
+    devin) echo mcp.devin.ai ;;
+    *) return 1 ;;
+  esac
+}
+
+# The MCP server of <service> to sign in to, from `claude mcp list` output on
+# stdin: one connected server is enough (exit 3, its name printed), else the
+# official plugin's before a connector's, as managed settings install the
+# plugin. Exit 4 when the service has no server at all.
+ba_pick_server() {
+  local host="$1" line name status out="" connected=""
+  while IFS= read -r line; do
+    case "$line" in *"://$host/"*) ;; *) continue ;; esac
+    name="${line%%: http*}"
+    status="${line##* - }"
+    case "$status" in
+      *"Needs authentication"*) out="$out$name"$'\n' ;;
+      *Connected*) [ -n "$connected" ] || connected="$name" ;;
+    esac
+  done
+  [ -n "$connected" ] && { echo "$connected"; return 3; }
+  [ -n "$out" ] || return 4
+  { printf '%s' "$out" | grep '^plugin:'; printf '%s' "$out" | grep -v '^plugin:'; } | head -1
+}
+
+# Opens a URL in the person's browser. `claude mcp login` cannot do it on WSL
+# (2026-11-03: its opener, wslview and `cmd.exe start` all fail on the long
+# Atlassian URL), so WSL goes through PowerShell. Elsewhere Claude Code's own
+# opener is left to it.
+ba_open_url() {
+  [ -n "${WSL_DISTRO_NAME:-}" ] || return 0
+  command -v powershell.exe >/dev/null 2>&1 &&
+    powershell.exe -NoProfile -Command "Start-Process '$1'" >/dev/null 2>&1
+}
+
+# Runs a command under a pseudo-terminal: `claude mcp login` refuses to wait
+# for the browser when stdin is not a terminal, and Claude's shell has none.
+ba_in_pty() {
+  if [ "$(uname)" = Darwin ]; then
+    script -q /dev/null "$@"
+  else
+    script -qfec "$(printf '%q ' "$@")" /dev/null
+  fi
+}

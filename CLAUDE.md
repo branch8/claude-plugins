@@ -236,6 +236,13 @@ plugins/branch8-auth-check/       所有登入集中一處（2026-10-27）：jir
                                   OAuth 沒有 DCR 也沒有 CIMD（2026-10-27 實測 metadata），Claude Code 無法自動 OAuth。
                                   jira-check 1.3.0 起不再自己問 Jira 連線，改用 auth-check 的結果；auth-check 不在時退回
                                   原本的 docs/connect.md。tests/hooks.sh 在 CI 把關
+                                  沒有 authenticate 工具時（桌面 App 等）由 `bin/branch8-auth login jira|devin` 代跑
+                                  `claude mcp login <server>`（0.2.0，2026-11-03 WSL 實測可登入官方 atlassian plugin）：它要 TTY，
+                                  所以包 `script`；WSL 上它自己開不了瀏覽器（wslview、cmd.exe start 對長網址都失敗），由腳本用
+                                  powershell.exe Start-Process 開。伺服器依網址主機找（不寫死名稱），任一已連線就算登入，
+                                  否則官方 plugin 優先於 claude.ai 連接器——managed settings 發的是 plugin。登入後**執行中的
+                                  session 拿不到工具**，要 /mcp Reconnect 或開新 session。`/auth-check jira` 只查指定服務。
+                                  未驗證：macOS／原生 Windows（Git Bash 沒有 script）、只裝桌面 App 沒有 claude CLI 的人。
                                   統一 vs 各自檢查（2026-10-28 討論後定案統一）：各自檢查時 GitHub/Gemini 沒有主人（官方 plugin
                                   改不了），終究要有一處收；且每個 plugin 各自注入、各自跳卡會疊開場 context、樣式不一。
                                   jira-mod 面板的 Jira 狀態是 mod 自己用 $.mcp.call 查的，不依賴 jira-check／auth-check；

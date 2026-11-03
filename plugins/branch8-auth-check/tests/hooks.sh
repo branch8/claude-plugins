@@ -70,7 +70,33 @@ check "config prints the admin contact" '[[ $(bash "$helper" config) == *"admin=
 out=$(cd "$tmp/plain" && BRANCH8_AUTH_CHECK=off start s8)$(BRANCH8_AUTH_CHECK=off prompt s8)
 check "BRANCH8_AUTH_CHECK=off prints nothing" '[ -z "$out" ]'
 
-for f in status card jira github devin gemini; do
+# /auth-check <service>: names and aliases.
+check "service alias atlassian -> jira" '[ "$(bash "$helper" service Atlassian)" = jira ]'
+check "service alias deepwiki -> devin" '[ "$(bash "$helper" service deepwiki)" = devin ]'
+check "unknown service word is rejected" '! bash "$helper" service nope 2>/dev/null'
+
+# Fake claude: `mcp list` prints $MCP_LIST.
+cat > "$tmp/bin/claude" <<'SH'
+#!/bin/sh
+[ "$1 $2" = "mcp list" ] && printf '%b' "$MCP_LIST"
+SH
+chmod +x "$tmp/bin/claude"
+need='! Needs authentication'
+pick() { MCP_LIST="$1" bash "$helper" server "${2:-jira}" 2>/dev/null; }
+L="claude.ai Atlassian: https://mcp.atlassian.com/v1/mcp - $need\nplugin:atlassian:atlassian: https://mcp.atlassian.com/v2/mcp (HTTP) - $need\n"
+check "server: official plugin before connector" '[ "$(pick "$L")" = plugin:atlassian:atlassian ]'
+L="claude.ai Atlassian: https://mcp.atlassian.com/v1/mcp - $need\n"
+check "server: connector when no plugin" '[ "$(pick "$L")" = "claude.ai Atlassian" ]'
+L="claude.ai Atlassian: https://mcp.atlassian.com/v1/mcp - $need\nplugin:atlassian:atlassian: https://mcp.atlassian.com/v2/mcp (HTTP) - ✔ Connected\n"
+pick "$L" >/dev/null; rc=$?
+check "server: one connected = signed in (exit 3)" '[ "$rc" = 3 ]'
+L="plugin:branch8-deepwiki:devin: https://mcp.devin.ai/mcp (HTTP) - $need\n"
+check "server: devin by host" '[ "$(pick "$L" devin)" = plugin:branch8-deepwiki:devin ]'
+pick "$L" jira >/dev/null; rc=$?
+check "server: no server for the service (exit 4)" '[ "$rc" = 4 ]'
+check "server: github has no MCP sign-in" '! bash "$helper" server github 2>/dev/null'
+
+for f in status card jira github devin gemini mcp-login; do
   check "docs/$f.md exists" '[ -f "$root/docs/$f.md" ]'
 done
 

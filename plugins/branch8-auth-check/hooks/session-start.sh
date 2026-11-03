@@ -44,7 +44,7 @@ context="# Branch8 sign-in (branch8-auth-check)
 One place for every sign-in. Services: **jira** (atlassian MCP), **github** (\`gh\` CLI; the github MCP is optional and needs a PAT), **devin** (Devin DeepWiki, \`devin\` MCP), **gemini** (\`GEMINI_API_KEY\`, only for ui-ux-pro-max image generation).
 
 Facts (checked at session start): gh: $gh_fact · github MCP PAT: $pat · GEMINI_API_KEY: $gemini · no account (do not ask): ${no_account:-none}
-Helper: \`bash \"$helper\" no-account <service>|clear [service]|status|config\`
+Helper: \`bash \"$helper\" no-account <service>|clear [service]|status|config|login <jira|devin>\` (\`login\`: MCP sign-in without an \`authenticate\` tool, docs/mcp-login.md)
 
 **First turn**: show ONE status line, no card (the first message carries the format; full rules in \`$docs/status.md\`). A server whose only tool is \`authenticate\` = not signed in. Exception: Jira is asked about right away when branch8-jira-check is in this session and this folder is company work - unless its record says no Jira for this folder, or personal.
 

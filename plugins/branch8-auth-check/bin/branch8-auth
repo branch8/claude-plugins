@@ -4,6 +4,9 @@
 #   clear [service]       forget that answer (all services when none is given)
 #   status                print recorded answers and the gh CLI state
 #   config                print the admin contact and GitHub organisation
+#   service <name>        normalise a service name typed after /auth-check
+#   server <service>      the MCP server of jira/devin to sign in to
+#   login <service> [srv] sign in to that MCP server through `claude mcp login`
 
 . "$(cd "$(dirname "$0")/.." && pwd)/hooks/lib.sh"
 
@@ -36,8 +39,48 @@ case "$1" in
     echo "admin=${BRANCH8_AUTH_ADMIN:-your Branch8 admin}"
     echo "github_org=${BRANCH8_GITHUB_ORG:-branch8}"
     ;;
+  service)
+    ba_service_of "$2" || { echo "unknown service '$2' (one of: $BA_SERVICES)" >&2; exit 2; }
+    ;;
+  server)
+    host=$(ba_mcp_host "$2") || { echo "no MCP sign-in for '$2' (jira, devin)" >&2; exit 2; }
+    command -v claude >/dev/null 2>&1 || { echo "claude CLI not found" >&2; exit 5; }
+    claude mcp list 2>/dev/null | ba_pick_server "$host"; rc=$?
+    case "$rc" in
+      3) echo "already connected" >&2 ;;
+      4) echo "no $2 MCP server installed" >&2 ;;
+    esac
+    exit "$rc"
+    ;;
+  login)
+    server="$3"
+    if [ -z "$server" ]; then
+      server=$("$0" server "$2") || exit $?
+    fi
+    command -v script >/dev/null 2>&1 || { echo "script (pseudo-terminal) not found: use /mcp" >&2; exit 5; }
+    log=$(mktemp)
+    trap 'rm -f "$log"' EXIT
+    ( ba_in_pty timeout 300 claude mcp login "$server" </dev/null >"$log" 2>&1 ) &
+    pid=$!
+    url=""
+    for _ in $(seq 60); do
+      url=$(sed -n '/visit:/,$p' "$log" | tr '\033\007' '  ' | grep -o 'https://[^[:space:]]*' | head -1)
+      [ -n "$url" ] && break
+      kill -0 "$pid" 2>/dev/null || break
+      sleep 0.5
+    done
+    if [ -n "$url" ]; then
+      ba_open_url "$url"
+      echo "server: $server"
+      echo "url: $url"
+    fi
+    wait "$pid"; rc=$?
+    result=$(tr '\033' ' ' <"$log" | grep -oE "(Authenticated|Couldn't complete authentication) [^.]*" | tail -1)
+    echo "${result:-login ended with code $rc}"
+    exit "$rc"
+    ;;
   *)
-    echo "usage: branch8-auth no-account <service>|clear [service]|status|config" >&2
+    echo "usage: branch8-auth no-account <service>|clear [service]|status|config|service <name>|server <service>|login <service> [server]" >&2
     exit 2
     ;;
 esac
