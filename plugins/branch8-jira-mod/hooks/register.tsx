@@ -13,6 +13,7 @@ import {
   STRINGS,
   folderLabel,
   isNoConnectedTool,
+  isRefusedCall,
   parseGhStatus,
   ancestorDirs,
   applyScope,
@@ -405,8 +406,10 @@ async function loadTodos(
         return { ok: true, text: str.todoCount(items.length) }
       }
       error = str.queryFailed
-    } catch {
-      // Not connected under this name; try the next one.
+    } catch (err) {
+      // Not connected under this name, or refused by the permission check
+      // (auto mode); try the next one, but say which when nothing answers.
+      if (isRefusedCall(err) && error === str.noJira) error = str.refused
     }
   }
   await update($, todosAtom, t => ({ ...t, error, isLoading: false }))

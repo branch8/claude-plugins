@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { detectNode, reminderFor, formatBand, rulesSection, parseIssueStatus, parseIssueList, todoJql, nextRange, parseIssuePage, TODO_FIELDS, ISSUE_FIELDS, displayWidth, bandText, TODO_HELP, groupTodos, issueUrl, todoRow, langOf, STRINGS, statusTone, nextLangPref, resolveLang, recordFileName, ancestorDirs, parseRecord, projectOf, isOtherProject, applyScope, effectiveScope, foldersFor, suggestedFolder, typeIcon, focusedTicket, isOrgAccount, touchesFolderRecords, focusOrder, stepFocus, isArrowScroll, settingsValues, menuValues, leftFrom, pickNote, manifestVersion, isNewer, updateOutcome, parseTransitions, moveNote, claudeAccount, parseJiraUser, jiraWarning, syncTicket, parseGhStatus, isNoConnectedTool, folderLabel, serversWithTool, atlassianServers, devinServers } from './logic'
+import { detectNode, reminderFor, formatBand, rulesSection, parseIssueStatus, parseIssueList, todoJql, nextRange, parseIssuePage, TODO_FIELDS, ISSUE_FIELDS, displayWidth, bandText, TODO_HELP, groupTodos, issueUrl, todoRow, langOf, STRINGS, statusTone, nextLangPref, resolveLang, recordFileName, ancestorDirs, parseRecord, projectOf, isOtherProject, applyScope, effectiveScope, foldersFor, suggestedFolder, typeIcon, focusedTicket, isOrgAccount, touchesFolderRecords, focusOrder, stepFocus, isArrowScroll, settingsValues, menuValues, leftFrom, pickNote, manifestVersion, isNewer, updateOutcome, parseTransitions, moveNote, claudeAccount, parseJiraUser, jiraWarning, syncTicket, parseGhStatus, isNoConnectedTool, isRefusedCall, folderLabel, serversWithTool, atlassianServers, devinServers } from './logic'
 
 const T = { key: 'HS-1', summary: '修正請假審核通知', status: '待辦事項', cloudId: 'c' }
 
@@ -782,6 +782,19 @@ test("only the engine's missing-tool error counts as not signed in", () => {
   expect(isNoConnectedTool(new Error(missing))).toBe(true)
   expect(isNoConnectedTool(missing)).toBe(true)
   expect(isNoConnectedTool(new Error('MCP error -32602: Invalid params'))).toBe(false)
+})
+
+test('a call the permission check refused is told apart from a missing server', () => {
+  // As $.mcp.call threw in auto mode on 2026-11-03, the server connected.
+  const refused =
+    'HooksError: branch8-jira-mod: $.mcp.call(7ae2543b-438e-473c-b168-7abf79b521e8, searchJiraIssuesUsingJql) refused: The server-side auto mode classifier gave no verdict'
+  expect(isRefusedCall(new Error(refused))).toBe(true)
+  expect(isNoConnectedTool(new Error(refused))).toBe(false)
+  expect(
+    isRefusedCall(
+      'HooksError: branch8-jira-mod: $.mcp.call: no connected MCP tool "searchJiraIssuesUsingJql" on a server named "claude.ai Atlassian Rovo"',
+    ),
+  ).toBe(false)
 })
 
 test('servers come from the MCP tool names, whatever the host calls them', () => {

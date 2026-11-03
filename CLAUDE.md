@@ -240,6 +240,11 @@ plugins/branch8-auth-check/       所有登入集中一處（2026-10-27）：jir
                                   改不了），終究要有一處收；且每個 plugin 各自注入、各自跳卡會疊開場 context、樣式不一。
                                   jira-mod 面板的 Jira 狀態是 mod 自己用 $.mcp.call 查的，不依賴 jira-check／auth-check；
                                   它連不上時的提示自 0.15.2 起指向 /auth-check。
+                                  auto mode 下 mod 自己的 $.mcp.call 也要過分類器，沒有允許規則時會被拒（2026-11-03 實測：
+                                  伺服器連得上，錯誤是「refused: The server-side auto mode classifier gave no verdict」）。
+                                  所以 managed-settings.json 的 permissions.allow 放了 mod 用到的唯讀工具（官方 atlassian
+                                  plugin 的名稱固定；桌面版 claude.ai 連線是 UUID，寫不成規則）。transitionJiraIssue 會改單，
+                                  刻意沒放：auto mode 下面板改狀態仍可能被拒。0.17.2 起被拒時面板說「被權限擋下」，不再說沒連線。
                                   jira-mod 0.16.0 起資訊區也即時顯示 GitHub（gh，只在 git 資料夾）與 Devin 的登入，未登入指向
                                   /auth-check；開場背景查、開場重試（5/15/30 秒，MCP 還在連）與「重新整理」時再查，最後一次
                                   重試仍查不到 Jira 才標未登入（以前會永遠停在「連線中」）。$.mcp.call 對「未登入／工具不存在／

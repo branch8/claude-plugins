@@ -322,6 +322,7 @@ export type Strings = {
   noStatus: string
   noJira: string
   signedOut: string
+  refused: string
   queryFailed: string
   todoCount: (n: number) => string
   closed: string
@@ -439,6 +440,7 @@ export const STRINGS: Record<Lang, Strings> = {
     noStatus: '（無狀態）',
     noJira: 'Jira 沒有連線（找不到 Atlassian MCP），請先跑 /auth-check',
     signedOut: 'Jira 查詢失敗：Atlassian 可能還沒登入，請跑 /auth-check',
+    refused: 'Jira 查詢被權限擋下（auto mode 沒放行 Atlassian 工具）：請管理員在 managed settings 加上允許規則，或換權限模式',
     queryFailed: 'Jira 查詢失敗，請稍後再試',
     todoCount: n => `Jira 待辦：${n} 張。`,
     closed: 'Jira 待辦面板已關閉（再打 /jira-todo 打開）。',
@@ -517,6 +519,7 @@ export const STRINGS: Record<Lang, Strings> = {
     noStatus: '（无状态）',
     noJira: 'Jira 未连接（找不到 Atlassian MCP），请先运行 /auth-check',
     signedOut: 'Jira 查询失败：Atlassian 可能尚未登录，请运行 /auth-check',
+    refused: 'Jira 查询被权限拦下（auto mode 未放行 Atlassian 工具）：请管理员在 managed settings 加上允许规则，或切换权限模式',
     queryFailed: 'Jira 查询失败，请稍后再试',
     todoCount: n => `Jira 待办：${n} 张。`,
     closed: 'Jira 待办面板已关闭（再输入 /jira-todo 打开）。',
@@ -595,6 +598,7 @@ export const STRINGS: Record<Lang, Strings> = {
     noStatus: '(no status)',
     noJira: 'Jira is not connected (no Atlassian MCP). Run /auth-check',
     signedOut: 'Jira query failed: Atlassian may be signed out. Run /auth-check',
+    refused: 'Jira query blocked by permissions (auto mode did not allow the Atlassian tool): ask an admin to add allow rules in managed settings, or switch permission mode',
     queryFailed: 'Jira query failed, try again later',
     todoCount: n => `Jira: ${n} open tickets.`,
     closed: 'Jira pane closed (/jira-todo opens it again).',
@@ -771,6 +775,14 @@ export function parseGhStatus(exitCode: number, output: string): SignIn {
 // only a call that gets past it proves a sign-in.
 export function isNoConnectedTool(err: unknown): boolean {
   return String(err).includes('no connected MCP tool')
+}
+
+// $.mcp.call's error when the server is connected but the permission check
+// refused the call: in auto mode the classifier, with no allow rule for the
+// tool, can refuse a plugin's own call (2026-11-03). Not a missing connection,
+// so the pane must not say "no Atlassian MCP".
+export function isRefusedCall(err: unknown): boolean {
+  return /\$\.mcp\.call\([^)]*\) refused:/.test(String(err))
 }
 
 // The Atlassian MCP under the names it was first met as: the official plugin
