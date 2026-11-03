@@ -284,6 +284,11 @@ plugins/branch8-practices/        Branch8 的工作方式，同類的規範都�
                                   - 第 3 段 brainstorming 的開場改成問題卡（一起想／跳過提問給我方案／Other 直接寫想法）。
                                   - brainstorming 代為決定的事項，依相依關係確認，不再一條一條確認。
                                   - 補上缺口 A–F，並加入四個建議開新 session 的時機。
+                                  - 0.1.1 補 G–I：
+                                    G：沒有 code 的任務跳過 code 比對和 ADR，決定改寫進紀錄。
+                                    H：要問 PM 的問題先用卡片選「送到 Jira」「現在討論」或「先帶假設往下做」；
+                                       使用者就是 PM 時，推薦「現在討論」。
+                                    I：已經 done 的單如果需求改了，退回 reviewing，並在紀錄的 Changes 段記下變更。
                                   - superpowers／mattpocock 照舊跟著官方自動更新。upstream-watch（見 scripts）一偵測到
                                     官方換版就開 issue，提醒重跑手動檢查，因為 eval 的沙盒不載入這兩個 plugin，測不到衝突。
 template/plugin-template/         開發新 plugin 的起點。刻意不列入 marketplace.json，

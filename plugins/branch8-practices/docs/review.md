@@ -27,7 +27,13 @@ always the purpose agreed in stage 1, not the PRD's wording.
 5. **Questions for the PM.** Collect what only the PM can answer into one Jira
    comment. It must stand on its own: for each question, the scenario, why it
    matters, and the options you see - PM and QA mostly cannot open GitHub.
-   Show the draft and get the RD's yes on a question card.
+   Show the draft, then ask with a question card how to get the answers:
+   - **"Post to Jira for the PM"** - step 6.
+   - **"Discuss now"** - the PM is at hand, or the user is the PM (they wrote
+     the PRD or opened the ticket; then mark this option recommended). Go
+     through the questions here, one at a time; record each answer and who gave
+     it, post nothing, and carry on with stage 3 - no waiting.
+   - **"Go on with assumptions"** - as in the note under step 6.
 6. **Pause.** Write the findings and the questions into the record, set status
    `waiting-for-pm`, and commit the record (that file only; do not push).
    Then post it - the comment - so a session that ends here leaves a record

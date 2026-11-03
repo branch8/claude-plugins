@@ -12,7 +12,8 @@
    after the RD's yes on a question card.
 3. **Scenarios to the PM.** Scenarios the RD wrote or changed go to the PM for
    confirmation - in the summary comment or a separate one, whichever reads
-   better.
+   better. When the user is the PM (or the PM is at hand), confirm them on the
+   spot instead and record who confirmed.
 4. Set status `done` and commit the record.
 5. **Hand off.** Next is `superpowers:writing-plans`; if brainstorming sized the
    work as a small change, implement directly instead. When the project has a

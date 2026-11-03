@@ -48,6 +48,10 @@ widen what they consider and stress-test what they choose - not to choose.
    sharpen fuzzy terms. Where a decision is hard to reverse, surprising
    without context, and the result of a real trade-off, domain-modeling
    writes an ADR; the record links it instead of copying it.
+   - No code to check against (a document, process or content task, or a
+     folder that is not a repository): skip the code comparison and ADR files;
+     grill against the scenarios and the purpose instead, and keep each hard
+     decision with its reason in the record's Solution section.
    - The choice does not hold up (grilling finds it unworkable): say so, note
      in the record why it was dropped, and go back to step 2 with that lesson.
      Do not patch an approach the RD would not choose again.

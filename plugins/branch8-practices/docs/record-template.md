@@ -33,4 +33,9 @@ Source: <Jira link> · <PRD link(s)>
 ## Collaboration
 - Claude proposed: <...>
 - RD thought / decided: <key sentences quoted in the RD's own words>
+
+## Changes
+- <YYYY-MM-DD>: <what changed in the requirement, who asked, which scenarios and decisions it touched>
 ```
+
+The Changes section stays empty until the requirement changes after `done`.
