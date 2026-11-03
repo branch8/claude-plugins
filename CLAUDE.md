@@ -205,6 +205,14 @@ plugins/branch8-jira-mod/         可選的 mod 擴充（TypeScript function hoo
                                   Team 組織會自動把內建的 cc-plugin-sec-default@builtin 排在最外層，它不把 prompt.compose
                                   往下傳：mod 的 system prompt 規則段落實際上到不了 Claude（2026-10-20 實測）。所以面板
                                   選單／取消選定改用 $.session.append 直接告訴 Claude（pickNote）；別把必要資訊只放 prompt.compose
+                                  開場自動開面板只看「是不是 Branch8 組織帳號」（orgCheck）：先看宿主給的
+                                  CLAUDE_CODE_ORGANIZATION_UUID（桌面 App／SDK 自己登入，.claude.json 可能是舊的 CLI 登入
+                                  或根本沒有），沒有才讀 .claude.json。HOME 與 USERPROFILE 取存在的那個（Windows 的 HOME
+                                  可能是 Git Bash 路徑）。沒自動開時，原因記下來、第一次 /jira-todo 會說（0.17.3，2026-11-03）。
+                                  桌面 App 要等第一則訊息才啟動 session，所以面板與 /jira-todo 都在第一句之後才出現——這是宿主行為。
+                                  WSL 那次完全沒載入是另一回事：managed scope 的安裝被清掉（installed_plugins.json 少了全部
+                                  managed 項目，疑似在 session 內用另一個帳號的 CLI 跑 `claude plugin …` 觸發），別在 session 裡跑
+                                  會改 plugin 狀態的 `claude plugin` 指令
                                   面板「↻ 切換狀態」：列選單 → 狀態 popup（即時查 listJiraIssueTransitions／
                                   getTransitionsForJiraIssue，不寫死）→ 確認 popup，按確認才寫入。兩個 Atlassian 伺服器的
                                   參數不同（plugin 版 transitionId、claude.ai 版 transition.id），都要支援

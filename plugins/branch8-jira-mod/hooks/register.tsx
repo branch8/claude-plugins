@@ -25,7 +25,8 @@ import {
   suggestedFolder,
   typeIcon,
   focusedTicket,
-  isOrgAccount,
+  orgCheck,
+  type OrgCheck,
   touchesFolderRecords,
   focusOrder,
   stepFocus,
@@ -97,6 +98,8 @@ const folderAtom = atom({ plugin: 'branch8-jira-mod', key: 'folder' } as const, 
 const autoOpenAtom = atom({ plugin: 'branch8-jira-mod', key: 'autoOpen' } as const, true)
 // Signed in to the Branch8 organisation: hints about /jira-todo while the pane is closed.
 const orgAtom = atom({ plugin: 'branch8-jira-mod', key: 'isOrg' } as const, false)
+// Why the pane did not open by itself this session; null when it did.
+const notOpenedAtom = atom({ plugin: 'branch8-jira-mod', key: 'notOpened' } as const, null as string | null)
 // The row menu open under one ticket (Enter on a row), if any.
 const menuAtom = atom({ plugin: 'branch8-jira-mod', key: 'menu' } as const, null)
 // The settings popup under the toolbar's ⚙ button: null when closed.
@@ -192,8 +195,18 @@ async function openUrl($: EngineInterface, url: string): Promise<boolean> {
   return false
 }
 
+// HOME first, then USERPROFILE, taking the first that exists: on Windows HOME
+// can be a Git Bash path (/c/Users/...) the engine cannot open.
 async function homeDir($: EngineInterface): Promise<string> {
-  return (await $.env.get('HOME')) || (await $.env.get('USERPROFILE')) || ''
+  const dirs = [await $.env.get('HOME'), await $.env.get('USERPROFILE')].filter((d): d is string => !!d)
+  for (const dir of dirs) {
+    try {
+      if (await $.fs.exists(dir)) return dir
+    } catch {
+      // Not a path here; try the next one.
+    }
+  }
+  return dirs[0] ?? ''
 }
 
 // The records branch8-jira-check writes, one file per folder.
@@ -417,8 +430,9 @@ async function loadTodos(
 }
 
 // Signed in to the Branch8 organisation through claude.ai (not an API key,
-// token or cloud provider), read from the config dir's .claude.json.
-async function onOrgAccount($: EngineInterface): Promise<boolean> {
+// token or cloud provider): the host's organisation, else the config dir's
+// .claude.json (see orgCheck).
+async function onOrgAccount($: EngineInterface): Promise<OrgCheck> {
   const overrides = [
     await $.env.get('ANTHROPIC_API_KEY'),
     await $.env.get('ANTHROPIC_AUTH_TOKEN'),
@@ -427,10 +441,9 @@ async function onOrgAccount($: EngineInterface): Promise<boolean> {
     await $.env.get('CLAUDE_CODE_USE_VERTEX'),
     await $.env.get('CLAUDE_CODE_USE_FOUNDRY'),
   ]
-  const text = await readClaudeJson($)
-  if (text === null) return false
   const orgId = (await $.env.get('BRANCH8_ORG_ID')) || DEFAULT_ORG_ID
-  return isOrgAccount(text, orgId, overrides.some(Boolean))
+  const hostOrg = (await $.env.get('CLAUDE_CODE_ORGANIZATION_UUID')) || ''
+  return orgCheck(hostOrg, await readClaudeJson($), orgId, overrides.some(Boolean))
 }
 
 // The config dir's .claude.json (it follows CLAUDE_CONFIG_DIR), else the one
@@ -439,7 +452,11 @@ async function readClaudeJson($: EngineInterface): Promise<string | null> {
   const home = await homeDir($)
   for (const dir of [(await $.env.get('CLAUDE_CONFIG_DIR')) || home, home]) {
     const file = `${dir}/.claude.json`
-    if (await $.fs.exists(file)) return $.fs.read(file)
+    try {
+      if (await $.fs.exists(file)) return await $.fs.read(file)
+    } catch {
+      // Unreadable here; try the next one.
+    }
   }
   return null
 }
@@ -617,8 +634,11 @@ export const register: Register = on => {
     try {
       const pref = await $.store.get('autoOpen')
       await update($, autoOpenAtom, () => pref !== false)
-      const isOrg = await onOrgAccount($)
+      const org = await onOrgAccount($)
+      const isOrg = org.isOrg
       await update($, orgAtom, () => isOrg)
+      const notOpened = pref === false ? 'off' : isOrg ? null : org.why
+      await update($, notOpenedAtom, () => notOpened)
       if (pref !== false && isOrg) {
         const opened = await $.ui.open({ id: TODO_PANE, title: 'Jira' })
         await update($, todoOpenAtom, () => true)
@@ -642,7 +662,8 @@ export const register: Register = on => {
         })()
       }
     } catch {
-      // No auto-open; /jira-todo still works.
+      // No auto-open; /jira-todo still works and says so.
+      await update($, notOpenedAtom, () => 'error')
     }
     return next(e)
   })
@@ -662,7 +683,12 @@ export const register: Register = on => {
     }
     await $.ui.open({ id: TODO_PANE, title: 'Jira', focus: true })
     await update($, todoOpenAtom, () => true)
-    return { text: (await loadTodos($, str)).text }
+    const text = (await loadTodos($, str)).text
+    // Once: why it did not open at start, so a host that keeps it closed shows.
+    const why = await read($, notOpenedAtom)
+    if (!why || why === 'off') return { text }
+    await update($, notOpenedAtom, () => null)
+    return { text: `${text} ${str.notOpened(str.orgWhy[why as keyof typeof str.orgWhy] ?? why)}` }
   })
 
   on('ui.close', async ($, e, next) => {
