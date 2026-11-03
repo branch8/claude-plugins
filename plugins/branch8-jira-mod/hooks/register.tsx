@@ -668,14 +668,11 @@ export const register: Register = on => {
     return next(e)
   })
 
-  // /jira-todo toggles the pane: closes it when open, opens it otherwise.
+  // /jira-todo only opens the pane: already open, it is brought to the front
+  // (over another mod's pane, such as filetree's) with the keyboard, and the
+  // list reloads. Closing is the pane's ✕ button.
   on('command.run', { command: 'jira-todo' }, async $ => {
     const str = STRINGS[(await read($, langAtom)) as Lang]
-    if (await read($, todoOpenAtom)) {
-      await $.ui.close({ id: TODO_PANE })
-      await update($, todoOpenAtom, () => false)
-      return { text: str.closed }
-    }
     try {
       await resolveFolder($)
     } catch {

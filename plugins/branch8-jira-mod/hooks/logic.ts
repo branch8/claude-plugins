@@ -325,7 +325,6 @@ export type Strings = {
   refused: string
   queryFailed: string
   todoCount: (n: number) => string
-  closed: string
   current: (key: string) => string
   bandNoTicket: (n: number) => string
   bandTail: (n: number) => string
@@ -445,7 +444,6 @@ export const STRINGS: Record<Lang, Strings> = {
     refused: 'Jira 查詢被權限擋下（auto mode 沒放行 Atlassian 工具）：請管理員在 managed settings 加上允許規則，或換權限模式',
     queryFailed: 'Jira 查詢失敗，請稍後再試',
     todoCount: n => `Jira 待辦：${n} 張。`,
-    closed: 'Jira 待辦面板已關閉（再打 /jira-todo 打開）。',
     current: key => `目前的單：${key}`,
     bandNoTicket: n => `📋 Jira 待辦 ${n} 張 · /jira-todo`,
     bandTail: n => ` · 待辦 ${n}`,
@@ -533,7 +531,6 @@ export const STRINGS: Record<Lang, Strings> = {
     refused: 'Jira 查询被权限拦下（auto mode 未放行 Atlassian 工具）：请管理员在 managed settings 加上允许规则，或切换权限模式',
     queryFailed: 'Jira 查询失败，请稍后再试',
     todoCount: n => `Jira 待办：${n} 张。`,
-    closed: 'Jira 待办面板已关闭（再输入 /jira-todo 打开）。',
     current: key => `当前的单：${key}`,
     bandNoTicket: n => `📋 Jira 待办 ${n} 张 · /jira-todo`,
     bandTail: n => ` · 待办 ${n}`,
@@ -621,7 +618,6 @@ export const STRINGS: Record<Lang, Strings> = {
     refused: 'Jira query blocked by permissions (auto mode did not allow the Atlassian tool): ask an admin to add allow rules in managed settings, or switch permission mode',
     queryFailed: 'Jira query failed, try again later',
     todoCount: n => `Jira: ${n} open tickets.`,
-    closed: 'Jira pane closed (/jira-todo opens it again).',
     current: key => `Current ticket: ${key}`,
     bandNoTicket: n => `📋 Jira: ${n} open · /jira-todo`,
     bandTail: n => ` · ${n} open`,

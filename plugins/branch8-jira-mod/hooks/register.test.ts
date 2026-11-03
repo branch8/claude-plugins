@@ -92,3 +92,22 @@ test('the todo list reaches Atlassian under a server name only the tool list giv
   expect(asked.some(a => a.startsWith(`${UUID} searchJiraIssuesUsingJql`))).toBe(true)
   expect(String(out.text)).not.toContain('Atlassian MCP')
 })
+
+test('/jira-todo only opens: run again with the pane open, it raises it and never closes it', async ($, on) => {
+  const opened: { id: string; focus?: true }[] = []
+  const closed: string[] = []
+  on('ui.open', ($, e) => {
+    opened.push({ id: e.id, focus: e.focus })
+    return { value: { isPlaced: true } }
+  })
+  on('ui.close', ($, e) => {
+    closed.push(e.id)
+  })
+  on('mcp.call', () => {
+    throw new Error('not connected')
+  })
+  await $.command.run({ command: 'jira-todo' } as never)
+  await $.command.run({ command: 'jira-todo' } as never)
+  expect(closed).toEqual([])
+  expect(opened.filter(o => o.id === 'branch8-jira-todo' && o.focus).length).toBe(2)
+})

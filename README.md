@@ -141,7 +141,8 @@ plugins/
                             /jira-todo 操作：Ctrl+X Tab 進面板（再按一次可切換）、↑↓ 移動、
                             Enter 設為目前的單（在專案列上是收合／展開）、點 ↗ 在瀏覽器開該單、
                             Esc 回輸入框（不會關面板）；清單依「專案 → 狀態」分層；
-                            「✕ 關閉」按鈕或再打一次 /jira-todo 關閉，關閉後清單保留，
+                            「✕ 關閉」按鈕關閉（/jira-todo 只會打開；面板已開時把它拉到最前面，
+                            例如蓋過 filetree 的 Files 分頁），關閉後清單保留，
                             輸入框上方顯示待辦數量，重開立即顯示
                             已加入 managed-settings（全 team 自動安裝）；需 Claude Code v2.1.287+
                             沒裝也不影響 branch8-jira-check 與 skill
