@@ -67,3 +67,28 @@ test('clear_ticket leaves Claude with no current ticket', async ($, on) => {
   const body = typeof got.result === 'string' ? got.result : (got.text ?? '')
   expect(JSON.parse(body).ticket).toBeNull()
 })
+
+test('the todo list reaches Atlassian under a server name only the tool list gives', async ($, on) => {
+  // Claude Desktop: the claude.ai connector is named by UUID, so neither fixed
+  // name connects (2026-11-03 "Jira is not connected (no Atlassian MCP)").
+  const UUID = '18e7e7c3-0b1d-4c55-9a51-1f2e3d4c5b6a'
+  on('tool.list', () => ({
+    value: [
+      { name: 'Read', description: '', mcp: false },
+      { name: `mcp__${UUID}__searchJiraIssuesUsingJql`, description: '', mcp: true },
+      { name: `mcp__${UUID}__getTransitionsForJiraIssue`, description: '', mcp: true },
+    ],
+  }))
+  const asked: string[] = []
+  on('mcp.call', ($, e) => {
+    asked.push(`${e.server} ${e.tool}`)
+    if (e.server !== UUID) throw new Error(`no connected MCP tool "${e.tool}" on a server named "${e.server}"`)
+    if (e.tool !== 'searchJiraIssuesUsingJql') return { value: { content: [{ type: 'text', text: '{}' }], isError: false } }
+    const issues = [{ key: 'HS-1', fields: { summary: 'S', status: { name: '進行中' }, issuetype: { name: 'Task' } } }]
+    return { value: { content: [{ type: 'text', text: JSON.stringify({ issues, isLast: true }) }], isError: false } }
+  })
+  on('ui.open', () => ({ value: { isPlaced: true } }))
+  const out = (await $.command.run({ command: 'jira-todo' } as never)) as { text?: string }
+  expect(asked.some(a => a.startsWith(`${UUID} searchJiraIssuesUsingJql`))).toBe(true)
+  expect(String(out.text)).not.toContain('Atlassian MCP')
+})

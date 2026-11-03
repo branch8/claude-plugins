@@ -773,6 +773,63 @@ export function isNoConnectedTool(err: unknown): boolean {
   return String(err).includes('no connected MCP tool')
 }
 
+// The Atlassian MCP under the names it was first met as: the official plugin
+// and the claude.ai connector in the CLI. Only a fallback now (see atlassianServers).
+export const ATLASSIAN_PLUGIN = 'plugin:atlassian:atlassian'
+export const ATLASSIAN_ROVO = 'claude.ai Atlassian Rovo'
+
+// The MCP servers serving `tool`, read off the tool names the model sees
+// (mcp__<server>__<tool>, the server in tool-name spelling, which $.mcp.call
+// takes too). Server names differ by host: Claude Desktop names claude.ai
+// connectors by UUID, and a second copy of a connector gets " (2)" (2026-11-03).
+export function serversWithTool(toolNames: readonly string[], tool: string): string[] {
+  const suffix = `__${tool}`
+  const out: string[] = []
+  for (const name of toolNames) {
+    if (!name.startsWith('mcp__') || !name.endsWith(suffix)) continue
+    const server = name.slice('mcp__'.length, -suffix.length)
+    if (server && !out.includes(server)) out.push(server)
+  }
+  return out
+}
+
+// A server name in tool-name spelling, to tell a fixed name already found.
+const toolSpelling = (server: string) => server.replace(/[^A-Za-z0-9_-]/g, '_')
+
+// Found servers first, then each fixed name not among them: an engine whose
+// tool list leaves the servers out (or has no $.tool.list) still tries the
+// names that worked before.
+function withFallback(found: readonly string[], fallback: readonly string[]): string[] {
+  const seen = new Set(found.map(toolSpelling))
+  return [...found, ...fallback.filter(s => !seen.has(toolSpelling(s)))]
+}
+
+export type AtlassianServers = { plugin: string[]; rovo: string[]; all: string[] }
+
+// The Atlassian servers by kind, as their calls differ: the official plugin's
+// reads go through executeRead and its transition takes transitionId; the
+// claude.ai connector has getTransitionsForJiraIssue and takes transition.id.
+export function atlassianServers(toolNames: readonly string[]): AtlassianServers {
+  const plugin = withFallback(serversWithTool(toolNames, 'executeRead'), [ATLASSIAN_PLUGIN])
+  const rovo = withFallback(serversWithTool(toolNames, 'getTransitionsForJiraIssue'), [ATLASSIAN_ROVO])
+  return { plugin, rovo, all: [...plugin, ...rovo.filter(s => !plugin.includes(s))] }
+}
+
+// Devin's servers, signed in: Devin lists its devin_* tools only once signed
+// in (just `authenticate` before). The wiki tools prove nothing: the public
+// deepwiki server, no sign-in needed, has them too.
+export function devinServers(toolNames: readonly string[]): string[] {
+  const out: string[] = []
+  for (const name of toolNames) {
+    if (!name.startsWith('mcp__')) continue
+    const at = name.indexOf('__devin_', 'mcp__'.length)
+    if (at <= 'mcp__'.length) continue
+    const server = name.slice('mcp__'.length, at)
+    if (!out.includes(server)) out.push(server)
+  }
+  return out
+}
+
 // Whether Claude Code is signed in to the Branch8 organisation, from the
 // config dir's .claude.json (as branch8-jira-check's banner decides). An API
 // key, token or cloud provider overrides that login, so it never counts.
