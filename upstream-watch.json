@@ -1,0 +1,18 @@
+{
+  "why": "Official plugins our skills call and partly override at run time. They update without our review (CLAUDE.md decision 3); scripts/upstream_watch.py opens an issue when a pin below moves. Update a sha only after the re-check passes.",
+  "marketplace": "https://raw.githubusercontent.com/anthropics/claude-plugins-official/main/.claude-plugin/marketplace.json",
+  "plugins": {
+    "superpowers": {
+      "sha": "bb92a77741419a4ab5f06e711a283343f1ada0c3",
+      "version": "7.0.0",
+      "used_by": "branch8-practices rd-before-coding: brainstorming (stage 3), writing-plans (hand-off)",
+      "recheck": "the manual walkthrough in docs/superpowers/plans/2026-10-31-rd-before-coding.md (Task 6), especially brainstorming's exits, its opening, where its design is written, and that wrap-up comes before writing-plans"
+    },
+    "mattpocock-skills": {
+      "sha": "49dd158d1076134a641b33efb035946536778336",
+      "version": "1.3.1",
+      "used_by": "branch8-practices rd-before-coding: grilling (stages 2-3), domain-modeling (stage 3)",
+      "recheck": "the manual walkthrough in docs/superpowers/plans/2026-10-31-rd-before-coding.md (Task 6), especially that the RD answers first in every grilling round and ADRs are linked from the record"
+    }
+  }
+}
