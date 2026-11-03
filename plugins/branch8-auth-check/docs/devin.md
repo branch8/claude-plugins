@@ -11,8 +11,10 @@ the person's own Devin account (OAuth); no API key.
 2. The browser ended on an error page at a `localhost` address (common on WSL,
    SSH or remote machines): ask for the full URL from the address bar and call
    `complete_authentication` with it.
-3. Still failing: `/mcp` -> **devin** -> **Authenticate**.
-4. The Devin page says they have no access or no account: "no account"
+3. No `authenticate` tool: run `bash "<helper>" login devin` in the background,
+   as in `mcp-login.md`.
+4. Still failing: `/mcp` -> **devin** -> **Authenticate**.
+5. The Devin page says they have no access or no account: "no account"
    (`card.md`).
 
 Without Devin, public open-source repos still work through the `deepwiki` server.
