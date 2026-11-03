@@ -210,7 +210,13 @@ Every case's llm rubric also includes: `FAIL if the reply is not in the same lan
 No code. Run this in a real Claude Code session, with this branch's plugins loaded and the company plugins installed. Use a fictional or low-stakes ticket in a scratch repo. Write the results into the PR description.
 
 - [ ] Picking a feature-sized ticket in the `/jira-todo` panel, inside a code repo, makes Claude offer rd-before-coding. Declining lets work continue with no further nagging.
-- [ ] Picking the same ticket in a non-git folder brings no offer.
+- [ ] (Revised 2026-11-03) Picking the same ticket in a non-git folder still brings the offer; the record is kept in the folder and not committed.
+- [ ] A small ticket gets one positive line ("small enough to start right away") and no card.
+- [ ] Stage 1 gives a neutral digest of a long ticket (original wording, no "I think it is for…") and ends with the Jira link.
+- [ ] Stage 3 opens with the card (together / skip the questions - give me options / Other); typing an idea into Other starts "together" from it.
+- [ ] Brainstorming's own calls are shown by dependency; changing a root call reopens what hangs off it.
+- [ ] Gaps A-F: a PM answer that overturns an assumption sends you back to stage 2; an approach that fails grilling goes back to brainstorming; an infeasible requirement gets a "send it back" draft; a failed Jira post is kept as "Not sent"; with no ticket the RD gets the text to send; skipping a step is noted in the record.
+- [ ] New-session suggestion appears (one line) at waiting-for-pm, after wrap-up, on picking a second ticket, and after a compaction.
 - [ ] Stage 1 lays out the ticket without interpretation, waits for the RD's restatement, then shows the differences.
 - [ ] Stage 2 asks the RD first; the PM-questions comment is self-contained and posted only after a card yes; the record is committed with status `waiting-for-pm`; nothing is pushed.
 - [ ] Stage 3 invokes brainstorming; no file appears under `docs/superpowers/specs/`; grilling (RD first) and domain-modeling run **before** writing-plans; brainstorming's calls are confirmed by the RD item by item.

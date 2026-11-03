@@ -5,9 +5,14 @@ Record status: `designing`.
 The requirement is settled; now the RD decides how to build it. Your job is to
 widen what they consider and stress-test what they choose - not to choose.
 
-1. **Let the RD choose the way**, with a question card:
-   - **"Think it through together"** (recommended): a real brainstorm with the RD.
-   - **"Give me options"**: you lay out the approaches, the RD picks.
+1. **Let the RD choose the way**, with a question card. This replaces
+   brainstorming's own "want to skip the questions?" line:
+   - **"Think it through together"** (recommended): a real brainstorm, one
+     question at a time.
+   - **"Skip the questions - Give me options"**: you lay out the approaches,
+     the RD picks.
+   - **"Other"**: the RD types their idea straight into the card; treat it as
+     their first idea in "together".
    They can switch at any point. Note the way in the record.
 2. **Brainstorm** with `superpowers:brainstorming`, every time - the RD may not
    know how to solve it, or their first idea may not be the best. Before
@@ -26,8 +31,12 @@ widen what they consider and stress-test what they choose - not to choose.
    existing architecture. In both ways:
    - Its written design goes into the record's Solution section, not a separate
      file under `docs/superpowers/specs/`.
-   - It ends with a list of the calls it made itself; the RD confirms or changes
-     each one, and the record keeps the result.
+   - It ends with a list of the calls it made itself. Calls often depend on
+     each other, so present them by dependency, not as a flat list: the root
+     calls first (the ones others follow from), each with what hangs off it.
+     The RD confirms or changes each root call; the calls that only follow from
+     a root are accepted with it, or reopened when the root changes. Calls that
+     stand alone are confirmed one by one. The record keeps the result.
    - Inside this flow it never builds or hands off: skip its opening offer to
      skip the questions, and however it ends - everything already known, sized
      as a small change, or design approved - come back here to step 3.
@@ -39,6 +48,9 @@ widen what they consider and stress-test what they choose - not to choose.
    sharpen fuzzy terms. Where a decision is hard to reverse, surprising
    without context, and the result of a real trade-off, domain-modeling
    writes an ADR; the record links it instead of copying it.
+   - The choice does not hold up (grilling finds it unworkable): say so, note
+     in the record why it was dropped, and go back to step 2 with that lesson.
+     Do not patch an approach the RD would not choose again.
 5. **Approve.** Only now - after grilling and domain-modeling - show the RD the
    Solution section for approval.
 

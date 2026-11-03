@@ -74,8 +74,24 @@ check "resume on another branch asks, never a second record" 'grep -qF "never st
 check "a no covers this ticket only; an accepted offer is not repeated" 'grep -qF "for this ticket" "$skill" && grep -qF "do not offer again" "$skill"'
 check "stage 3 lets the RD choose: think together or options" 'grep -qF "Think it through together" "$docs/design.md" && grep -qF "Give me options" "$docs/design.md"'
 check "record keeps the way chosen and who proposed each idea" 'grep -qF "Way:" "$docs/record-template.md" && grep -qF "proposed by" "$docs/record-template.md"'
+# 2026-11-03 round: wider trigger, stage-1 digest, stage-3 card, calls by dependency, gaps A-F, new sessions.
+check "triggers on any project task, not only code repos" '[[ "$desc" == *"any project task"* ]] && ! grep -qF "Only in a code repository" "$skill"'
+check "small tasks get one positive line" 'grep -qF "small enough to start right away" "$skill"'
+check "outside a git repo the record is kept but not committed" 'grep -qF "Not a git repository" "$skill"'
+check "stage 1 gives a neutral digest and the Jira link" 'grep -qF "neutral digest" "$docs/understand.md" && grep -qF "Jira link" "$docs/understand.md"'
+check "stage 3 card: skip the questions, or describe in Other" 'grep -qF "Skip the questions" "$docs/design.md" && grep -qF "\"Other\"" "$docs/design.md"'
+check "brainstorming calls confirmed by dependency, roots first" 'grep -qF "dependency" "$docs/design.md" && grep -qF "root calls" "$skill"'
+check "A: a PM answer that overturns an assumption sends you back" 'grep -qF "overturns an assumption" "$skill"'
+check "B: an approach that fails grilling goes back to brainstorming" 'grep -qF "does not hold up" "$docs/design.md"'
+check "C: an infeasible requirement can be sent back to the PM" 'grep -qF "send the requirement back" "$docs/review.md"'
+check "D: an unsent Jira draft is kept in the record" 'grep -qF "Not sent" "$skill"'
+check "E: no Jira ticket - the RD sends the questions" 'grep -qF "No Jira ticket" "$skill"'
+check "F: the RD can skip a step or stop, noted in the record" 'grep -qF "skip a step or stop" "$skill"'
+for m in "waiting-for-pm" "before coding" "another ticket" "compacted"; do
+  check "new-session suggestion covers: $m" 'grep -A12 -F "Suggest a new session" "$skill" | grep -qF "$m"'
+done
 check "the offer card has a stop-offering-this-session option" 'grep -qF "Not again this session" "$skill"'
-check "small-change not-fired grader is scored in both arms" 'grep -qF "arm: both" "$root/evals/small-change/graders/skill-not-fired.md"'
+check "small-change rubric allows one positive line and no flow" 'grep -qF "positive line" "$root/evals/small-change/graders/just-do-it.md" && [ ! -e "$root/evals/small-change/graders/skill-not-fired.md" ]'
 check "unreadable-link checks the skill fired" '[ -f "$root/evals/unreadable-link/graders/skill-fired.md" ]'
 check "CLAUDE.md records the eval command with --scaffold" 'grep -qF "claude plugin eval . --scaffold --ablation none" "$root/../../CLAUDE.md"'
 

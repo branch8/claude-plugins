@@ -18,6 +18,10 @@ always the purpose agreed in stage 1, not the PRD's wording.
    - **infeasible parts** - technically impossible, or far costlier than it looks;
    - **a better way** - another approach that reaches the purpose more simply.
    Present the findings; the RD rules on each one (keep, drop, ask the PM).
+   - The requirement as a whole cannot or should not be done (infeasible, or it
+     works against the purpose): with the RD's agreement, draft a comment that
+     proposes to send the requirement back - what blocks it, and what could
+     reach the purpose instead - and handle it like the PM questions in step 5.
 4. **Grill the requirement** with `mattpocock-skills:grilling`, RD answering
    first in every round, until nothing is left open.
 5. **Questions for the PM.** Collect what only the PM can answer into one Jira

@@ -278,6 +278,14 @@ plugins/branch8-practices/        Branch8 的工作方式，同類的規範都�
                                   --ablation none 代表只跑「有裝 plugin」那一組，不跑對照組，因為對照組對這些行為沒有比較意義，跑了只會讓花費加倍。
                                   沙盒只載入受測的 plugin，而且只有單輪對話，「brainstorming 後先 grilling」這點
                                   只能手動驗證。tests/structure.sh 在 CI 檢查結構與大小。
+                                  2026-11-03 修訂（細節見設計文件末段）：
+                                  - 觸發範圍不限 code repo，任何專案任務都會觸發；小任務只用一句正向的話帶過，不跳卡。
+                                  - 第 1 段改成中立整理，並附上 Jira 連結。
+                                  - 第 3 段 brainstorming 的開場改成問題卡（一起想／跳過提問給我方案／Other 直接寫想法）。
+                                  - brainstorming 代為決定的事項，依相依關係確認，不再一條一條確認。
+                                  - 補上缺口 A–F，並加入四個建議開新 session 的時機。
+                                  - superpowers／mattpocock 照舊跟著官方自動更新。upstream-watch（見 scripts）一偵測到
+                                    官方換版就開 issue，提醒重跑手動檢查，因為 eval 的沙盒不載入這兩個 plugin，測不到衝突。
 template/plugin-template/         開發新 plugin 的起點。刻意不列入 marketplace.json，
                                   所以不會被發送、也不會被 validate 檢查
                                   validate.py 會擋住把 ./template/ 當 source 的 entry
@@ -288,10 +296,15 @@ scripts/
   auto_update.py                  決定抓什麼、版本怎麼改、PR 寫什麼（管理者）
   validate.py                     上線前檢查
   check_version_bump.py           CI 用，--fix 會自動補版本號
+  upstream_watch.py               比對官方 marketplace 和 upstream-watch.json 裡的 sha，列出有變動的 plugin（只用標準函式庫）。
+                                  單元測試在 test_upstream_watch.py，CI 用 unittest discover 執行
+upstream-watch.json               我們會叫用並部分覆寫的官方 plugin（superpowers、mattpocock-skills），記錄最後檢查過的 sha。
+                                  重跑手動檢查、確認沒問題後，才用 PR 更新 sha（2026-11-03）
 .github/workflows/
   vendor-update.yml               每週一 01:00 UTC，自動開 PR
   validate.yml                    每個 PR 跑檢查 + 自動補版本號
   automation-health.yml           每月 heartbeat + 逾期未審提醒
+  upstream-watch.yml              每週一執行：官方 plugin 的 sha 一變就開 issue，同一個變動不重複開
 ```
 
 ---
