@@ -1,5 +1,5 @@
 import { test, expect } from 'claude-code/testing'
-import { detectNode, reminderFor, formatBand, rulesSection, parseIssueStatus, parseIssueList, todoJql, nextRange, parseIssuePage, TODO_FIELDS, ISSUE_FIELDS, displayWidth, bandText, TODO_HELP, groupTodos, issueUrl, todoRow, langOf, STRINGS, statusTone, nextLangPref, resolveLang, recordFileName, ancestorDirs, parseRecord, projectOf, isOtherProject, applyScope, effectiveScope, foldersFor, suggestedFolder, typeIcon, focusedTicket, isOrgAccount, touchesFolderRecords, focusOrder, stepFocus, isArrowScroll, settingsValues, menuValues, leftFrom, pickNote, manifestVersion, isNewer, updateOutcome, parseTransitions, moveNote, claudeAccount, parseJiraUser, jiraWarning, syncTicket, parseGhStatus, isNoConnectedTool, isRefusedCall, folderLabel, serversWithTool, atlassianServers, devinServers } from './logic'
+import { detectNode, reminderFor, formatBand, rulesSection, parseIssueStatus, parseIssueList, todoJql, nextRange, parseIssuePage, TODO_FIELDS, ISSUE_FIELDS, displayWidth, bandText, TODO_HELP, groupTodos, issueUrl, todoRow, langOf, STRINGS, statusTone, nextLangPref, resolveLang, recordFileName, ancestorDirs, parseRecord, projectOf, isOtherProject, applyScope, effectiveScope, foldersFor, suggestedFolder, typeIcon, focusedTicket, isOrgAccount, orgCheck, touchesFolderRecords, focusOrder, stepFocus, isArrowScroll, settingsValues, menuValues, leftFrom, pickNote, manifestVersion, isNewer, updateOutcome, parseTransitions, moveNote, claudeAccount, parseJiraUser, jiraWarning, syncTicket, parseGhStatus, isNoConnectedTool, isRefusedCall, folderLabel, serversWithTool, atlassianServers, devinServers } from './logic'
 
 const T = { key: 'HS-1', summary: '修正請假審核通知', status: '待辦事項', cloudId: 'c' }
 
@@ -382,6 +382,31 @@ test('organisation account is read from .claude.json', () => {
   expect(isOrgAccount('not json', ORG, false)).toBe(false)
   // An API key, token or cloud provider overrides the claude.ai login.
   expect(isOrgAccount(org, ORG, true)).toBe(false)
+})
+
+test('the organisation check is the same on every host', () => {
+  const org = JSON.stringify({ oauthAccount: { organizationUuid: ORG } })
+  const old = JSON.stringify({ oauthAccount: { organizationUuid: 'personal' } })
+  // Desktop app / SDK host: its own login decides, whatever .claude.json holds.
+  expect(orgCheck(ORG, old, ORG, false)).toEqual({ isOrg: true, why: 'host' })
+  expect(orgCheck(ORG, null, ORG, false)).toEqual({ isOrg: true, why: 'host' })
+  expect(orgCheck(ORG, null, ORG, true)).toEqual({ isOrg: true, why: 'host' })
+  expect(orgCheck('personal', org, ORG, false)).toEqual({ isOrg: false, why: 'host-other' })
+  // CLI: .claude.json, overridden by an API key, token or cloud provider.
+  expect(orgCheck('', org, ORG, false)).toEqual({ isOrg: true, why: 'config' })
+  expect(orgCheck('', old, ORG, false)).toEqual({ isOrg: false, why: 'other' })
+  expect(orgCheck('', org, ORG, true)).toEqual({ isOrg: false, why: 'override' })
+  expect(orgCheck('', null, ORG, false)).toEqual({ isOrg: false, why: 'no-config' })
+})
+
+test('every reason for not opening has words in every language', () => {
+  for (const lang of ['zh-TW', 'zh-CN', 'en'] as const) {
+    const s = STRINGS[lang]
+    for (const why of ['host-other', 'other', 'override', 'no-config', 'off', 'error'] as const) {
+      expect(s.orgWhy[why].length > 0).toBe(true)
+    }
+    expect(s.notOpened('x').includes('x')).toBe(true)
+  }
 })
 
 test('auto-open strings exist in every language', () => {

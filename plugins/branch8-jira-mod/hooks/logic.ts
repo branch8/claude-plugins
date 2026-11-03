@@ -325,7 +325,6 @@ export type Strings = {
   refused: string
   queryFailed: string
   todoCount: (n: number) => string
-  closed: string
   current: (key: string) => string
   bandNoTicket: (n: number) => string
   bandTail: (n: number) => string
@@ -346,6 +345,8 @@ export type Strings = {
   bandHint: string
   closedHint: string
   narrowHint: string
+  notOpened: (why: string) => string
+  orgWhy: Record<Exclude<OrgWhy, 'host' | 'config'> | 'off' | 'error', string>
   menuOpen: string
   menuCancel: string
   clearTicket: (key: string) => string
@@ -443,7 +444,6 @@ export const STRINGS: Record<Lang, Strings> = {
     refused: 'Jira 查詢被權限擋下（auto mode 沒放行 Atlassian 工具）：請管理員在 managed settings 加上允許規則，或換權限模式',
     queryFailed: 'Jira 查詢失敗，請稍後再試',
     todoCount: n => `Jira 待辦：${n} 張。`,
-    closed: 'Jira 待辦面板已關閉（再打 /jira-todo 打開）。',
     current: key => `目前的單：${key}`,
     bandNoTicket: n => `📋 Jira 待辦 ${n} 張 · /jira-todo`,
     bandTail: n => ` · 待辦 ${n}`,
@@ -464,6 +464,15 @@ export const STRINGS: Record<Lang, Strings> = {
     bandHint: '📋 輸入 /jira-todo 開啟 Jira 待辦',
     closedHint: '已關閉，輸入 /jira-todo 可再打開',
     narrowHint: 'Jira 待辦面板需要較寬的視窗：拉寬視窗，或隨時輸入 /jira-todo',
+    notOpened: why => `（這次開場沒有自動開啟：${why}）`,
+    orgWhy: {
+      'host-other': '登入的不是 Branch8 組織帳號',
+      other: '.claude.json 記的不是 Branch8 組織帳號',
+      override: '設了 API key／token／雲端供應商，不算組織登入',
+      'no-config': '找不到 .claude.json',
+      off: '你關掉了「開場自動開啟」',
+      error: '開場檢查出錯',
+    },
     menuOpen: '🔗 開啟 Jira',
     menuCancel: '✕ 取消',
     clearTicket: key => `⏹ 取消選定 ${key}`,
@@ -522,7 +531,6 @@ export const STRINGS: Record<Lang, Strings> = {
     refused: 'Jira 查询被权限拦下（auto mode 未放行 Atlassian 工具）：请管理员在 managed settings 加上允许规则，或切换权限模式',
     queryFailed: 'Jira 查询失败，请稍后再试',
     todoCount: n => `Jira 待办：${n} 张。`,
-    closed: 'Jira 待办面板已关闭（再输入 /jira-todo 打开）。',
     current: key => `当前的单：${key}`,
     bandNoTicket: n => `📋 Jira 待办 ${n} 张 · /jira-todo`,
     bandTail: n => ` · 待办 ${n}`,
@@ -543,6 +551,15 @@ export const STRINGS: Record<Lang, Strings> = {
     bandHint: '📋 输入 /jira-todo 打开 Jira 待办',
     closedHint: '已关闭，输入 /jira-todo 可再打开',
     narrowHint: 'Jira 待办面板需要较宽的窗口：拉宽窗口，或随时输入 /jira-todo',
+    notOpened: why => `（这次启动没有自动打开：${why}）`,
+    orgWhy: {
+      'host-other': '登录的不是 Branch8 组织账号',
+      other: '.claude.json 记录的不是 Branch8 组织账号',
+      override: '设置了 API key／token／云服务商，不算组织登录',
+      'no-config': '找不到 .claude.json',
+      off: '你关闭了「启动时自动打开」',
+      error: '启动检查出错',
+    },
     menuOpen: '🔗 打开 Jira',
     menuCancel: '✕ 取消',
     clearTicket: key => `⏹ 取消选定 ${key}`,
@@ -601,7 +618,6 @@ export const STRINGS: Record<Lang, Strings> = {
     refused: 'Jira query blocked by permissions (auto mode did not allow the Atlassian tool): ask an admin to add allow rules in managed settings, or switch permission mode',
     queryFailed: 'Jira query failed, try again later',
     todoCount: n => `Jira: ${n} open tickets.`,
-    closed: 'Jira pane closed (/jira-todo opens it again).',
     current: key => `Current ticket: ${key}`,
     bandNoTicket: n => `📋 Jira: ${n} open · /jira-todo`,
     bandTail: n => ` · ${n} open`,
@@ -622,6 +638,15 @@ export const STRINGS: Record<Lang, Strings> = {
     bandHint: '📋 Type /jira-todo for your Jira todos',
     closedHint: 'Closed. Type /jira-todo to open it again',
     narrowHint: 'The Jira pane needs a wider window: widen it, or type /jira-todo any time',
+    notOpened: why => `(Not opened at start this time: ${why})`,
+    orgWhy: {
+      'host-other': 'not signed in to the Branch8 organisation',
+      other: '.claude.json holds an account outside the Branch8 organisation',
+      override: 'an API key, token or cloud provider is set, which is not an organisation login',
+      'no-config': 'no .claude.json found',
+      off: 'you turned "Open at start" off',
+      error: 'the start-up check failed',
+    },
     menuOpen: '🔗 Open in Jira',
     menuCancel: '✕ Cancel',
     clearTicket: key => `⏹ Unselect ${key}`,
@@ -853,6 +878,22 @@ export function isOrgAccount(claudeJson: string, orgId: string, hasLoginOverride
   } catch {
     return false
   }
+}
+
+// Why the pane did or did not open by itself, for /jira-todo to say.
+export type OrgWhy = 'host' | 'config' | 'host-other' | 'other' | 'override' | 'no-config'
+export type OrgCheck = { isOrg: boolean; why: OrgWhy }
+
+// The organisation check behind the auto-open, the same on every host. The
+// desktop app and SDK hosts sign in themselves and pass the session's
+// organisation in CLAUDE_CODE_ORGANIZATION_UUID: that decides first, as the
+// .claude.json there can hold an older CLI login (or none). Elsewhere it is
+// .claude.json, where an API key, token or cloud provider overrides the login.
+export function orgCheck(hostOrg: string, claudeJson: string | null, orgId: string, hasLoginOverride: boolean): OrgCheck {
+  if (hostOrg) return { isOrg: !!orgId && hostOrg === orgId, why: hostOrg === orgId ? 'host' : 'host-other' }
+  if (hasLoginOverride) return { isOrg: false, why: 'override' }
+  if (claudeJson === null) return { isOrg: false, why: 'no-config' }
+  return isOrgAccount(claudeJson, orgId, false) ? { isOrg: true, why: 'config' } : { isOrg: false, why: 'other' }
 }
 
 // A tool call that may have written a branch8-jira-check folder record, so

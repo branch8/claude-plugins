@@ -205,6 +205,21 @@ plugins/branch8-jira-mod/         可選的 mod 擴充（TypeScript function hoo
                                   Team 組織會自動把內建的 cc-plugin-sec-default@builtin 排在最外層，它不把 prompt.compose
                                   往下傳：mod 的 system prompt 規則段落實際上到不了 Claude（2026-10-20 實測）。所以面板
                                   選單／取消選定改用 $.session.append 直接告訴 Claude（pickNote）；別把必要資訊只放 prompt.compose
+                                  開場自動開面板只看「是不是 Branch8 組織帳號」（orgCheck）：有 CLAUDE_CODE_ORGANIZATION_UUID
+                                  就用它，沒有才讀 .claude.json（CCS／一般 CLI 都走後者，行為與 0.17.2 相同）。
+                                  **這個環境變數「桌面 App 會設」是未證實的推測**（2026-11-04 查 Windows 桌面 App 的對話紀錄，
+                                  出現 0 次）——Windows 桌面 App 為何不自動開仍未知，0.17.3 讓第一次 /jira-todo 說出沒開的原因，
+                                  拿那句話查。HOME 與 USERPROFILE 取存在的那個（Windows 的 HOME 可能是 Git Bash 路徑）。
+                                  桌面 App 要等第一則訊息才啟動 session，所以面板與 /jira-todo 都在第一句之後才出現——這是宿主行為。
+                                  **桌面 App 開的 WSL session 不能拿來測公司設定**：它直接跑 `claude`（預設 ~/.claude，可能是
+                                  個人帳號），不是 CCS 開的公司 instance，收不到 managed settings、branch8 plugin 會不見；
+                                  而且桌面 App 的 WSL session 本來就不載入 mod（filetree README 註明）。2026-11-03 曾因此誤判
+                                  「managed 安裝被清掉」並連帶做了一串不必要的修正。
+                                  面板一次只顯示一個（引擎限制：多個 mod 的面板是分頁，無法分割）；誰在前面推測是看開啟先後
+                                  （文件未明講），filetree 在背景較晚開，所以開場常停在 Files。/jira-todo 只開不關：已開時把 Jira 拉到前面
+                                  （focus），關閉用面板的 ✕（0.17.3）
+                                  新增 $.state 值一定要寫進 types/index.d.ts：`claude plugin validate` 會擋，但 repo 的
+                                  validate.py 不跑它（0.17.3 曾漏宣告 notOpened，CI 全綠）——改 mod 後手動跑一次
                                   面板「↻ 切換狀態」：列選單 → 狀態 popup（即時查 listJiraIssueTransitions／
                                   getTransitionsForJiraIssue，不寫死）→ 確認 popup，按確認才寫入。兩個 Atlassian 伺服器的
                                   參數不同（plugin 版 transitionId、claude.ai 版 transition.id），都要支援

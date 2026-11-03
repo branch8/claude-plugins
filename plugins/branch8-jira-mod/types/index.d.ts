@@ -58,6 +58,9 @@ declare module 'claude-code' {
       // Only tickets updated within this many days; 0 for any age.
       range: number
       isOrg: boolean
+      // Why the pane did not open by itself this session (an OrgWhy, 'off' or
+      // 'error'); null when it did. /jira-todo says it once.
+      notOpened: string | null
       // This mod's version, from its plugin.json, shown in the pane.
       version: string | null
       // The version on the marketplace's main branch, and whether an update runs.
