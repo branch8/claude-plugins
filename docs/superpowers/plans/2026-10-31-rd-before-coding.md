@@ -217,6 +217,9 @@ No code. Run this in a real Claude Code session, with this branch's plugins load
 - [ ] Brainstorming's own calls are shown by dependency; changing a root call reopens what hangs off it.
 - [ ] Gaps A-F: a PM answer that overturns an assumption sends you back to stage 2; an approach that fails grilling goes back to brainstorming; an infeasible requirement gets a "send it back" draft; a failed Jira post is kept as "Not sent"; with no ticket the RD gets the text to send; skipping a step is noted in the record.
 - [ ] New-session suggestion appears (one line) at waiting-for-pm, after wrap-up, on picking a second ticket, and after a compaction.
+- [ ] (G) A document-only task in a non-repo folder: stage 3 skips the code check and ADR files; decisions land in the record's Solution section.
+- [ ] (H) The PM-questions card offers Post to Jira / Discuss now / Go on with assumptions; when the user opened the ticket, Discuss now is marked recommended, answers are recorded with who gave them, nothing is posted, and stage 3 follows.
+- [ ] (I) Changing the requirement of a `done` record sets it back to `reviewing`, adds a dated Changes entry, and ends with a new Jira summary that says what changed.
 - [ ] Stage 1 lays out the ticket without interpretation, waits for the RD's restatement, then shows the differences.
 - [ ] Stage 2 asks the RD first; the PM-questions comment is self-contained and posted only after a card yes; the record is committed with status `waiting-for-pm`; nothing is pushed.
 - [ ] Stage 3 invokes brainstorming; no file appears under `docs/superpowers/specs/`; grilling (RD first) and domain-modeling run **before** writing-plans; brainstorming's calls are confirmed by the RD item by item.

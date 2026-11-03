@@ -55,6 +55,10 @@ Record format: `../../docs/record-template.md`.
 
 A PM answer that overturns an assumption the RD went ahead on: go back to
 stage 2 for the scenarios it touches, then re-check the design against them.
+The requirement changes after the record is `done`: set it back to
+`reviewing`, add a dated entry under the record's Changes section, redo stage 2
+for the scenarios the change touches, re-check the design, and wrap up again
+(a new Jira summary that says what changed).
 
 ## Borrowed skills, and how this flow changes them
 

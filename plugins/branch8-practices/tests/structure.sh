@@ -90,6 +90,11 @@ check "F: the RD can skip a step or stop, noted in the record" 'grep -qF "skip a
 for m in "waiting-for-pm" "before coding" "another ticket" "compacted"; do
   check "new-session suggestion covers: $m" 'grep -A12 -F "Suggest a new session" "$skill" | grep -qF "$m"'
 done
+# G-I (2026-11-03): work without code, the user is the PM, requirement changes after done.
+check "G: without code, skip the code check and keep decisions in the record" 'grep -qF "No code to check against" "$docs/design.md"'
+check "H: PM questions card offers Discuss now" 'grep -qF "Discuss now" "$docs/review.md" && grep -qF "the user is the PM" "$docs/review.md"'
+check "H: wrap-up confirms scenarios on the spot when the user is the PM" 'grep -qF "the user is the PM" "$docs/wrap-up.md"'
+check "I: a requirement change after done reopens at stage 2" 'grep -qF "requirement changes after" "$skill" && grep -qF "## Changes" "$docs/record-template.md"'
 check "the offer card has a stop-offering-this-session option" 'grep -qF "Not again this session" "$skill"'
 check "small-change rubric allows one positive line and no flow" 'grep -qF "positive line" "$root/evals/small-change/graders/just-do-it.md" && [ ! -e "$root/evals/small-change/graders/skill-not-fired.md" ]'
 check "unreadable-link checks the skill fired" '[ -f "$root/evals/unreadable-link/graders/skill-fired.md" ]'
