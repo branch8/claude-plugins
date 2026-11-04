@@ -70,6 +70,19 @@ Return the key and `<site>/browse/<KEY>`.
    it: say why and give `<site>/browse/<KEY>`.
 5. Ask once per ticket and point, whatever the answer.
 
+**`merge` with the PR still open** (work declared done, this ticket's PR not merged yet —
+`gh pr view --json state,mergeable,mergeStateStatus,statusCheckRollup`): the same card
+offers merging too, as one answer:
+- 「合併 PR #N 並移到 <status>」 first (recommended) — only when checks passed and the PR is
+  mergeable; otherwise leave it out and say why in the question (checks failing / pending,
+  conflict, review required);
+- 「只移到 <status>」;
+- 「暫不」.
+Merge and move → merge first, with the method the repo's recent PRs used (squash if
+unclear), without `--auto` or `--admin`; only once it merged, `transitionJiraIssue`. A merge
+that fails moves nothing: say why and give the PR URL. Merging only happens through this
+card's answer — never merge because a status move was approved.
+
 ## With the branch8-jira-mod extension
 
 If `mcp__branch8-jira-mod__set_ticket` exists:
@@ -101,3 +114,5 @@ Without the mod, remember the ticket and the asked points yourself for the sessi
 | Guessing "In Progress" by name when the workflow has no such transition now | Only offer transitions the list returns |
 | Asking again after the user said "not now" | Once per ticket and point |
 | Offering QA / staging / deploy moves after a merge | Those belong to QA and release, not you |
+| Moving to Merged while the PR is still open | Offer 「合併 PR 並移到…」 in the same card |
+| Moving the status when the merge failed | Merge first; a failed merge moves nothing |
