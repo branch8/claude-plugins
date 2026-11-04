@@ -121,7 +121,9 @@ plugins/
                             公司設定值在 config.env；整個關掉：設 BRANCH8_JIRA_CHECK=off
                             skill jira-workflow：自己判斷要不要問單號（訊息、branch、本 session、
                             搜尋指派給我的未完成單）、要不要開新單，並在開始動手 / 開 PR / 合併時
-                            從「這張單現在可走的轉換」推薦下一個狀態；每次寫入 Jira 都先用卡片問
+                            從「這張單現在可走的轉換」推薦下一個狀態；每次寫入 Jira 都先用卡片問。
+                            宣告完成時 PR 還沒合併，卡片多一個「合併 PR 並移到…」（CI 通過才出現；
+                            先合併，成功才移動 Jira）
   branch8-jira-mod/         可選擴充（mod，需 Claude Code v2.1.287+，桌面版 v2.1.286+）：
                             輸入框上方顯示目前的單、/jira-todo 列出我的待辦可點選、
                             在三個時機點提醒 Claude、把規則放進 system prompt。
