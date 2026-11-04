@@ -31,8 +31,8 @@ this is written down for the PM, QA, their lead and whoever takes over.
 
 ## Pair rules (whole flow)
 
-1. **RD first, at the key points only**: what the requirement solves (stage 1),
-   what feels wrong in it (stage 2), how to approach it (stage 3), and each
+1. **RD first, at the key points only**: confirming the digest (stage 1),
+   ruling on each issue found (stage 2), how to approach it (stage 3), and each
    grilling round. Ask, wait, then give your view and the differences.
    Elsewhere just give your suggestion. "You go first" from the RD lifts this.
 2. Every decision stops and goes to the RD. You never settle one for them.
@@ -46,8 +46,8 @@ this is written down for the PM, QA, their lead and whoever takes over.
 
 Read a stage's doc when you enter it, not before.
 
-1. Understand the requirement - `../../docs/understand.md`
-2. Review the requirement (BDD scenarios, questions to the PM) - `../../docs/review.md`
+1. Confirm the task (neutral digest, confirmed by card) - `../../docs/understand.md`
+2. Health-check the requirement (issue map, rounds, questions to the PM) - `../../docs/review.md`
 3. Design the solution - `../../docs/design.md`
 4. Wrap up (record, Jira summary, hand-off) - `../../docs/wrap-up.md`
 
@@ -62,12 +62,20 @@ for the scenarios the change touches, re-check the design, and wrap up again
 
 ## Borrowed skills, and how this flow changes them
 
-These rules hold whatever the borrowed skills say - they are this flow's own.
+Use brainstorming and grilling whenever the moment calls for it, not only in
+the stage that names them: brainstorm when something needs a new approach (an
+issue with no obvious fix, an alternative to propose to the PM, the solution
+in stage 3); grill when something should be stress-tested (the requirement's
+issues in stage 2, a fix the RD picked, the chosen approach). These rules hold
+whatever the borrowed skills say - they are this flow's own.
 
-- `mattpocock-skills:grilling` (stages 2 and 3): in each round, let the RD answer
-  first; give your recommended answers after they have, or when asked.
-- `superpowers:brainstorming` (stage 3, every time): before invoking it, hand it
-  the conclusions of stages 1-2 so it skips "what do you want to build". Its
+- `mattpocock-skills:grilling`: in each round, let the RD answer first; give
+  your recommended answers after they have, or when asked. Decisions go to the
+  RD as question cards (up to 4 questions each, no recommended option), and a
+  question waits until the issues it depends on are settled.
+- `superpowers:brainstorming` (stage 3 every time; elsewhere when needed): before
+  invoking it, hand it what is already settled so it skips "what do you want to
+  build", and when it is done come back to where you were. Its
   opening "skip the questions?" becomes the question card in `design.md` step 1.
   Its written design goes into the record's Solution section, never a separate
   file under `docs/superpowers/specs/`. The calls it made are confirmed by
@@ -78,8 +86,9 @@ These rules hold whatever the borrowed skills say - they are this flow's own.
   step 3. Its "writing-plans next" rule does not apply here - after grilling,
   domain-modeling and the RD's approval comes wrap-up, and
   writing-plans only from wrap-up.
-- `mattpocock-skills:domain-modeling` (stage 3, together with grilling): as it
-  is; the record links its ADRs instead of copying them.
+- `mattpocock-skills:domain-modeling` (with grilling, whenever terms are fuzzy
+  or a decision is hard to reverse): as it is; the record links its ADRs
+  instead of copying them.
 - A borrowed skill is not installed: ask the same questions yourself, carry on.
 
 ## Record and resume

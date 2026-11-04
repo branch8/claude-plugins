@@ -10,17 +10,18 @@ Status: understanding | reviewing | waiting-for-pm | designing | done
 Source: <Jira link> · <PRD link(s)>
 
 ## Purpose
-- RD's version: <in the RD's words>
-- Claude's additions and the differences: <...>
-- (If the RD skipped the restatement: "Interpreted by Claude first.")
+- As the ticket states it (the digest the RD confirmed): <...>
+- RD's corrections, additions and flags: <in the RD's words>
 
 ## Scenarios
 | # | Given / When / Then | From (PRD / RD) | PM confirmed |
 |---|---|---|---|
 
 ## Issues found
-| # | Type (gap / conflict / infeasible / better way) | Found by (RD / Claude) | PM answer or assumption |
-|---|---|---|---|
+| # | Issue | Type (aspect) | Severity (blocks / important / minor) | Depends on | Found by (RD / Claude) | Answer, who gave it, or assumption |
+|---|---|---|---|---|---|---|
+
+(Or a single line: "Health check: the requirement is complete; no defects found.")
 
 ## Solution
 - Way: think it through together | options

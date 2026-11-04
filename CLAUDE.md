@@ -324,6 +324,13 @@ plugins/branch8-practices/        Branch8 的工作方式，同類的規範都�
                                     H：要問 PM 的問題先用卡片選「送到 Jira」「現在討論」或「先帶假設往下做」；
                                        使用者就是 PM 時，推薦「現在討論」。
                                     I：已經 done 的單如果需求改了，退回 reviewing，並在紀錄的 Changes 段記下變更。
+                                  - 0.1.2（2026-11-04，HS-145 實用回饋）：
+                                    - 第 1 段只確認任務內容：中立整理，用卡片請 RD 確認或補充，不再要 RD 重述。
+                                      實際用的時候發現，單子寫得完整時，要 RD 重述只是多一道工。
+                                    - 第 2 段改成「需求健檢」：AI 主動從 8 個面向檢查。沒問題就一句話帶過，直接往下；
+                                      有問題就列問題地圖（類型、嚴重度、依賴哪個問題），用卡片逐輪討論。
+                                      每輪只問前提已經定下來的問題，一張卡最多 4 題，不標推薦選項。
+                                    - brainstorming／grilling 不綁定階段，流程中適合的時候就用。
                                   - superpowers／mattpocock 照舊跟著官方自動更新。upstream-watch（見 scripts）一偵測到
                                     官方換版就開 issue，提醒重跑手動檢查，因為 eval 的沙盒不載入這兩個 plugin，測不到衝突。
 template/plugin-template/         開發新 plugin 的起點。刻意不列入 marketplace.json，

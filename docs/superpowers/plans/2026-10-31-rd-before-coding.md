@@ -220,8 +220,8 @@ No code. Run this in a real Claude Code session, with this branch's plugins load
 - [ ] (G) A document-only task in a non-repo folder: stage 3 skips the code check and ADR files; decisions land in the record's Solution section.
 - [ ] (H) The PM-questions card offers Post to Jira / Discuss now / Go on with assumptions; when the user opened the ticket, Discuss now is marked recommended, answers are recorded with who gave them, nothing is posted, and stage 3 follows.
 - [ ] (I) Changing the requirement of a `done` record sets it back to `reviewing`, adds a dated Changes entry, and ends with a new Jira summary that says what changed.
-- [ ] Stage 1 lays out the ticket without interpretation, waits for the RD's restatement, then shows the differences.
-- [ ] Stage 2 asks the RD first; the PM-questions comment is self-contained and posted only after a card yes; the record is committed with status `waiting-for-pm`; nothing is pushed.
+- [ ] (Revised 2026-11-04) Stage 1 gives a neutral digest and ends with a card: "The digest is right - continue" / Other (add, correct, flag); no prose restatement is asked for.
+- [ ] (Revised 2026-11-04) Stage 2 health check: a complete ticket gets one line ("no defects found") and goes on to stage 3; otherwise an issue map (type, severity, depends on), then rounds of cards (up to 4 questions, only settled premises, no recommended option, "Ask the PM" option). The PM-questions comment is self-contained and posted only after a card yes; the record is committed with status `waiting-for-pm`; nothing is pushed.
 - [ ] Stage 3 invokes brainstorming; no file appears under `docs/superpowers/specs/`; grilling (RD first) and domain-modeling run **before** writing-plans; brainstorming's calls are confirmed by the RD item by item.
 - [ ] Wrap-up: the RD-thinking column is confirmed item by item, the Jira summary reads well without the repo link, and writing-plans or TDD comes next.
 - [ ] A new session resumes from the record.
