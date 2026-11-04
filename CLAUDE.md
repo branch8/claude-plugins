@@ -205,6 +205,9 @@ plugins/branch8-jira-mod/         可選的 mod 擴充（TypeScript function hoo
                                   Team 組織會自動把內建的 cc-plugin-sec-default@builtin 排在最外層，它不把 prompt.compose
                                   往下傳：mod 的 system prompt 規則段落實際上到不了 Claude（2026-10-20 實測）。所以面板
                                   選單／取消選定改用 $.session.append 直接告訴 Claude（pickNote）；別把必要資訊只放 prompt.compose
+                                  append 只是加一則訊息，**不會觸發 Claude 回應**——要等使用者下一句才讀到。0.17.4 起「選定」改用
+                                  $.prompt.submit（以 plugin 名義送出，閒置時立刻開一輪；被 hook drop 會回 {drop} 而不是丟錯，
+                                  此時退回 append）；取消選定、切換狀態仍用 append（只是告知，不該開一輪）
                                   開場自動開面板只看「是不是 Branch8 組織帳號」（orgCheck）：有 CLAUDE_CODE_ORGANIZATION_UUID
                                   就用它，沒有才讀 .claude.json（CCS／一般 CLI 都走後者，行為與 0.17.2 相同）。
                                   **這個環境變數「桌面 App 會設」是未證實的推測**（2026-11-04 查 Windows 桌面 App 的對話紀錄，

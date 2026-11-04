@@ -1,5 +1,45 @@
 import { test, expect } from 'claude-code/testing'
 import type { On } from 'claude-code'
+import { tellClaude } from './register'
+
+const TICKET = { key: 'HS-1', summary: 'S', status: '待辦事項', cloudId: 'c' }
+
+test('picking a ticket submits it as a prompt, so Claude starts on it at once', async ($, on) => {
+  const submitted: string[] = []
+  const appended: string[] = []
+  on('prompt.submit', ($, e) => {
+    submitted.push(e.text)
+    return { text: e.text }
+  })
+  on('session.append', ($, e, next) => {
+    appended.push('x')
+    return next(e)
+  })
+  await tellClaude($ as never, TICKET as never)
+  expect(submitted.length).toBe(1)
+  expect(submitted[0]).toContain('HS-1')
+  expect(appended.length).toBe(0)
+})
+
+test('a refused submit falls back to the quiet note; unselecting never starts a turn', async ($, on) => {
+  const submitted: string[] = []
+  const appended: string[] = []
+  on('prompt.submit', ($, e) => {
+    submitted.push(e.text)
+    return { drop: 'refused in this test' }
+  })
+  on('session.append', ($, e, next) => {
+    appended.push('x')
+    return next(e)
+  })
+  await tellClaude($ as never, TICKET as never)
+  expect(appended.length).toBe(1)
+  submitted.length = 0
+  appended.length = 0
+  await tellClaude($ as never, null)
+  expect(submitted.length).toBe(0)
+  expect(appended.length).toBe(1)
+})
 
 const SET = 'mcp__branch8-jira-mod__set_ticket'
 const GET = 'mcp__branch8-jira-mod__get_ticket'

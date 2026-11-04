@@ -278,12 +278,24 @@ async function focusOn($: EngineInterface, key: string): Promise<void> {
 // Fills the pane's list: the first page afresh, or with `more` the next page
 // after what is loaded. The search names its range and, scoped to this
 // folder, its project, so Jira sends only what the pane shows.
-// Tells Claude, in a row it reads but the person does not see as typed, what
-// the person just picked in the pane; see pickNote for why the system prompt
-// alone is not enough. A refusal or failure only loses the note.
-async function tellClaude($: EngineInterface, ticket: Ticket | null): Promise<void> {
+// Tells Claude what the person just did in the pane; see pickNote for why the
+// system prompt alone is not enough. A picked ticket is submitted as a prompt
+// of this plugin's, so Claude starts on it at once (once idle) instead of
+// waiting for the person's next message; an unselect is only appended, as
+// there is nothing to start. A refused submit falls back to the append, and a
+// refusal or failure of that only loses the note.
+export async function tellClaude($: EngineInterface, ticket: Ticket | null): Promise<void> {
+  const text = pickNote(ticket)
+  if (ticket) {
+    try {
+      // A hook's refusal answers { drop } rather than throwing.
+      if (!(await $.prompt.submit({ text })).drop) return
+    } catch {
+      // Failed: tell Claude quietly instead.
+    }
+  }
   try {
-    await $.session.append({ message: { type: 'user', content: [{ type: 'text', text: pickNote(ticket) }] } })
+    await $.session.append({ message: { type: 'user', content: [{ type: 'text', text }] } })
   } catch {
     // The band and the rules section still show the ticket.
   }
