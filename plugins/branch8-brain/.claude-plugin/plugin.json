@@ -1,0 +1,16 @@
+{
+  "name": "branch8-brain",
+  "displayName": "Branch8 Brain",
+  "version": "0.1.0",
+  "description": "Branch8 Brain (brain.branch8.co) as a knowledge source: one read-only MCP server that searches Branch8's Jira tickets, every active GitHub repo (code, READMEs, docs) and their issues and pull requests together, by meaning as well as keywords. A skill tells Claude when to consult it, which tools to use, and how sign-in works.",
+  "author": {
+    "name": "Branch8"
+  },
+  "keywords": [
+    "knowledge-base",
+    "mcp",
+    "jira",
+    "github",
+    "code-search"
+  ]
+}

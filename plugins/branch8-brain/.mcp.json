@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "branch8-brain": {
+      "type": "http",
+      "url": "https://brain.branch8.co/mcp",
+      "oauth": {
+        "clientId": "gbrain_cl_89dcd443d652cf184f891d8da13bd8ba9892962c72df9c3421950778824de93c",
+        "callbackPort": 33418
+      }
+    }
+  }
+}
