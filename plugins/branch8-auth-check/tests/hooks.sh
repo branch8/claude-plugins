@@ -94,6 +94,8 @@ check "BRANCH8_AUTH_CHECK=off prints nothing" '[ -z "$out" ]'
 # /auth-check <service>: names and aliases.
 check "service alias atlassian -> jira" '[ "$(bash "$helper" service Atlassian)" = jira ]'
 check "service alias deepwiki -> devin" '[ "$(bash "$helper" service deepwiki)" = devin ]'
+check "service alias gbrain -> brain" '[ "$(bash "$helper" service gbrain)" = brain ]'
+check "config prints the brain owner" '[[ $(bash "$helper" config) == *"brain_owner="?* ]]'
 check "unknown service word is rejected" '! bash "$helper" service nope 2>/dev/null'
 
 # Fake claude: `mcp list` prints $MCP_LIST.
@@ -115,9 +117,11 @@ L="plugin:branch8-deepwiki:devin: https://mcp.devin.ai/mcp (HTTP) - $need\n"
 check "server: devin by host" '[ "$(pick "$L" devin)" = plugin:branch8-deepwiki:devin ]'
 pick "$L" jira >/dev/null; rc=$?
 check "server: no server for the service (exit 4)" '[ "$rc" = 4 ]'
+L="plugin:branch8-brain:branch8-brain: https://brain.branch8.co/mcp (HTTP) - $need\n"
+check "server: brain by host" '[ "$(pick "$L" brain)" = plugin:branch8-brain:branch8-brain ]'
 check "server: github has no MCP sign-in" '! bash "$helper" server github 2>/dev/null'
 
-for f in status card jira github devin gemini mcp-login; do
+for f in status card jira github devin brain gemini mcp-login; do
   check "docs/$f.md exists" '[ -f "$root/docs/$f.md" ]'
 done
 

@@ -1,8 +1,8 @@
 {
   "name": "branch8-auth-check",
   "displayName": "Branch8 Sign-in Check",
-  "version": "0.2.1",
-  "description": "One place for every sign-in the Branch8 setup needs - Jira (atlassian MCP), GitHub (gh CLI; the github MCP is optional), Devin DeepWiki (devin MCP) and Gemini (only for image generation). Shows one status line on the first turn, and when a task needs a service that is not signed in, asks with a card and walks the user through sign-in - or tells them who to ask for an account. Covers official plugins too, which cannot be changed. Adds /auth-check.",
+  "version": "0.3.0",
+  "description": "One place for every sign-in the Branch8 setup needs - Jira (atlassian MCP), GitHub (gh CLI; the github MCP is optional), Devin DeepWiki (devin MCP), Branch8 Brain (branch8-brain MCP; company Google sign-in) and Gemini (only for image generation). Shows one status line on the first turn, and when a task needs a service that is not signed in, asks with a card and walks the user through sign-in - or tells them who to ask for an account. Covers official plugins too, which cannot be changed. Adds /auth-check.",
   "author": {
     "name": "Branch8"
   },
@@ -12,6 +12,7 @@
     "jira",
     "github",
     "devin",
+    "brain",
     "session-start",
     "hook"
   ]

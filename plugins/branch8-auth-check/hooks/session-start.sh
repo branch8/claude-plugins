@@ -63,7 +63,7 @@ no_account=$(ba_no_account_list)
 
 context="# Branch8 sign-in (branch8-auth-check)
 
-One place for every sign-in. Services: **jira** (atlassian MCP), **github** (\`gh\` CLI; the github MCP is optional and needs a PAT), **devin** (Devin DeepWiki, \`devin\` MCP; personal access token in \`DEVIN_API_KEY\` + \`DEVIN_ORG_ID\` - Devin refuses OAuth from Claude Code, so never start its \`authenticate\`),**gemini** (\`GEMINI_API_KEY\`, only for ui-ux-pro-max image generation).
+One place for every sign-in. Services: **jira** (atlassian MCP), **github** (\`gh\` CLI; the github MCP is optional and needs a PAT), **devin** (Devin DeepWiki, \`devin\` MCP; personal access token in \`DEVIN_API_KEY\` + \`DEVIN_ORG_ID\` - Devin refuses OAuth from Claude Code, so never start its \`authenticate\`), **brain** (Branch8 Brain, \`branch8-brain\` MCP; company Google sign-in, then Connect), **gemini** (\`GEMINI_API_KEY\`, only for ui-ux-pro-max image generation).
 
 Facts (checked at session start): gh: $gh_fact · github MCP PAT: $pat · GEMINI_API_KEY: $gemini · DEVIN_API_KEY: $devin_key · DEVIN_ORG_ID: $devin_org · Devin token check: $devin_fact · no account (do not ask): ${no_account:-none}
 Helper: \`bash \"$helper\" no-account <service>|clear [service]|status|config|check devin|login jira\` (\`check devin\`: test the Devin token now; \`login\`: MCP sign-in without an \`authenticate\` tool, docs/mcp-login.md)

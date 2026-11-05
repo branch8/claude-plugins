@@ -11,19 +11,21 @@ Jira case below). Do not narrate the check.
 |---|---|---|
 | jira | ToolSearch "atlassian jira" finds working tools (`atlassianUserInfo`, `getAccessibleAtlassianResources`, ...) | only an `authenticate` tool, or no Atlassian tool at all |
 | devin | the "Devin token check" fact is ok; if it is unknown, ToolSearch "devin" finds wiki tools (`ask_question` / `ask_wiki_question`, `read_wiki_structure`, ...) | only an `authenticate` tool; the check says REJECTED -> ⚠️ Devin DeepWiki（token 或組織 ID 有誤）even when the tools are there (a bad token still lists them) |
+| brain | ToolSearch "branch8-brain" finds working tools (`query`, `search`, `get_page`, ...) | only an `authenticate` tool |
 | github | the "gh" fact says signed in | the fact says NOT signed in / NOT installed |
 
 Gemini is never in the status line.
 
 ## Format
 
-    > **登入狀態**　✅ Jira　✅ GitHub（<gh account>）　⚪ Devin DeepWiki
+    > **登入狀態**　✅ Jira　✅ GitHub（<gh account>）　⚪ Devin DeepWiki　✅ Branch8 Brain
 
 - ✅ signed in, ⚪ not signed in. If any item is ⚪, end the line with
   「（需要時我會引導登入，或輸入 /auth-check）」.
 - Leave out: **github** when the fact says it is not a git folder; any service
   under "no account"; **devin** if there is no `devin` server at all (the
-  branch8-deepwiki plugin is not installed); **jira** if there is no
+  branch8-deepwiki plugin is not installed); **brain** if there is no
+  `branch8-brain` server (the branch8-brain plugin is not installed); **jira** if there is no
   Atlassian server at all and branch8-jira-check is not in this session.
 - If branch8-jira-check is in this session, it shows its own Jira account
   block (name, email, site). Then leave Jira out of this line when it is

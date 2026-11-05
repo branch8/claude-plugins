@@ -9,7 +9,7 @@ user's language.
 Question, e.g. 「這個步驟需要 <服務>，但你還沒登入。要現在登入嗎？」 - say in a few
 words what you wanted it for.
 
-Options (exactly these four; Jira has no fourth - everyone at Branch8 has one):
+Options (exactly these four; Jira and Brain have no fourth - everyone at Branch8 has access):
 
 1. **現在登入（推薦）** - follow `<service>.md`
 2. **這次先跳過** - continue without it; ask again the next time it is needed

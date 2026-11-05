@@ -308,8 +308,10 @@ plugins/branch8-brain/            一個 http MCP（https://brain.branch8.co/mcp
                                   b8st-automation repo 的 infrastructure/branch8-brain/（不在這裡：含主機資訊）。
                                   OAuth 用預先註冊的公開 client（.mcp.json 的 oauth.clientId＋callbackPort 33418，
                                   redirect 只登記 localhost／127.0.0.1:33418/callback）。client_id 沒有 secret，放 public repo
-                                  沒問題：每個授權請求仍要 owner 在主機上核准才發 code。不用 DCR：gbrain 讓自行註冊的
-                                  client 只讀空的 default source。2026-11-05 實測 plugin 的 .mcp.json 支援 oauth 區塊
+                                  沒問題：每個授權請求都要通過主機上的 Google 登入（oauth2-proxy，只收 @branch8.com）後按 Connect 才發 code；
+                                  只有這兩個預先註冊的 client 能這樣自助，其他 client 仍顯示「Almost connected」代碼、由 owner 手動核准。不用 DCR：gbrain 讓自行註冊的
+                                  client 只讀空的 default source。登入檢查交給 branch8-auth-check（0.3.0 起 service `brain`，
+                                  host brain.branch8.co；出問題的聯絡人在 config.env 的 BRANCH8_BRAIN_OWNER）。2026-11-06 起改為 Google 登入，實測 claude.ai 與 Claude Code 兩個 client 皆可。2026-11-05 實測 plugin 的 .mcp.json 支援 oauth 區塊
                                   （claude mcp get 顯示 client_id configured, callback_port 33418；官方文件沒寫）。
 plugins/branch8-practices/        Branch8 的工作方式，同類的規範都收在這裡。skill 名稱加上角色前綴（rd-…、pm-…），
                                   不同階段各自拆成一個 skill（2026-10-31 定案；曾考慮直接取名 `coding`，但太寬、
