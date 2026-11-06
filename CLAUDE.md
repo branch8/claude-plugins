@@ -142,7 +142,7 @@ MIT 授權的 vendored 程式碼、維護腳本、文件。已掃描確認無硬
 
 ```
 .claude-plugin/marketplace.json   發送清單，只放「官方沒上架」的 plugin
-managed-settings.json             Claude Code 那一側的清單（官方 6 個 + vendored 1 個 + 自家 5 個 + 內建 1 個）
+managed-settings.json             Claude Code 那一側的清單（官方 6 個 + vendored 1 個 + 自家 6 個 + 內建 1 個）
                                   這兩份是不同的東西，別互相複製
                                   env.CLAUDE_CODE_PLUGIN_GIT_TIMEOUT_MS=600000：預設 120 秒，網路慢的同事（實測 30 KiB/s）
                                   clone 不完就放棄，殘留的 git 還會擋住之後每次更新（2026-10-21）。排查見 README「排查」
@@ -303,6 +303,16 @@ plugins/branch8-deepwiki/         兩個 http MCP ＋ skills/deepwiki。devin（
                                   read_wiki_contents 對大 repo 回 1.27 MB（anthropics/claude-code），一定被轉存成檔案，
                                   所以 skill 要求先 ask／structure；未建索引的 repo 回 "Repository not found"，重試無用。
                                   問題文字會送到第三方（Cognition），skill 禁止夾帶公司程式碼與資料
+plugins/branch8-brain/            一個 http MCP（https://brain.branch8.co/mcp）＋ skills/branch8-brain。Branch8 自架的 gbrain：
+                                  Jira、所有 active repo 的程式碼與文件、GitHub issues／PR，唯讀。伺服器設定在
+                                  b8st-automation repo 的 infrastructure/branch8-brain/（不在這裡：含主機資訊）。
+                                  OAuth 用預先註冊的公開 client（.mcp.json 的 oauth.clientId＋callbackPort 33418，
+                                  redirect 只登記 localhost／127.0.0.1:33418/callback）。client_id 沒有 secret，放 public repo
+                                  沒問題：每個授權請求都要通過主機上的 Google 登入（oauth2-proxy，只收 @branch8.com）後按 Connect 才發 code；
+                                  只有這兩個預先註冊的 client 能這樣自助，其他 client 仍顯示「Almost connected」代碼、由 owner 手動核准。不用 DCR：gbrain 讓自行註冊的
+                                  client 只讀空的 default source。登入檢查交給 branch8-auth-check（0.3.0 起 service `brain`，
+                                  host brain.branch8.co；出問題的聯絡人在 config.env 的 BRANCH8_BRAIN_OWNER）。2026-11-06 起改為 Google 登入，實測 claude.ai 與 Claude Code 兩個 client 皆可。2026-11-05 實測 plugin 的 .mcp.json 支援 oauth 區塊
+                                  （claude mcp get 顯示 client_id configured, callback_port 33418；官方文件沒寫）。
 plugins/branch8-practices/        Branch8 的工作方式，同類的規範都收在這裡。skill 名稱加上角色前綴（rd-…、pm-…），
                                   不同階段各自拆成一個 skill（2026-10-31 定案；曾考慮直接取名 `coding`，但太寬、
                                   名稱大於實際範圍，所以沒採用）。目前只有 rd-before-coding：RD 接到功能等級的單後、

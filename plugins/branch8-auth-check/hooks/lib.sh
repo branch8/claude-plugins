@@ -4,7 +4,7 @@
 BA_ROOT="${BA_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 
 # Services this plugin knows. Keep in step with docs/<service>.md.
-BA_SERVICES="jira github devin gemini"
+BA_SERVICES="jira github devin brain gemini"
 
 # config.env at the plugin root, each key overridable by an environment
 # variable of the same name. Parsed as KEY=value, never sourced.
@@ -16,6 +16,7 @@ ba_cfg() {
 : "${BRANCH8_AUTH_ADMIN:=$(ba_cfg BRANCH8_AUTH_ADMIN)}"
 : "${BRANCH8_GITHUB_ORG:=$(ba_cfg BRANCH8_GITHUB_ORG)}"
 : "${BRANCH8_DEVIN_ORG_ID:=$(ba_cfg BRANCH8_DEVIN_ORG_ID)}"
+: "${BRANCH8_BRAIN_OWNER:=$(ba_cfg BRANCH8_BRAIN_OWNER)}"
 
 # The settings.json Claude Code reads for this account (follows
 # CLAUDE_CONFIG_DIR, which ccs and similar tools set per account).
@@ -94,6 +95,7 @@ ba_service_of() {
     jira|atlassian) echo jira ;;
     github|gh) echo github ;;
     devin|deepwiki) echo devin ;;
+    brain|gbrain|branch8-brain) echo brain ;;
     gemini) echo gemini ;;
     *) return 1 ;;
   esac
@@ -105,6 +107,7 @@ ba_mcp_host() {
   case "$1" in
     jira) echo mcp.atlassian.com ;;
     devin) echo mcp.devin.ai ;;
+    brain) echo brain.branch8.co ;;
     *) return 1 ;;
   esac
 }

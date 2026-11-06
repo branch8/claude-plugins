@@ -50,6 +50,13 @@
       "description": "Branch8's way of working with Claude. rd-before-coding: before coding a feature-sized ticket, Claude pairs with the RD to understand the requirement, review the PRD (questions back to the PM on Jira) and design the solution, leaving a record in the repo and a self-contained Jira summary.",
       "category": "productivity",
       "keywords": ["workflow", "bdd", "prd", "design", "pairing"]
+    },
+    {
+      "name": "branch8-brain",
+      "source": "./plugins/branch8-brain",
+      "description": "Branch8 Brain as a knowledge source: one read-only MCP server (brain.branch8.co, OAuth with owner approval) that searches Branch8 Jira, every active GitHub repo's code and docs, and their issues and PRs together, plus a skill telling Claude when and how to consult it.",
+      "category": "productivity",
+      "keywords": ["knowledge-base", "mcp", "jira", "github"]
     }
   ]
 }

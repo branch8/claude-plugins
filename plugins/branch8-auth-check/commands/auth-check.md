@@ -1,6 +1,6 @@
 ---
-description: Show which Branch8 services are signed in (Jira, GitHub, Devin DeepWiki), and sign in to any that are not. `/auth-check jira` checks only Jira.
-argument-hint: "[jira|github|devin|gemini ...]"
+description: Show which Branch8 services are signed in (Jira, GitHub, Devin DeepWiki, Branch8 Brain), and sign in to any that are not. `/auth-check jira` checks only Jira.
+argument-hint: "[jira|github|devin|brain|gemini ...]"
 ---
 
 Services named after the command: `$ARGUMENTS`
@@ -10,7 +10,7 @@ The user asked to check or redo their sign-ins. Helper:
 
 **Which services**: none named - every service. Otherwise only the named ones;
 turn each word into a service with `branch8-auth service <word>` (aliases:
-atlassian, gh, deepwiki). An unknown word: say which names are valid and go on
+atlassian, gh, deepwiki, gbrain). An unknown word: say which names are valid and go on
 with the known ones. Leave every other service out of the line and the cards.
 
 Earlier "no account" answers should not hide a service the user asked about, so

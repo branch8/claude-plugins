@@ -16,10 +16,10 @@ rm -f "$marker"
 
 reminder="Branch8 sign-in - first message of the session. Before working on it, show this one line, then do the user's request (no narration, no card):
 
-> **登入狀態**　✅ Jira　✅ GitHub（<gh account>）　⚪ Devin DeepWiki
+> **登入狀態**　✅ Jira　✅ GitHub（<gh account>）　⚪ Devin DeepWiki　✅ Branch8 Brain
 
 - ✅ signed in, ⚪ not. Any ⚪ -> append 「（需要時我會引導登入，或輸入 /auth-check）」. Translate to the user's language.
-- Jira / Devin: the tool names you already see are enough, no need to load them - a server with only \`authenticate\` = not signed in; Jira counts as signed in if any Atlassian server (plugin or claude.ai connector) has working tools. Devin: the \"Devin token check\" fact wins over the tools - REJECTED = ⚠️ Devin DeepWiki（token 或組織 ID 有誤）, since a bad token still lists them. GitHub: the gh fact in \"Branch8 sign-in\".
+- Jira / Devin / Brain: the tool names you already see are enough, no need to load them - a server with only \`authenticate\` = not signed in; Jira counts as signed in if any Atlassian server (plugin or claude.ai connector) has working tools. Devin: the \"Devin token check\" fact wins over the tools - REJECTED = ⚠️ Devin DeepWiki（token 或組織 ID 有誤）, since a bad token still lists them. GitHub: the gh fact in \"Branch8 sign-in\".
 - Leave out: github when the fact says not a git folder; services under \"no account\"; a service whose server is absent; Jira when branch8-jira-check shows its own Jira account block.
 - Only if Jira is NOT signed in, branch8-jira-check is in this session and this folder is company work (mapped to a Jira project or not yet mapped - anything but \"no Jira for this folder\" / personal): ask the Jira card now (\`$(ba_native "$BA_ROOT/docs")/status.md\`, last section)."
 

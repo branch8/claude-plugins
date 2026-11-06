@@ -5,7 +5,7 @@
 #   status                print recorded answers and the gh CLI state
 #   config                print admin, GitHub org, Devin org id, settings.json path
 #   service <name>        normalise a service name typed after /auth-check
-#   server <service>      the MCP server of jira/devin to sign in to
+#   server <service>      the MCP server of jira/devin/brain to sign in to
 #   check devin           test the Devin token now (env, else settings.json)
 #   login <service> [srv] sign in to that MCP server through `claude mcp login`
 
@@ -41,12 +41,13 @@ case "$1" in
     echo "github_org=${BRANCH8_GITHUB_ORG:-branch8}"
     echo "devin_org_id=${BRANCH8_DEVIN_ORG_ID:-(not set - ask the admin, or Devin > Settings > Devin API)}"
     echo "settings_file=$(ba_settings_file)"
+    echo "brain_owner=${BRANCH8_BRAIN_OWNER:-your Branch8 admin}"
     ;;
   service)
     ba_service_of "$2" || { echo "unknown service '$2' (one of: $BA_SERVICES)" >&2; exit 2; }
     ;;
   server)
-    host=$(ba_mcp_host "$2") || { echo "no MCP sign-in for '$2' (jira, devin)" >&2; exit 2; }
+    host=$(ba_mcp_host "$2") || { echo "no MCP sign-in for '$2' (jira, devin, brain)" >&2; exit 2; }
     command -v claude >/dev/null 2>&1 || { echo "claude CLI not found" >&2; exit 5; }
     claude mcp list 2>/dev/null | ba_pick_server "$host"; rc=$?
     case "$rc" in
