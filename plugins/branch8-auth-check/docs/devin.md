@@ -24,16 +24,20 @@ Check the "DEVIN_API_KEY" and "DEVIN_ORG_ID" facts first:
 
           "env": { "DEVIN_API_KEY": "cog_...", "DEVIN_ORG_ID": "..." }
 
-   4. Start a new Claude Code session (MCP headers are read at start-up).
-      ToolSearch "devin" - wiki tools present = done.
+   4. Start a new Claude Code session (MCP headers and the `env` block are
+      read at start-up). The session-start "Devin token check" fact then says
+      whether it works; to re-test any time, run `bash "<helper>" check devin`
+      (prints `devin: ok|rejected|unset|unknown`). `ok` = done.
 2. **Both set, but `devin` shows only `authenticate`**: the server got an empty
    token - the variables did not reach Claude Code (set in a shell profile that
    this app does not read, or a different config folder). Move them to the
    settings.json `env` block, as above.
-3. **Both set, wiki tools present, but calls fail** (401 / unauthorized / not
-   found for an org repo): the token is wrong, expired, or the organisation id
-   is not Branch8's - the server accepts a bad token at connect time and only
-   fails on the call. Re-create the token, re-check the id, new session.
+3. **Check says `rejected`, or calls fail** (401 / unauthorized / "Error
+   fetching available repositories"): the token is wrong, expired, or the
+   organisation id is not Branch8's - the server accepts a bad token at connect
+   time and still lists its tools, so only a real call tells. Run
+   `check devin` once more (a Devin outage looks the same); still rejected:
+   re-create the token, re-check the id, new session.
 4. **The Devin page says they have no access or no account**: "no account"
    (`card.md`).
 

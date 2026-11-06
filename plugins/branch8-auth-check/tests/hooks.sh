@@ -25,6 +25,8 @@ echo "  ✓ Logged in to github.com account octo (keyring)"
 SH
 chmod +x "$tmp/bin/gh"
 export PATH="$tmp/bin:$PATH"
+# Never reach the real Devin from tests: a closed local port = "unknown".
+export BA_DEVIN_URL=http://127.0.0.1:9/mcp
 unset GITHUB_PERSONAL_ACCESS_TOKEN GEMINI_API_KEY DEVIN_API_KEY DEVIN_ORG_ID BRANCH8_AUTH_CHECK
 
 start() { printf '{"session_id":"%s","source":"%s"}' "$1" "${2:-startup}" | bash "$hook"; }
@@ -51,6 +53,13 @@ c=$(printf '%s' "$out" | ctx)
 check "devin token presence reported, values never" '[[ $c == *"DEVIN_API_KEY: set"* && $c == *"DEVIN_ORG_ID: set"* && $c != *"cog_secret123"* && $c != *"org-777"* ]]'
 out=$(cd "$tmp/repo" && start d2)
 check "devin token not set is reported" '[[ $(printf "%s" "$out" | ctx) == *"DEVIN_API_KEY: not set · DEVIN_ORG_ID: not set"* ]]'
+check "devin check not run without a token" '[[ $(printf "%s" "$out" | ctx) == *"Devin token check: not run (no token)"* ]]'
+out=$(cd "$tmp/repo" && DEVIN_API_KEY=x start d3)
+check "devin check unreachable is unknown" '[[ $(printf "%s" "$out" | ctx) == *"Devin token check: unknown"* ]]'
+DEVIN_API_KEY= bash "$helper" check devin >/dev/null 2>&1; rc=$?
+check "check devin without token exits 3" '[ "$rc" = 3 ]'
+out=$(DEVIN_API_KEY=x bash "$helper" check devin 2>/dev/null); rc=$?
+check "check devin offline exits 5" '[ "$rc" = 5 ] && [ "$out" = "devin: unknown" ]'
 
 out=$(prompt s3)
 check "first prompt asks for the status line" '[[ $(printf "%s" "$out" | ctx) == *"status.md"* ]]'

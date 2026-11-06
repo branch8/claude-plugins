@@ -6,6 +6,7 @@
 #   config                print the admin contact and GitHub organisation
 #   service <name>        normalise a service name typed after /auth-check
 #   server <service>      the MCP server of jira/devin to sign in to
+#   check devin           test the Devin token (DEVIN_API_KEY/DEVIN_ORG_ID) now
 #   login <service> [srv] sign in to that MCP server through `claude mcp login`
 
 . "$(cd "$(dirname "$0")/.." && pwd)/hooks/lib.sh"
@@ -52,6 +53,17 @@ case "$1" in
     esac
     exit "$rc"
     ;;
+  check)
+    [ "$2" = devin ] || { echo "usage: branch8-auth check devin" >&2; exit 2; }
+    state=$(ba_devin_check)
+    echo "devin: $state"
+    case "$state" in
+      ok) exit 0 ;;
+      unset) echo "DEVIN_API_KEY is not set in this session (settings.json env is read when a session starts)" >&2; exit 3 ;;
+      rejected) echo "Devin refused the token or organisation id" >&2; exit 4 ;;
+      *) echo "could not reach Devin (offline or timed out)" >&2; exit 5 ;;
+    esac
+    ;;
   login)
     server="$3"
     if [ -z "$server" ]; then
@@ -80,7 +92,7 @@ case "$1" in
     exit "$rc"
     ;;
   *)
-    echo "usage: branch8-auth no-account <service>|clear [service]|status|config|service <name>|server <service>|login <service> [server]" >&2
+    echo "usage: branch8-auth no-account <service>|clear [service]|status|config|service <name>|server <service>|check devin|login <service> [server]" >&2
     exit 2
     ;;
 esac

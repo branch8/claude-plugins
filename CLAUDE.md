@@ -284,7 +284,11 @@ plugins/branch8-deepwiki/         兩個 http MCP ＋ skills/deepwiki。devin（
                                   不發共用 service key（等於全公司都能開花錢的 Devin session）。實測（2026-11-06）：
                                   `${VAR}` 沒設會出「Missing environment variables」警告，所以用 `:-` 給空預設；
                                   空 Bearer → 401 + WWW-Authenticate，Claude Code 照舊顯示 Needs authentication；
-                                  亂填的 token 在 initialize 回 200（連線看起來正常，呼叫工具才失敗）；settings.json 的
+                                  亂填的 token 在 initialize 與 tools/list 都回 200（工具照樣列出，看起來已登入），
+                                  只有實際呼叫（list_available_repos 回 isError）才會失敗——所以 auth-check 的
+                                  ba_devin_check 在開場（有 token 才跑，與 gh 檢查並行，約 2 秒）與
+                                  `branch8-auth check devin` 用同樣的 headers 實打一次，REJECTED 時狀態列顯示 ⚠️；
+                                  token 走 curl -K - 的 stdin，不出現在命令列；settings.json 的
                                   env 能滿足展開。未驗：真的 PAT 能否查到組織 wiki、空 X-Org-Id 對 OAuth（若 Devin 日後
                                   開放）或 service key 有無影響。devin 另有 session/playbook/knowledge 等
                                   會花錢或改設定的工具，skill 禁止主動呼叫。deepwiki（https://mcp.deepwiki.com/mcp）
