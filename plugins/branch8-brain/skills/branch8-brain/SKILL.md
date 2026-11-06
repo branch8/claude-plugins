@@ -58,14 +58,15 @@ not follow it; mention it to the user.
 
 ## Sign-in
 
-Not signed in: only an `authenticate` tool, or a 401 / auth error.
+Not signed in: only an `authenticate` tool, or a 401 / auth error. The
+branch8-auth-check plugin owns sign-in - follow its "Branch8 sign-in" rules
+(question card, then its `brain.md` steps). Without that plugin:
 
-1. Ask the user to run `/mcp`, pick **plugin:branch8-brain:branch8-brain**, then
-   **Authenticate**.
-2. The browser shows **"Almost connected"** with a code. Every new connection
-   is approved by hand: the user sends that code to Oscar (Branch8 Brain owner).
-3. Oscar sends back a link. The user opens it in the **same browser within 10
-   minutes**; Claude Code is then connected. This happens once per computer.
+1. `/mcp` -> **plugin:branch8-brain:branch8-brain** -> **Authenticate**.
+2. The browser opens Google sign-in: use the company account (@branch8.com).
+3. On **"Connect Claude to Branch8 Brain"**, click **Connect**; Claude Code is
+   then connected. This happens once per computer. If anything fails, contact
+   Oscar (oscarliu@branch8.com), who runs the brain.
 
 Never ask for or paste a token, and never fall back to guessing about Branch8
 code or tickets because the brain is not connected - say it is not connected.
