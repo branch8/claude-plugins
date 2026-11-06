@@ -35,6 +35,39 @@ ba_settings_env() {
 # config dir per account) shares the answers.
 BA_STATE_DIR="$HOME/.claude/branch8-auth"
 BA_NO_ACCOUNT_DIR="$BA_STATE_DIR/no-account"
+
+# The .claude.json holding this account's user- and local-scope MCP servers.
+ba_claude_json() {
+  if [ -n "$CLAUDE_CONFIG_DIR" ]; then
+    printf '%s' "$CLAUDE_CONFIG_DIR/.claude.json"
+  else
+    printf '%s' "$HOME/.claude.json"
+  fi
+}
+
+# MCP servers someone added by hand (`claude mcp add`, a vendor's install
+# snippet) with the same URL as branch8-deepwiki's. Claude Code then keeps the
+# hand-added one and hides the plugin's - even with a trailing-slash variant
+# (2026-11-06 test) - so an unauthenticated hand-added `devin` blocks the
+# company wiki. Plugin servers are never written to these files, so any hit is
+# hand-added. Prints "<service>=<file>" per hit; nothing when clean or when
+# the user chose to keep theirs (`branch8-auth keep-duplicate`).
+BA_KEEP_DUP="$BA_STATE_DIR/keep-duplicate-mcp"
+ba_mcp_duplicates() {
+  [ -f "$BA_KEEP_DUP" ] && return 0
+  local f top files
+  files="$(ba_claude_json)"
+  [ -f "$PWD/.mcp.json" ] && files="$files
+$PWD/.mcp.json"
+  top=$(git rev-parse --show-toplevel 2>/dev/null) || top=""
+  [ -n "$top" ] && [ "$top" != "$PWD" ] && [ -f "$top/.mcp.json" ] && files="$files
+$top/.mcp.json"
+  printf '%s\n' "$files" | while IFS= read -r f; do
+    [ -f "$f" ] || continue
+    grep -q 'mcp\.devin\.ai' "$f" 2>/dev/null && echo "devin=$(ba_native "$f")"
+    grep -q 'mcp\.deepwiki\.com' "$f" 2>/dev/null && echo "deepwiki=$(ba_native "$f")"
+  done
+}
 BA_SESSION_DIR="$BA_STATE_DIR/sessions"
 
 # Path shown to Claude: native on Git Bash for Windows, unchanged elsewhere.

@@ -60,6 +60,10 @@ case "$devin_state" in
   *) devin_fact="unknown (offline or timed out) - judge by the tools" ;;
 esac
 no_account=$(ba_no_account_list)
+dups=$(ba_mcp_duplicates | tr '\n' ' ')
+dup_line=""
+[ -n "$dups" ] && dup_line="
+**Hand-added Devin/DeepWiki MCP found** (${dups% }): it hides branch8-deepwiki's server of the same URL. On the first turn, after the status line, follow \`$docs/duplicate-mcp.md\` (show Devin as ⚠️ until fixed)."
 
 context="# Branch8 sign-in (branch8-auth-check)
 
@@ -70,7 +74,7 @@ Helper: \`bash \"$helper\" no-account <service>|clear [service]|status|config|ch
 
 **First turn**: show ONE status line, no card (the first message carries the format; full rules in \`$docs/status.md\`). A server whose only tool is \`authenticate\` = not signed in. Exception: Jira is asked about right away when branch8-jira-check is in this session and this folder is company work - unless its record says no Jira for this folder, or personal.
 
-**When a task needs a service that is not signed in** (or a call fails with 401 / auth error): ask with a question card, each time it is needed until the user picks \"stop asking this session\" - options and handling in \`$docs/card.md\`, sign-in steps in \`$docs/<service>.md\`. Skip services listed under no account. Never ask for, accept or echo a token or key in the chat - except the Devin token, which the user pastes and you write to settings.json (devin.md); never echo it either. Never block the user's request on any of this."
+**When a task needs a service that is not signed in** (or a call fails with 401 / auth error): ask with a question card, each time it is needed until the user picks \"stop asking this session\" - options and handling in \`$docs/card.md\`, sign-in steps in \`$docs/<service>.md\`. Skip services listed under no account. Never ask for, accept or echo a token or key in the chat - except the Devin token, which the user pastes and you write to settings.json (devin.md); never echo it either. Never block the user's request on any of this.$dup_line"
 
 # Arm the first-prompt check, except when compaction resumes a session that
 # already had its first turn.

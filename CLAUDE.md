@@ -289,7 +289,15 @@ plugins/branch8-deepwiki/         兩個 http MCP ＋ skills/deepwiki。devin（
                                   ba_devin_check 在開場（有 token 才跑，與 gh 檢查並行，約 2 秒）與
                                   `branch8-auth check devin` 用同樣的 headers 實打一次，REJECTED 時狀態列顯示 ⚠️；
                                   token 走 curl -K - 的 stdin，不出現在命令列；settings.json 的
-                                  env 能滿足展開。未驗：真的 PAT 能否查到組織 wiki、空 X-Org-Id 對 OAuth（若 Devin 日後
+                                  env 能滿足展開。
+                                  **手動加的同網址 MCP 會把 plugin 的整個藏掉**（2026-11-06 實測，網址加結尾斜線也一樣）：
+                                  同事照 Devin／DeepWiki 官網 `claude mcp add` 過的 devin 沒帶 token、OAuth 又被擋，公司 wiki
+                                  就消失。多數人不知道自己裝了兩套、也不會乖乖分資料夾，所以 auth-check 0.2.2 開場只讀檔
+                                  （.claude.json、專案 .mcp.json；plugin 的 server 從不寫進這些檔，命中即手動加的）就旗標，
+                                  由 Claude 依 docs/duplicate-mcp.md 跳卡：預設「搬到個人帳號的設定資料夾」（~/.claude-personal
+                                  ＋ `claude-me` alias；ccs 使用者改搬到他的個人 instance）而不是刪——用 add-json 搬、
+                                  確認後才 remove，token header 一起帶走。專案 scope 的 .mcp.json 是 repo 共用的，只告知不改。
+                                  未驗：claude.ai 連接器同名時會不會也藏掉 plugin 的。未驗：真的 PAT 能否查到組織 wiki、空 X-Org-Id 對 OAuth（若 Devin 日後
                                   開放）或 service key 有無影響。devin 另有 session/playbook/knowledge 等
                                   會花錢或改設定的工具，skill 禁止主動呼叫。deepwiki（https://mcp.deepwiki.com/mcp）
                                   免認證、只看公開 repo，給沒 Devin 帳號的人也能查開源專案。
