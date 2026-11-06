@@ -13,6 +13,9 @@ Jira case below). Do not narrate the check.
 | devin | the "Devin token check" fact is ok; if it is unknown, ToolSearch "devin" finds wiki tools (`ask_question` / `ask_wiki_question`, `read_wiki_structure`, ...) | only an `authenticate` tool; the check says REJECTED -> ⚠️ Devin DeepWiki（token 或組織 ID 有誤）even when the tools are there (a bad token still lists them) |
 | github | the "gh" fact says signed in | the fact says NOT signed in / NOT installed |
 
+A "Hand-added Devin/DeepWiki MCP found" line in the facts overrides devin:
+⚠️ Devin DeepWiki（被另外裝的 devin 擋住）until `duplicate-mcp.md` is done.
+
 Gemini is never in the status line.
 
 ## Format

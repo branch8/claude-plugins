@@ -7,6 +7,9 @@
 #   service <name>        normalise a service name typed after /auth-check
 #   server <service>      the MCP server of jira/devin to sign in to
 #   check devin           test the Devin token now (env, else settings.json)
+#   duplicates            hand-added Devin/DeepWiki MCP that hide branch8-deepwiki's
+#   keep-duplicate        the user keeps theirs: stop flagging it
+#   personal-dir          config dir for a personal account (moved MCP goes there)
 #   login <service> [srv] sign in to that MCP server through `claude mcp login`
 
 . "$(cd "$(dirname "$0")/.." && pwd)/hooks/lib.sh"
@@ -26,8 +29,10 @@ case "$1" in
     if [ -n "$2" ]; then
       known "$2"
       rm -f "$BA_NO_ACCOUNT_DIR/$2"
+      [ "$2" = devin ] && rm -f "$BA_KEEP_DUP"
     else
       rm -rf "$BA_NO_ACCOUNT_DIR"
+      rm -f "$BA_KEEP_DUP"
     fi
     echo "cleared${2:+ $2}"
     ;;
@@ -73,6 +78,17 @@ case "$1" in
       *) echo "could not reach Devin (offline or timed out)" >&2; exit 5 ;;
     esac
     ;;
+  duplicates)
+    out=$(ba_mcp_duplicates)
+    if [ -n "$out" ]; then printf '%s\n' "$out"; else echo "none"; fi
+    ;;
+  keep-duplicate)
+    mkdir -p "$BA_STATE_DIR" && date '+%F' > "$BA_KEEP_DUP" && echo "recorded: keep hand-added Devin/DeepWiki MCP (stop asking)"
+    ;;
+  personal-dir)
+    # Where a moved personal MCP goes: the config dir for a personal account.
+    echo "${BRANCH8_PERSONAL_CONFIG_DIR:-$HOME/.claude-personal}"
+    ;;
   login)
     server="$3"
     if [ -z "$server" ]; then
@@ -101,7 +117,7 @@ case "$1" in
     exit "$rc"
     ;;
   *)
-    echo "usage: branch8-auth no-account <service>|clear [service]|status|config|service <name>|server <service>|check devin|login <service> [server]" >&2
+    echo "usage: branch8-auth no-account <service>|clear [service]|status|config|service <name>|server <service>|check devin|duplicates|keep-duplicate|personal-dir|login <service> [server]" >&2
     exit 2
     ;;
 esac

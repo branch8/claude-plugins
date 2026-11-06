@@ -67,6 +67,26 @@ out=$(DEVIN_API_KEY= CLAUDE_CONFIG_DIR="$tmp/cfg" bash "$helper" check devin 2>/
 check "check devin reads a token just written to settings.json" '[ "$rc" = 5 ] && [ "$out" = "devin: unknown" ]'
 check "config shows the settings.json path" '[[ $(CLAUDE_CONFIG_DIR="$tmp/cfg" bash "$helper" config) == *"settings_file=$tmp/cfg/settings.json"* ]]'
 
+# Hand-added Devin/DeepWiki MCP that would hide branch8-deepwiki's.
+check "no duplicate MCP when clean" '[ "$(cd "$tmp/plain" && CLAUDE_CONFIG_DIR="$tmp/cfg" bash "$helper" duplicates)" = none ]'
+out=$(cd "$tmp/repo" && CLAUDE_CONFIG_DIR="$tmp/cfg" start d4)
+check "clean: no duplicate line in context" '[[ $(printf "%s" "$out" | ctx) != *"Hand-added"* ]]'
+printf '{"mcpServers":{"devin":{"type":"http","url":"https://mcp.devin.ai/mcp"}}}\n' >"$tmp/cfg/.claude.json"
+check "user-scope devin duplicate found" '[ "$(cd "$tmp/plain" && CLAUDE_CONFIG_DIR="$tmp/cfg" bash "$helper" duplicates)" = "devin=$tmp/cfg/.claude.json" ]'
+out=$(cd "$tmp/repo" && CLAUDE_CONFIG_DIR="$tmp/cfg" start d5)
+check "duplicate is flagged in context" '[[ $(printf "%s" "$out" | ctx) == *"Hand-added Devin/DeepWiki MCP found** (devin="*"duplicate-mcp.md"* ]]'
+size=$(printf '%s' "$out" | ctx | wc -c)
+check "context with duplicate stays under 3 KB ($size bytes)" '[ "$size" -lt 3072 ]'
+bash "$helper" keep-duplicate >/dev/null
+check "keep-duplicate stops flagging" '[ "$(cd "$tmp/plain" && CLAUDE_CONFIG_DIR="$tmp/cfg" bash "$helper" duplicates)" = none ]'
+bash "$helper" clear devin >/dev/null
+check "clear devin flags it again" '[[ $(cd "$tmp/plain" && CLAUDE_CONFIG_DIR="$tmp/cfg" bash "$helper" duplicates) == devin=* ]]'
+rm -f "$tmp/cfg/.claude.json"
+printf '{"mcpServers":{"deepwiki":{"type":"http","url":"https://mcp.deepwiki.com/mcp"}}}\n' >"$tmp/repo/.mcp.json"
+check "project .mcp.json deepwiki duplicate found" '[ "$(cd "$tmp/repo" && CLAUDE_CONFIG_DIR="$tmp/cfg" bash "$helper" duplicates)" = "deepwiki=$tmp/repo/.mcp.json" ]'
+rm -f "$tmp/repo/.mcp.json"
+check "personal-dir defaults under HOME" '[ "$(bash "$helper" personal-dir)" = "$HOME/.claude-personal" ]'
+
 out=$(prompt s3)
 check "first prompt asks for the status line" '[[ $(printf "%s" "$out" | ctx) == *"status.md"* ]]'
 # jira-check only maps a folder once Jira is connected, so an unmapped company
