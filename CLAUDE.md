@@ -276,10 +276,17 @@ plugins/branch8-auth-check/       所有登入集中一處（2026-10-27）：jir
                                   沒裝這個 server」都丟同一個 "no connected MCP tool"（2026-10-28 實測），分不出原因，所以只能
                                   用「呼叫登入後才有的 wiki 工具不被擋」證明已登入；未裝 deepwiki 的人 Devin 也會顯示未登入
 plugins/branch8-deepwiki/         兩個 http MCP ＋ skills/deepwiki。devin（https://mcp.devin.ai/mcp）查組織 repo，
-                                  用 OAuth、每人第一次 /mcp 登入——刻意不用 API key：repo 是 public 不能放 key，
-                                  共用 service key 又等於讓全公司都能開 Devin session（花錢）。2026-10-27 實測：
-                                  401 + protected-resource metadata → api.devin.ai，authorization code + PKCE，
-                                  無 DCR、改用 client_id_metadata_document。devin 另有 session/playbook/knowledge 等
+                                  用「每人自己的 personal access token」：.mcp.json 的 headers 讀
+                                  `Bearer ${DEVIN_API_KEY:-}` 與 `X-Org-Id: ${DEVIN_ORG_ID:-}`（PAT 一定要帶 org id），
+                                  值由各人放在自己 settings.json 的 env（2026-11-06 改，0.2.0）。原本走 OAuth，但 Devin
+                                  的授權頁對所有帳號（含 Branch8 Teams）回「Claude Code isn't available yet ... use a
+                                  personal access token instead」，OAuth 整條不通。仍然不放 key 進 repo（public）、
+                                  不發共用 service key（等於全公司都能開花錢的 Devin session）。實測（2026-11-06）：
+                                  `${VAR}` 沒設會出「Missing environment variables」警告，所以用 `:-` 給空預設；
+                                  空 Bearer → 401 + WWW-Authenticate，Claude Code 照舊顯示 Needs authentication；
+                                  亂填的 token 在 initialize 回 200（連線看起來正常，呼叫工具才失敗）；settings.json 的
+                                  env 能滿足展開。未驗：真的 PAT 能否查到組織 wiki、空 X-Org-Id 對 OAuth（若 Devin 日後
+                                  開放）或 service key 有無影響。devin 另有 session/playbook/knowledge 等
                                   會花錢或改設定的工具，skill 禁止主動呼叫。deepwiki（https://mcp.deepwiki.com/mcp）
                                   免認證、只看公開 repo，給沒 Devin 帳號的人也能查開源專案。
                                   目標是「專案知識來源」：AI 工作中也要主動查，不只使用者問才查。skill 只在請求吻合

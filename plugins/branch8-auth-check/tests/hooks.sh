@@ -25,7 +25,7 @@ echo "  ✓ Logged in to github.com account octo (keyring)"
 SH
 chmod +x "$tmp/bin/gh"
 export PATH="$tmp/bin:$PATH"
-unset GITHUB_PERSONAL_ACCESS_TOKEN GEMINI_API_KEY BRANCH8_AUTH_CHECK
+unset GITHUB_PERSONAL_ACCESS_TOKEN GEMINI_API_KEY DEVIN_API_KEY DEVIN_ORG_ID BRANCH8_AUTH_CHECK
 
 start() { printf '{"session_id":"%s","source":"%s"}' "$1" "${2:-startup}" | bash "$hook"; }
 prompt() { printf '{"session_id":"%s","prompt":"hi"}' "$1" | bash "$first"; }
@@ -45,6 +45,12 @@ check "non-git folder: GitHub not checked" '[[ $(printf "%s" "$out" | ctx) == *"
 out=$(cd "$tmp/repo" && GEMINI_API_KEY=x GITHUB_PERSONAL_ACCESS_TOKEN=y start s4)
 c=$(printf '%s' "$out" | ctx)
 check "env presence reported, values never" '[[ $c == *"PAT: set"* && $c == *"GEMINI_API_KEY: set"* && $c != *"=x"* ]]'
+
+out=$(cd "$tmp/repo" && DEVIN_API_KEY=cog_secret123 DEVIN_ORG_ID=org-777 start d1)
+c=$(printf '%s' "$out" | ctx)
+check "devin token presence reported, values never" '[[ $c == *"DEVIN_API_KEY: set"* && $c == *"DEVIN_ORG_ID: set"* && $c != *"cog_secret123"* && $c != *"org-777"* ]]'
+out=$(cd "$tmp/repo" && start d2)
+check "devin token not set is reported" '[[ $(printf "%s" "$out" | ctx) == *"DEVIN_API_KEY: not set · DEVIN_ORG_ID: not set"* ]]'
 
 out=$(prompt s3)
 check "first prompt asks for the status line" '[[ $(printf "%s" "$out" | ctx) == *"status.md"* ]]'
