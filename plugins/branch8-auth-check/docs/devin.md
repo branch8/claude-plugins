@@ -25,7 +25,8 @@ set-up is one paste. It is the only token you accept this way.
 3. Write both into the `env` block of `settings_file` (create the block or the
    file if missing; keep everything else; replace old values):
    `"DEVIN_API_KEY": "<token>"`, `"DEVIN_ORG_ID": "<org id>"`. Never repeat the
-   token back in your reply, and do not show the edited lines.
+   token back in your reply, and do not show the edited lines. If the file is
+   a symbolic link (ccs links each account's settings.json), edit its target.
 4. Run `bash "<helper>" check devin` (it reads the file when this session does
    not have the variables yet):
    - `ok` -> 「✅ Devin 已設定好，開新 session 後就能查公司 repo 的 wiki」
