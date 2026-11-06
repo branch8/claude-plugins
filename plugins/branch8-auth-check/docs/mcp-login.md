@@ -2,7 +2,7 @@
 
 # `branch8-auth login <service>`
 
-For jira and devin. It runs `claude mcp login` on the server of that service
+For jira. (Not devin: Devin refuses OAuth from Claude Code - `devin.md`.) It runs `claude mcp login` on the server of that service
 (official plugin first, then a claude.ai connector) under a pseudo-terminal,
 and opens the sign-in page itself on WSL, where Claude Code cannot.
 

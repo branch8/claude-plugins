@@ -13,7 +13,7 @@ beats guessing from memory, and say when an answer came from it.
 
 | Server | Covers | Auth |
 |---|---|---|
-| `devin` | **Organisation (private) repos** indexed in our Devin org, plus public repos | OAuth, once per person (Devin account) |
+| `devin` | **Organisation (private) repos** indexed in our Devin org, plus public repos | Personal access token per person (`DEVIN_API_KEY` + `DEVIN_ORG_ID` in their settings) |
 | `deepwiki` | Public GitHub repos only | None |
 
 - Organisation repo (e.g. `branch8/...`, or any repo the user calls ours / internal)
@@ -25,9 +25,13 @@ beats guessing from memory, and say when an answer came from it.
 
 **`devin` not signed in** (only an `authenticate` tool, or an auth / 401 error):
 the branch8-auth-check plugin owns sign-in - follow its "Branch8 sign-in" rules
-(question card, then its `devin.md` steps). Without that plugin: `/mcp` ->
-**devin** -> **Authenticate**. Do not fall back to guessing about a private repo,
-and never ask for or paste an API key.
+(question card, then its `devin.md` steps). Devin does not allow OAuth sign-in
+from Claude Code ("Claude Code isn't available yet"), so the `authenticate` tool
+is a dead end: the fix is a personal access token in `DEVIN_API_KEY` and the org
+id in `DEVIN_ORG_ID` (the `env` block of their settings.json), then a new
+session - the user pastes the token and branch8-auth-check's `devin.md` writes
+it. Do not fall back to guessing about a private repo, and never paste any
+other key or token into a question or reply.
 
 ## Which repo? Find it before asking
 
