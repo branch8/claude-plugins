@@ -15,6 +15,21 @@ ba_cfg() {
 }
 : "${BRANCH8_AUTH_ADMIN:=$(ba_cfg BRANCH8_AUTH_ADMIN)}"
 : "${BRANCH8_GITHUB_ORG:=$(ba_cfg BRANCH8_GITHUB_ORG)}"
+: "${BRANCH8_DEVIN_ORG_ID:=$(ba_cfg BRANCH8_DEVIN_ORG_ID)}"
+
+# The settings.json Claude Code reads for this account (follows
+# CLAUDE_CONFIG_DIR, which ccs and similar tools set per account).
+ba_settings_file() {
+  ba_native "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/settings.json"
+}
+
+# A string value of "<KEY>": "..." in that settings.json (the env block's keys
+# are unique enough to grep; no jq on Git Bash). Empty when absent.
+ba_settings_env() {
+  local f="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/settings.json"
+  [ -f "$f" ] || return 0
+  sed -n "s/.*\"$1\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" "$f" | head -1
+}
 
 # Under $HOME, not the Claude config dir, so every account (ccs keeps one
 # config dir per account) shares the answers.
@@ -147,7 +162,7 @@ ba_in_pty() {
 ba_devin_post() { # <dir> <max seconds> <json body> [session id]
   {
     printf 'header = "Authorization: Bearer %s"\n' "$DEVIN_API_KEY"
-    printf 'header = "X-Org-Id: %s"\n' "$DEVIN_ORG_ID"
+    printf 'header = "X-Org-Id: %s"\n' "${DEVIN_ORG_ID:-$BRANCH8_DEVIN_ORG_ID}"
     [ -n "$4" ] && printf 'header = "Mcp-Session-Id: %s"\n' "$4"
   } | curl -s -m "$2" -K - -X POST "${BA_DEVIN_URL:-https://mcp.devin.ai/mcp}" \
     -D "$1/h" -o "$1/b" -w '%{http_code}' \

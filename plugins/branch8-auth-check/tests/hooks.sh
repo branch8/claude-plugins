@@ -14,6 +14,7 @@ ctx() { python3 -c 'import json,sys; print(json.load(sys.stdin)["hookSpecificOut
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 export HOME="$tmp/home"   # keep markers and answers out of the real home
+unset CLAUDE_CONFIG_DIR   # and the real settings.json (ccs sets this)
 mkdir -p "$HOME" "$tmp/bin" "$tmp/plain"
 git init -q "$tmp/repo"
 
@@ -60,6 +61,11 @@ DEVIN_API_KEY= bash "$helper" check devin >/dev/null 2>&1; rc=$?
 check "check devin without token exits 3" '[ "$rc" = 3 ]'
 out=$(DEVIN_API_KEY=x bash "$helper" check devin 2>/dev/null); rc=$?
 check "check devin offline exits 5" '[ "$rc" = 5 ] && [ "$out" = "devin: unknown" ]'
+mkdir -p "$tmp/cfg"
+printf '{\n  "env": {\n    "DEVIN_API_KEY": "cog_fromfile",\n    "DEVIN_ORG_ID": "org-1"\n  }\n}\n' >"$tmp/cfg/settings.json"
+out=$(DEVIN_API_KEY= CLAUDE_CONFIG_DIR="$tmp/cfg" bash "$helper" check devin 2>/dev/null); rc=$?
+check "check devin reads a token just written to settings.json" '[ "$rc" = 5 ] && [ "$out" = "devin: unknown" ]'
+check "config shows the settings.json path" '[[ $(CLAUDE_CONFIG_DIR="$tmp/cfg" bash "$helper" config) == *"settings_file=$tmp/cfg/settings.json"* ]]'
 
 out=$(prompt s3)
 check "first prompt asks for the status line" '[[ $(printf "%s" "$out" | ctx) == *"status.md"* ]]'

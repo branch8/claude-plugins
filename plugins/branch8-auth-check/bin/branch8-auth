@@ -3,10 +3,10 @@
 #   no-account <service>  remember the user has no account (stop showing/asking)
 #   clear [service]       forget that answer (all services when none is given)
 #   status                print recorded answers and the gh CLI state
-#   config                print the admin contact and GitHub organisation
+#   config                print admin, GitHub org, Devin org id, settings.json path
 #   service <name>        normalise a service name typed after /auth-check
 #   server <service>      the MCP server of jira/devin to sign in to
-#   check devin           test the Devin token (DEVIN_API_KEY/DEVIN_ORG_ID) now
+#   check devin           test the Devin token now (env, else settings.json)
 #   login <service> [srv] sign in to that MCP server through `claude mcp login`
 
 . "$(cd "$(dirname "$0")/.." && pwd)/hooks/lib.sh"
@@ -39,6 +39,8 @@ case "$1" in
   config)
     echo "admin=${BRANCH8_AUTH_ADMIN:-your Branch8 admin}"
     echo "github_org=${BRANCH8_GITHUB_ORG:-branch8}"
+    echo "devin_org_id=${BRANCH8_DEVIN_ORG_ID:-(not set - ask the admin, or Devin > Settings > Devin API)}"
+    echo "settings_file=$(ba_settings_file)"
     ;;
   service)
     ba_service_of "$2" || { echo "unknown service '$2' (one of: $BA_SERVICES)" >&2; exit 2; }
@@ -55,6 +57,13 @@ case "$1" in
     ;;
   check)
     [ "$2" = devin ] || { echo "usage: branch8-auth check devin" >&2; exit 2; }
+    # A token just written to settings.json is not in this session's
+    # environment yet (read at start-up): fall back to the file.
+    if [ -z "$DEVIN_API_KEY" ]; then
+      DEVIN_API_KEY=$(ba_settings_env DEVIN_API_KEY)
+      [ -z "$DEVIN_ORG_ID" ] && DEVIN_ORG_ID=$(ba_settings_env DEVIN_ORG_ID)
+      export DEVIN_API_KEY DEVIN_ORG_ID
+    fi
     state=$(ba_devin_check)
     echo "devin: $state"
     case "$state" in

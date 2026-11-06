@@ -28,9 +28,10 @@ the branch8-auth-check plugin owns sign-in - follow its "Branch8 sign-in" rules
 (question card, then its `devin.md` steps). Devin does not allow OAuth sign-in
 from Claude Code ("Claude Code isn't available yet"), so the `authenticate` tool
 is a dead end: the fix is a personal access token in `DEVIN_API_KEY` and the org
-id in `DEVIN_ORG_ID` (the `env` block of `~/.claude/settings.json`), then a new
-session. Do not fall back to guessing about a private repo, and never ask for or
-paste an API key.
+id in `DEVIN_ORG_ID` (the `env` block of their settings.json), then a new
+session - the user pastes the token and branch8-auth-check's `devin.md` writes
+it. Do not fall back to guessing about a private repo, and never paste any
+other key or token into a question or reply.
 
 ## Which repo? Find it before asking
 
